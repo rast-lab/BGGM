@@ -14,27 +14,43 @@ arma::mat mean_array(arma::cube x){
   return mean(x, 2);
 }
 
-arma::mat stabilize_pd(const arma::mat& x, double min_eigen = 1e-8) {
-  arma::mat sym_x = 0.5 * (x + x.t());
+arma::mat ensure_spd(const arma::mat& x,
+                     double jitter = 1e-8,
+                     int max_attempts = 7) {
+  arma::mat sym_x = arma::symmatu(x);
+  sym_x.replace(arma::datum::nan, 0.0);
+  double eps = jitter;
+
+  for (int attempt = 0; attempt < max_attempts; ++attempt) {
+    arma::mat chol;
+    if (arma::chol(chol, sym_x)) {
+      return sym_x;
+    }
+    sym_x.diag() += eps;
+    eps *= 10.0;
+  }
+
   arma::vec eigval;
   arma::mat eigvec;
   arma::eig_sym(eigval, eigvec, sym_x);
   for (arma::uword i = 0; i < eigval.n_elem; ++i) {
-    if (eigval(i) < min_eigen) {
-      eigval(i) = min_eigen;
+    if (!arma::is_finite(eigval(i)) || eigval(i) < jitter) {
+      eigval(i) = jitter;
     }
   }
-  return eigvec * arma::diagmat(eigval) * eigvec.t();
+
+  arma::mat stabilized = eigvec * arma::diagmat(eigval) * eigvec.t();
+  return arma::symmatu(stabilized);
 }
 
-arma::mat safe_inv_sympd(const arma::mat& x, double min_eigen = 1e-8) {
-  arma::mat stabilized = stabilize_pd(x, min_eigen);
+arma::mat safe_inv_sympd(const arma::mat& x, double jitter = 1e-8) {
+  arma::mat stabilized = ensure_spd(x, jitter);
   arma::mat out;
-  bool ok = arma::inv_sympd(out, stabilized);
-  if(!ok){
+  if (!arma::inv_sympd(out, stabilized)) {
     out = arma::inv(stabilized);
   }
-  return out;
+  out = arma::symmatu(out);
+  return ensure_spd(out, jitter);
 }
 
 // R quantile type = 1
