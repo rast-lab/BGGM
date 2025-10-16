@@ -24,13 +24,26 @@ test_that("estimate returns an object of correct class", {
 
 test_that("estimate handles different types correctly", {
   Y <- matrix(rnorm(100), ncol=5)
-  
+
   result_cont <- estimate(Y, type = "continuous", iter = 10)
   expect_true("estimate" %in% class(result_cont))
-  
+
   result_bin <- estimate(Y > 0, type = "binary", iter = 10)
   expect_true("estimate" %in% class(result_bin))
-  
+
+  set.seed(123)
+  ordinal_y <- matrix(sample(1:3, 100, replace = TRUE), ncol = 5)
+  result_ord <- estimate(ordinal_y, type = "ordinal", iter = 10, progress = FALSE)
+  expect_true("estimate" %in% class(result_ord))
+
+  mixed_y <- cbind(
+    rnorm(20),
+    rbinom(20, size = 1, prob = 0.5),
+    sample(1:3, 20, replace = TRUE)
+  )
+  result_mix <- estimate(mixed_y, type = "mixed", iter = 10, progress = FALSE)
+  expect_true("estimate" %in% class(result_mix))
+
   # Expect error for unsupported types
   expect_error(estimate(Y, type = "unsupported", iter = 10))
 })
