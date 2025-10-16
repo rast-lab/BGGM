@@ -141,6 +141,12 @@ Notice the `+ 1`. This is required, because the first category must be
 `1` when `type = "ordinal"`. The partial correlations can the be
 summarized with
 
+BGGM now stabilizes the latent Gaussian precision matrix by adding only
+the minimal diagonal shift needed to make the Wishart scale positive
+definite. This preserves the dependence structure of the ordinal network
+even when the latent scatter matrix is nearly singular, preventing the
+posterior partial correlations from collapsing toward zero.
+
     summary(fit)
 
     #> BGGM: Bayesian Gaussian Graphical Models 
@@ -173,8 +179,24 @@ summarized with
 The returned object can also be plotted, which allows for visualizing
 the posterior uncertainty interval for each relation. An example is
 provided below in [Posterior uncertainty
-intervals](#posterior-uncertatiny). The partial correlation matrix is
-accessed with
+intervals](#posterior-uncertatiny).
+
+### Simulated Ordinal Example
+
+If you would like to experiment with the ordinal sampler, the repository
+ships with an `Rscript` helper that generates ordinal data from a latent
+Gaussian model. You can run it directly from the command line (after
+cloning the repo) with
+
+``` sh
+Rscript inst/scripts/simulate_ordinal_data.R --n=400 --p=5 --rho=0.4 \
+        --thresholds=-1,0,1 --seed=1992 --output=ordinal_example.csv
+```
+
+The script prints the simulated data to the console when `--output` is
+omitted, so you can also run it inside an interactive `R` session via
+`source()` to obtain the helper function `simulate_ordinal_data()` for
+further customisation. The partial correlation matrix is accessed with
 
     pcor_mat(fit)
 
