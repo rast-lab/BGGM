@@ -1814,6 +1814,12 @@ Rcpp::List  copula(arma::mat z0_start,
       Rcpp::checkUserInterrupt();
     }
 
+    for(int var = 0; var < k; ++var){
+      if(idx(var) == 1){
+        thresh.slice(var).row(s) = thresh.slice(var).row(s - 1);
+      }
+    }
+
     if(s > 1){
       for(int var = 0; var < k; ++var){
         if(idx(var) != 1){
@@ -1864,6 +1870,11 @@ Rcpp::List  copula(arma::mat z0_start,
         Sigma_i_not_i(Sigma.slice(0), i).t();
 
       if(idx(i) == 1){
+        int row_index = s;
+        for(int j = 0; j < n; ++j){
+          int cat = static_cast<int>(levels.col(i)[j]);
+          if(cat == 0){
+            continue;
         if(s == 1){
           for(int j = 0; j < n; ++j){
             int cat = static_cast<int>(levels.col(i)[j]);
@@ -1890,6 +1901,12 @@ Rcpp::List  copula(arma::mat z0_start,
               R::pnorm(upper, mm(j), sqrt(ss(0)), TRUE, FALSE)),
               mm(j), sqrt(ss(0)), TRUE, FALSE);
           }
+          double lower = thresh.slice(i)(row_index, cat - 1);
+          double upper = thresh.slice(i)(row_index, cat);
+          z0.slice(0).row(j).col(i) = R::qnorm(R::runif(
+            R::pnorm(lower, mm(j), sqrt(ss(0)), TRUE, FALSE),
+            R::pnorm(upper, mm(j), sqrt(ss(0)), TRUE, FALSE)),
+            mm(j), sqrt(ss(0)), TRUE, FALSE);
         }
       }
     }
@@ -2973,6 +2990,14 @@ Rcpp::List missing_copula(arma::mat Y,
 
     if(s > 0){
       for(int var = 0; var < p; ++var){
+        if(idx(var) == 1){
+          thresh.slice(var).row(s) = thresh.slice(var).row(s - 1);
+        }
+      }
+    }
+
+    if(s > 0){
+      for(int var = 0; var < p; ++var){
         if(idx(var) != 1){
           continue;
         }
@@ -3180,6 +3205,14 @@ Rcpp::List missing_copula_data(arma::mat Y,
 
     if (s % 250 == 0){
       Rcpp::checkUserInterrupt();
+    }
+
+    if(s > 0){
+      for(int var = 0; var < p; ++var){
+        if(idx(var) == 1){
+          thresh.slice(var).row(s) = thresh.slice(var).row(s - 1);
+        }
+      }
     }
 
     if(s > 0){
