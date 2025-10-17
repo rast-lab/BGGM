@@ -1492,9 +1492,14 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
     thresh.slice(i).col(K).fill(arma::datum::inf);
   }
 
-  for(int i = 0; i < (K-2); ++i){
-    for(int j = 0; j < k; ++j){
-      thresh.slice(j).col(i+2).fill(i+1);
+  for(int level = 1; level < K; ++level){
+    for(int var = 0; var < k; ++var){
+      // Initialize all interior cutpoints with an increasing sequence so that
+      // every threshold (including the first finite one) has a sensible
+      // starting value. The previous implementation accidentally skipped the
+      // first interior column, leaving it at zero and preventing the Gibbs
+      // updates from ever moving that cutpoint.
+      thresh.slice(var).col(level).fill(level - 1);
     }
   }
 
@@ -1548,7 +1553,7 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
         // even when some categories are empty in the current iteration.
         for(int var = 0; var < k; ++var){
 
-          for(int j = 2; j < (K); ++j){
+          for(int j = 1; j < K; ++j){
 
             arma::uvec idx_current = find(Y.col(var) == j);
             arma::uvec idx_next = find(Y.col(var) == j + 1);
