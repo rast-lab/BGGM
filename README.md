@@ -141,6 +141,12 @@ Notice the `+ 1`. This is required, because the first category must be
 `1` when `type = "ordinal"`. The partial correlations can the be
 summarized with
 
+BGGM now stabilizes the latent Gaussian precision matrix by adding only
+the minimal diagonal shift needed to make the Wishart scale positive
+definite. This preserves the dependence structure of the ordinal network
+even when the latent scatter matrix is nearly singular, preventing the
+posterior partial correlations from collapsing toward zero.
+
     summary(fit)
 
     #> BGGM: Bayesian Gaussian Graphical Models 
