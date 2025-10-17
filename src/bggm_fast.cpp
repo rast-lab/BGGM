@@ -1776,11 +1776,35 @@ Rcpp::List  copula(arma::mat z0_start,
   // Sigma.slice(0) = Sigma_start;
   // arma::cube Sigma_mcmc(k, k, iter, arma::fill::zeros);
 
-  arma::vec lb(1);
-  arma::vec ub(1);
-
   arma::mat mm(n,1);
   arma::mat ss(1,1);
+
+  arma::ivec K_int = arma::conv_to<arma::ivec>::from(K);
+  int K_max = 0;
+  for(int var = 0; var < k; ++var){
+    if(idx(var) == 1){
+      int K_var = K_int(var);
+      if(K_var > K_max){
+        K_max = K_var;
+      }
+    }
+  }
+  if(K_max == 0){
+    K_max = 1;
+  }
+
+  arma::cube thresh(iter, K_max + 1, k, arma::fill::zeros);
+
+  for(int var = 0; var < k; ++var){
+    if(idx(var) == 1){
+      int K_var = K_int(var);
+      thresh.slice(var).col(0).fill(-arma::datum::inf);
+      thresh.slice(var).col(K_var).fill(arma::datum::inf);
+      for(int level = 1; level < K_var; ++level){
+        thresh.slice(var).col(level).fill(level - 1);
+      }
+    }
+  }
 
   for(int  s = 1; s < iter; ++s){
 
@@ -1788,6 +1812,50 @@ Rcpp::List  copula(arma::mat z0_start,
 
     if (s % 250 == 0){
       Rcpp::checkUserInterrupt();
+    }
+
+    for(int var = 0; var < k; ++var){
+      if(idx(var) == 1){
+        thresh.slice(var).row(s) = thresh.slice(var).row(s - 1);
+      }
+    }
+
+    if(s > 1){
+      for(int var = 0; var < k; ++var){
+        if(idx(var) != 1){
+          continue;
+        }
+
+        int K_var = K_int(var);
+        for(int level = 1; level < K_var; ++level){
+
+          arma::uvec idx_current = find(levels.col(var) == level);
+          arma::uvec idx_next = find(levels.col(var) == level + 1);
+
+          double lower = thresh.slice(var)(s - 1, level - 1);
+          if(idx_current.n_elem > 0){
+            double max_current = arma::max(select_col(z0.slice(0), var).elem(idx_current));
+            if(max_current > lower){
+              lower = max_current;
+            }
+          }
+
+          double upper = thresh.slice(var)(s - 1, level + 1);
+          if(idx_next.n_elem > 0){
+            double min_next = arma::min(select_col(z0.slice(0), var).elem(idx_next));
+            if(min_next < upper){
+              upper = min_next;
+            }
+          }
+
+          if(lower >= upper){
+            thresh.slice(var)(s, level) = lower;
+          } else {
+            arma::vec v = Rcpp::runif(1, lower, upper);
+            thresh.slice(var)(s, level) = arma::as_scalar(v);
+          }
+        }
+      }
     }
 
     for(int i = 0; i < k; ++i){
@@ -1801,54 +1869,36 @@ Rcpp::List  copula(arma::mat z0_start,
         inv(remove_row(remove_col(Sigma.slice(0), i), i)) *
         Sigma_i_not_i(Sigma.slice(0), i).t();
 
-      // sample latent data (0  = assumed continuous)
       if(idx(i) == 1){
-
-        for(int r = 1; r  < K[i]+1; ++r){
-
-          arma::uvec where = find(levels.col(i) == r );
-
-          arma::mat temp1 = arma::conv_to<arma::mat>::from(where);
-
-          int r_levels = temp1.n_elem;
-
-          arma::vec lb_check =  {select_col(z0.slice(0), i).elem(find(levels.col(i) == (r - 1)))};
-          arma::vec ub_check =  {select_col(z0.slice(0), i).elem(find(levels.col(i) == (r + 1)))};
-
-          // Equation X in X
-          if(lb_check.n_elem == 0){
-            lb.fill(-arma::datum::inf);
-          } else {
-            lb.fill(lb_check.max());
+        int row_index = s;
+        for(int j = 0; j < n; ++j){
+          int cat = static_cast<int>(levels.col(i)[j]);
+          if(cat == 0){
+            continue;
           }
-
-          if(ub_check.n_elem == 0){
-            ub.fill(arma::datum::inf);
-          } else {
-            ub.fill(ub_check.min());
-          }
-
-          for(int l = 0; l < r_levels; ++l){
-
-            z0.slice(0).col(i).row(temp1(l)) = R::qnorm(R::runif(
-              R::pnorm(arma::as_scalar(lb),  mm(temp1(l)), sqrt(ss(0)), TRUE, FALSE),
-              R::pnorm(arma::as_scalar(ub),  mm(temp1(l)), sqrt(ss(0)), TRUE, FALSE)),
-              mm(temp1(l)), sqrt(ss(0)), TRUE, FALSE);
-          }
+          double lower = thresh.slice(i)(row_index, cat - 1);
+          double upper = thresh.slice(i)(row_index, cat);
+          z0.slice(0).row(j).col(i) = R::qnorm(R::runif(
+            R::pnorm(lower, mm(j), sqrt(ss(0)), TRUE, FALSE),
+            R::pnorm(upper, mm(j), sqrt(ss(0)), TRUE, FALSE)),
+            mm(j), sqrt(ss(0)), TRUE, FALSE);
         }
       }
     }
 
-    // Center the latent Gaussian draws for the ordinal variables so each
-    // column has mean zero. This mirrors the ordinal-only sampler and
-    // prevents the thresholds implied by the ranked updates from drifting
-    // when the marginal distributions are highly skewed.
     arma::rowvec z_means = arma::mean(z0.slice(0), 0);
     for(int var = 0; var < k; ++var){
       if(idx(var) == 1){
         double shift = z_means(var);
+        z0.slice(0).col(var) -= shift;
         if(shift != 0.0){
-          z0.slice(0).col(var) -= shift;
+          int K_var = K_int(var);
+          for(int level = 1; level < K_var; ++level){
+            double current = thresh.slice(var)(s, level);
+            if(std::isfinite(current)){
+              thresh.slice(var)(s, level) = current - shift;
+            }
+          }
         }
       }
     }
@@ -1880,6 +1930,7 @@ Rcpp::List  copula(arma::mat z0_start,
   ret["pcors"] = pcors_mcmc;
   ret["pcor_mat"] = pcor_mat;
   ret["fisher_z"] = fisher_z;
+  ret["thresh"] = thresh;
   return ret;
 }
 
@@ -2866,15 +2917,39 @@ Rcpp::List missing_copula(arma::mat Y,
 
   arma::mat z(n,p);
 
-  arma::vec lb(1);
-  arma::vec ub(1);
-
   arma::cube Sigma(p, p, 1, arma::fill::zeros);
   arma::cube Theta(p, p, 1, arma::fill::zeros);
   Sigma.slice(0) = Sigma_start;
 
   arma::mat mm(n,1);
   arma::mat ss(1,1);
+
+  arma::ivec K_int = arma::conv_to<arma::ivec>::from(K);
+  int K_max = 0;
+  for(int var = 0; var < p; ++var){
+    if(idx(var) == 1){
+      int K_var = K_int(var);
+      if(K_var > K_max){
+        K_max = K_var;
+      }
+    }
+  }
+  if(K_max == 0){
+    K_max = 1;
+  }
+
+  arma::cube thresh(iter_missing, K_max + 1, p, arma::fill::zeros);
+
+  for(int var = 0; var < p; ++var){
+    if(idx(var) == 1){
+      int K_var = K_int(var);
+      thresh.slice(var).col(0).fill(-arma::datum::inf);
+      thresh.slice(var).col(K_var).fill(arma::datum::inf);
+      for(int level = 1; level < K_var; ++level){
+        thresh.slice(var).col(level).fill(level - 1);
+      }
+    }
+  }
 
   // partial correlations
   arma::mat pcors(p,p);
@@ -2886,6 +2961,52 @@ Rcpp::List missing_copula(arma::mat Y,
 
     if (s % 250 == 0){
       Rcpp::checkUserInterrupt();
+    }
+
+    if(s > 0){
+      for(int var = 0; var < p; ++var){
+        if(idx(var) == 1){
+          thresh.slice(var).row(s) = thresh.slice(var).row(s - 1);
+        }
+      }
+    }
+
+    if(s > 0){
+      for(int var = 0; var < p; ++var){
+        if(idx(var) != 1){
+          continue;
+        }
+
+        int K_var = K_int(var);
+        for(int level = 1; level < K_var; ++level){
+
+          arma::uvec idx_current = find(levels.col(var) == level);
+          arma::uvec idx_next = find(levels.col(var) == level + 1);
+
+          double lower = thresh.slice(var)(s - 1, level - 1);
+          if(idx_current.n_elem > 0){
+            double max_current = arma::max(select_col(z0.slice(0), var).elem(idx_current));
+            if(max_current > lower){
+              lower = max_current;
+            }
+          }
+
+          double upper = thresh.slice(var)(s - 1, level + 1);
+          if(idx_next.n_elem > 0){
+            double min_next = arma::min(select_col(z0.slice(0), var).elem(idx_next));
+            if(min_next < upper){
+              upper = min_next;
+            }
+          }
+
+          if(lower >= upper){
+            thresh.slice(var)(s, level) = lower;
+          } else {
+            arma::vec v = Rcpp::runif(1, lower, upper);
+            thresh.slice(var)(s, level) = arma::as_scalar(v);
+          }
+        }
+      }
     }
 
     for(int i = 0; i < p; ++i){
@@ -2901,43 +3022,20 @@ Rcpp::List missing_copula(arma::mat Y,
         inv(remove_row(remove_col(Sigma.slice(0), i), i)) *
         Sigma_i_not_i(Sigma.slice(0), i).t();
 
-      // sample latent data (0  = assumed continuous)
       if(idx(i) == 1){
-
-        for(int r = 1; r  < K[i]+1; ++r){
-
-          arma::uvec where = find(levels.col(i) == r);
-
-          arma::mat temp1 = arma::conv_to<arma::mat>::from(where);
-
-          int r_levels = temp1.n_elem;
-
-          arma::vec lb_check =  {select_col(z0.slice(0), i).elem(find(levels.col(i) == (r - 1)))};
-          arma::vec ub_check =  {select_col(z0.slice(0), i).elem(find(levels.col(i) == (r + 1)))};
-
-          // sample accoring to ranks
-          if(lb_check.n_elem == 0){
-            lb.fill(-arma::datum::inf);
-          } else {
-            lb.fill(lb_check.max());
+        int row_index = s;
+        for(int j = 0; j < n; ++j){
+          int cat = static_cast<int>(levels.col(i)[j]);
+          if(cat == 0){
+            continue;
           }
-
-          if(ub_check.n_elem == 0){
-            ub.fill(arma::datum::inf);
-          } else {
-            ub.fill(ub_check.min());
-          }
-
-          for(int l = 0; l < r_levels; ++l){
-
-            z0.slice(0).col(i).row(temp1(l)) = R::qnorm(R::runif(
-              R::pnorm(arma::as_scalar(lb),  mm(temp1(l)), sqrt(ss(0)), TRUE, FALSE),
-              R::pnorm(arma::as_scalar(ub),  mm(temp1(l)), sqrt(ss(0)), TRUE, FALSE)),
-              mm(temp1(l)), sqrt(ss(0)), TRUE, FALSE);
-          }
-
+          double lower = thresh.slice(i)(row_index, cat - 1);
+          double upper = thresh.slice(i)(row_index, cat);
+          z0.slice(0).row(j).col(i) = R::qnorm(R::runif(
+            R::pnorm(lower, mm(j), sqrt(ss(0)), TRUE, FALSE),
+            R::pnorm(upper, mm(j), sqrt(ss(0)), TRUE, FALSE)),
+            mm(j), sqrt(ss(0)), TRUE, FALSE);
         }
-
       }
 
       arma::vec Y_j = Y_missing.col(i);
@@ -2962,14 +3060,19 @@ Rcpp::List missing_copula(arma::mat Y,
 
     }
 
-    // Center ordinal latent columns to keep them on the same scale as the
-    // pure ordinal sampler, preventing mean drift when categories are rare.
     arma::rowvec z_means = arma::mean(z0.slice(0), 0);
     for(int var = 0; var < p; ++var){
       if(idx(var) == 1){
         double shift = z_means(var);
+        z0.slice(0).col(var) -= shift;
         if(shift != 0.0){
-          z0.slice(0).col(var) -= shift;
+          int K_var = K_int(var);
+          for(int level = 1; level < K_var; ++level){
+            double current = thresh.slice(var)(s, level);
+            if(std::isfinite(current)){
+              thresh.slice(var)(s, level) = current - shift;
+            }
+          }
         }
       }
     }
@@ -3002,6 +3105,7 @@ Rcpp::List missing_copula(arma::mat Y,
   ret["pcor_mat"] = pcor_mat;
   ret["fisher_z"] = fisher_z;
   ret["Y_collect"] = Y_collect;
+  ret["thresh"] = thresh;
   return  ret;
 }
 
@@ -3037,14 +3141,38 @@ Rcpp::List missing_copula_data(arma::mat Y,
 
   z0.slice(0) = z0_start;
 
-  arma::vec lb(1);
-  arma::vec ub(1);
-
   arma::cube Sigma(p, p, 1, arma::fill::zeros);
   Sigma.slice(0) = Sigma_start;
 
   arma::mat mm(n,1);
   arma::mat ss(1,1);
+
+  arma::ivec K_int = arma::conv_to<arma::ivec>::from(K);
+  int K_max = 0;
+  for(int var = 0; var < p; ++var){
+    if(idx(var) == 1){
+      int K_var = K_int(var);
+      if(K_var > K_max){
+        K_max = K_var;
+      }
+    }
+  }
+  if(K_max == 0){
+    K_max = 1;
+  }
+
+  arma::cube thresh(iter_missing, K_max + 1, p, arma::fill::zeros);
+
+  for(int var = 0; var < p; ++var){
+    if(idx(var) == 1){
+      int K_var = K_int(var);
+      thresh.slice(var).col(0).fill(-arma::datum::inf);
+      thresh.slice(var).col(K_var).fill(arma::datum::inf);
+      for(int level = 1; level < K_var; ++level){
+        thresh.slice(var).col(level).fill(level - 1);
+      }
+    }
+  }
 
   for(int  s = 0; s < iter_missing; ++s){
 
@@ -3052,6 +3180,52 @@ Rcpp::List missing_copula_data(arma::mat Y,
 
     if (s % 250 == 0){
       Rcpp::checkUserInterrupt();
+    }
+
+    if(s > 0){
+      for(int var = 0; var < p; ++var){
+        if(idx(var) == 1){
+          thresh.slice(var).row(s) = thresh.slice(var).row(s - 1);
+        }
+      }
+    }
+
+    if(s > 0){
+      for(int var = 0; var < p; ++var){
+        if(idx(var) != 1){
+          continue;
+        }
+
+        int K_var = K_int(var);
+        for(int level = 1; level < K_var; ++level){
+
+          arma::uvec idx_current = find(levels.col(var) == level);
+          arma::uvec idx_next = find(levels.col(var) == level + 1);
+
+          double lower = thresh.slice(var)(s - 1, level - 1);
+          if(idx_current.n_elem > 0){
+            double max_current = arma::max(select_col(z0.slice(0), var).elem(idx_current));
+            if(max_current > lower){
+              lower = max_current;
+            }
+          }
+
+          double upper = thresh.slice(var)(s - 1, level + 1);
+          if(idx_next.n_elem > 0){
+            double min_next = arma::min(select_col(z0.slice(0), var).elem(idx_next));
+            if(min_next < upper){
+              upper = min_next;
+            }
+          }
+
+          if(lower >= upper){
+            thresh.slice(var)(s, level) = lower;
+          } else {
+            arma::vec v = Rcpp::runif(1, lower, upper);
+            thresh.slice(var)(s, level) = arma::as_scalar(v);
+          }
+        }
+      }
     }
 
     for(int i = 0; i < p; ++i){
@@ -3066,45 +3240,18 @@ Rcpp::List missing_copula_data(arma::mat Y,
         Sigma_i_not_i(Sigma.slice(0), i).t();
 
       if(idx(i) == 1){
-
-        for(int r = 1; r  < K[i] + 1; ++r){
-
-          arma::uvec where = find(levels.col(i) == r);
-
-          arma::mat temp1 = arma::conv_to<arma::mat>::from(where);
-
-          int r_levels = temp1.n_elem;
-
-          arma::vec lb_check =  {select_col(z0.slice(0), i).elem(find(levels.col(i) == (r - 1)))};
-          arma::vec ub_check =  {select_col(z0.slice(0), i).elem(find(levels.col(i) == (r + 1)))};
-
-          if(lb_check.n_elem == 0){
-
-            lb.fill(-arma::datum::inf);
-
-          } else {
-
-            lb.fill(lb_check.max());
-
+        int row_index = s;
+        for(int j = 0; j < n; ++j){
+          int cat = static_cast<int>(levels.col(i)[j]);
+          if(cat == 0){
+            continue;
           }
-
-          if(ub_check.n_elem == 0){
-
-            ub.fill(arma::datum::inf);
-
-          } else {
-
-            ub.fill(ub_check.min());
-
-          }
-
-          for(int l = 0; l < r_levels; ++l){
-
-            z0.slice(0).col(i).row(temp1(l)) = R::qnorm(R::runif(
-              R::pnorm(arma::as_scalar(lb),  mm(temp1(l)), sqrt(ss(0)), TRUE, FALSE),
-              R::pnorm(arma::as_scalar(ub),  mm(temp1(l)), sqrt(ss(0)), TRUE, FALSE)),
-              mm(temp1(l)), sqrt(ss(0)), TRUE, FALSE);
-          }
+          double lower = thresh.slice(i)(row_index, cat - 1);
+          double upper = thresh.slice(i)(row_index, cat);
+          z0.slice(0).row(j).col(i) = R::qnorm(R::runif(
+            R::pnorm(lower, mm(j), sqrt(ss(0)), TRUE, FALSE),
+            R::pnorm(upper, mm(j), sqrt(ss(0)), TRUE, FALSE)),
+            mm(j), sqrt(ss(0)), TRUE, FALSE);
         }
       }
 
@@ -3129,14 +3276,19 @@ Rcpp::List missing_copula_data(arma::mat Y,
       }
     }
 
-    // Keep the ordinal latent variables centered to match the pure ordinal
-    // sampler behavior and stabilize the inferred cutpoints.
     arma::rowvec z_means = arma::mean(z0.slice(0), 0);
     for(int var = 0; var < p; ++var){
       if(idx(var) == 1){
         double shift = z_means(var);
+        z0.slice(0).col(var) -= shift;
         if(shift != 0.0){
-          z0.slice(0).col(var) -= shift;
+          int K_var = K_int(var);
+          for(int level = 1; level < K_var; ++level){
+            double current = thresh.slice(var)(s, level);
+            if(std::isfinite(current)){
+              thresh.slice(var)(s, level) = current - shift;
+            }
+          }
         }
       }
     }
@@ -3175,5 +3327,6 @@ Rcpp::List missing_copula_data(arma::mat Y,
 
   Rcpp::List ret;
   ret["Y_collect"] = Y_collect;
+  ret["thresh"] = thresh;
   return  ret;
 }
