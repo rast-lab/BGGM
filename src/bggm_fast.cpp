@@ -5,6 +5,7 @@
 #include <progress_bar.hpp>
 #include <truncnorm.h>
 #include <RcppArmadilloExtensions/sample.h>
+#include <cmath>
 
 // [[Rcpp::depends(RcppArmadillo, RcppDist, RcppProgress)]]
 
@@ -14,7 +15,68 @@ arma::mat mean_array(arma::cube x){
   return mean(x, 2);
 }
 
+// --- Matrix utilities -----------------------------------------------------
+// These helpers keep the Wishart scale matrices numerically stable while
+// retaining as much of the original structure as possible.
+
+arma::mat symmetrize_matrix(const arma::mat& x) {
+  arma::mat sym_x = 0.5 * (x + x.t());
+  sym_x.for_each([](arma::mat::elem_type& val) {
+    if (!std::isfinite(val)) {
+      val = 0.0;
+    }
+  });
+  return sym_x;
+}
+
+arma::mat stabilize_pd(const arma::mat& x, double jitter = 1e-8) {
+  arma::mat sym_x = symmetrize_matrix(x);
+
+  arma::vec eigval;
+  arma::mat eigvec;
+  if (!arma::eig_sym(eigval, eigvec, sym_x)) {
+    return jitter * arma::eye(sym_x.n_rows, sym_x.n_cols);
+  }
+
+  arma::vec clamped = eigval;
+  for (arma::uword i = 0; i < clamped.n_elem; ++i) {
+    if (!std::isfinite(clamped(i)) || clamped(i) < jitter) {
+      clamped(i) = jitter;
+    }
+  }
+
+  arma::mat rebuilt = eigvec * arma::diagmat(clamped) * eigvec.t();
+  return arma::symmatu(rebuilt);
+}
+
+arma::mat safe_inv_sympd(const arma::mat& x, double jitter = 1e-8) {
+  arma::mat stabilized = stabilize_pd(x, jitter);
+  arma::mat inv_mat;
+  double current_jitter = jitter;
+
+  for (int attempt = 0; attempt < 5; ++attempt) {
+    if (!arma::inv_sympd(inv_mat, stabilized)) {
+      inv_mat = arma::inv(stabilized);
+    }
+
+    inv_mat = arma::symmatu(inv_mat);
+
+    arma::mat chol;
+    if (arma::chol(chol, inv_mat)) {
+      return inv_mat;
+    }
+
+    current_jitter *= 10.0;
+    stabilized = stabilize_pd(x, current_jitter);
+  }
+
+  // Fall back to a diagonal matrix if repeated attempts fail.
+  return current_jitter * arma::eye(x.n_rows, x.n_cols);
+}
+
 // R quantile type = 1
+// Utility for computing empirical cutpoints that match R's type = 1 quantile
+// definition. Used when initializing thresholds from observed ordinal data.
 // [[Rcpp::export]]
 double quantile_type_1(arma::vec x, double prob){
 
@@ -147,7 +209,7 @@ Rcpp::List internal_missing_gaussian(arma::mat Y,
     }
 
     arma::mat S_Y = Y.t() * Y;
-    arma::mat Theta = wishrnd(inv(S_Y),   (n - 1));
+    arma::mat Theta = wishrnd(safe_inv_sympd(S_Y),   (n - 1));
     Sigma = inv(Theta);
     ppc_missing.row(s) = Y.elem(index).t();
   }
@@ -234,7 +296,7 @@ Rcpp::List missing_gaussian(arma::mat Y,
     }
 
     arma::mat S_Y = Y.t() * Y;
-    arma::mat Theta = wishrnd(inv(S_Y + I_p * lambda), n + lambda);
+    arma::mat Theta = wishrnd(safe_inv_sympd(S_Y + I_p * lambda), n + lambda);
     Sigma = inv(Theta);
 
     if(store_all){
@@ -352,7 +414,7 @@ Rcpp::List Theta_continuous(arma::mat Y,
       Psi.slice(0) = wishrnd(I_k * epsilon, nu);
 
       // sample Theta
-      Sigma.slice(0) =   wishrnd(inv(Psi.slice(0)),   k - 1 + delta);
+      Sigma.slice(0) =   wishrnd(safe_inv_sympd(Psi.slice(0)),   k - 1 + delta);
 
       // Sigma
       Theta.slice(0) = inv(Sigma.slice(0));
@@ -360,10 +422,10 @@ Rcpp::List Theta_continuous(arma::mat Y,
 
     } else {
 
-      Psi.slice(0) = wishrnd(inv(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
+      Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
 
       // sample Theta
-      Theta.slice(0) =   wishrnd(inv(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
+      Theta.slice(0) =   wishrnd(safe_inv_sympd(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
 
     }
 
@@ -503,7 +565,7 @@ Rcpp::List sample_prior(arma::mat Y,
       Psi.slice(0) = wishrnd(I_k * epsilon, nu);
 
       // sample Theta
-      Sigma.slice(0) =   wishrnd(inv(Psi.slice(0)),   k - 1 + delta);
+      Sigma.slice(0) =   wishrnd(safe_inv_sympd(Psi.slice(0)),   k - 1 + delta);
 
       // Sigma
       Theta.slice(0) = inv(Sigma.slice(0));
@@ -511,10 +573,10 @@ Rcpp::List sample_prior(arma::mat Y,
 
     } else {
 
-      Psi.slice(0) = wishrnd(inv(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
+      Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
 
       // sample Theta
-      Theta.slice(0) =   wishrnd(inv(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
+      Theta.slice(0) =   wishrnd(safe_inv_sympd(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
 
       // Sigma
       Sigma.slice(0) = inv(Theta.slice(0));
@@ -633,10 +695,10 @@ Rcpp::List mv_continuous(arma::mat Y,
     S_Y = Y.t() * Y + I_k - beta.t() * S_X * beta;
 
     // sample Psi
-    Psi.slice(0) = wishrnd(inv(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
+    Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
 
     // sample Theta
-    Theta.slice(0) =   wishrnd(inv(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
+    Theta.slice(0) =   wishrnd(safe_inv_sympd(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
 
     // Sigma
     Sigma.slice(0) = inv(Theta.slice(0));
@@ -969,7 +1031,7 @@ Rcpp::List mv_binary(arma::mat Y,
     // }
     // END Debug
 
-    Psi.slice(0) = wishrnd(inv(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
+    Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
 
     // sample Theta
     // Debugging:
@@ -989,7 +1051,7 @@ Rcpp::List mv_binary(arma::mat Y,
     // }
     // END Debug
 
-    Theta.slice(0) =   wishrnd(inv(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
+    Theta.slice(0) =   wishrnd(safe_inv_sympd(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
 
     // Sigma
     Sigma.slice(0) = inv(Theta.slice(0));
@@ -1260,10 +1322,10 @@ Rcpp::List mv_ordinal_cowles(arma::mat Y,
     // } while (det(S_Y) < 0);
 
     // sample Psi
-    Psi.slice(0) = wishrnd(inv(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
+    Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
 
     // sample Theta
-    Theta.slice(0) =   wishrnd(inv(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
+    Theta.slice(0) =   wishrnd(safe_inv_sympd(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
 
     // sigma
     Sigma.slice(0) = inv(Theta.slice(0));
@@ -1480,14 +1542,39 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
 
       } else{
 
-
-        for(int i = 0; i < k; ++i){
+        // Update the interior thresholds so each one sits between the largest
+        // latent draw from the lower category and the smallest draw from the
+        // upper category. This maintains ordered, data-consistent cutpoints
+        // even when some categories are empty in the current iteration.
+        for(int var = 0; var < k; ++var){
 
           for(int j = 2; j < (K); ++j){
-            arma::vec lb = {select_col(z0.slice(0), i).elem(find(Y.col(i) == j)).max(), thresh.slice(i)(s-1, j-1) };
-            arma::vec ub = {select_col(z0.slice(0), i).elem(find(Y.col(i) == j+1)).min(), thresh.slice(i)(s-1, j+1) };
-            arma::vec v = Rcpp::runif(1,  lb.max(), ub.min());
-            thresh.slice(i).row(s).col(j) =  arma::as_scalar(v);
+
+            arma::uvec idx_current = find(Y.col(var) == j);
+            arma::uvec idx_next = find(Y.col(var) == j + 1);
+
+            double lower = thresh.slice(var)(s - 1, j - 1);
+            if(idx_current.n_elem > 0){
+              double max_current = arma::max(select_col(z0.slice(0), var).elem(idx_current));
+              if(max_current > lower){
+                lower = max_current;
+              }
+            }
+
+            double upper = thresh.slice(var)(s - 1, j + 1);
+            if(idx_next.n_elem > 0){
+              double min_next = arma::min(select_col(z0.slice(0), var).elem(idx_next));
+              if(min_next < upper){
+                upper = min_next;
+              }
+            }
+
+            if(lower >= upper){
+              thresh.slice(var).row(s).col(j) = lower;
+            } else {
+              arma::vec v = Rcpp::runif(1, lower, upper);
+              thresh.slice(var).row(s).col(j) = arma::as_scalar(v);
+            }
 
           }
         }
@@ -1504,6 +1591,27 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
 
             // location and scale
             mm(j), sqrt(ss(0)), TRUE, FALSE);
+        }
+      }
+    }
+
+    // Center the latent Gaussian draws so each column has mean zero. This keeps
+    // the threshold updates from drifting when marginal distributions are highly
+    // skewed (rare lower categories otherwise shift the entire latent scale).
+    arma::rowvec z_means = arma::mean(z0.slice(0), 0);
+    for(int var = 0; var < k; ++var){
+      double shift = z_means(var);
+      z0.slice(0).col(var) -= shift;
+
+      // Shift the current thresholds by the same amount so the category bounds
+      // remain aligned with the centered latent draws. The extreme cutpoints
+      // (-inf and +inf) are left untouched.
+      if(shift != 0.0){
+        for(int level = 1; level < K; ++level){
+          double current = thresh.slice(var)(s, level);
+          if(std::isfinite(current)){
+            thresh.slice(var)(s, level) = current - shift;
+          }
         }
       }
     }
@@ -1536,10 +1644,10 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
     // } while (det(S_Y) < 0);
 
     // sample Psi
-    Psi.slice(0) = wishrnd(inv(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
+    Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
 
     // sample Theta
-    Theta.slice(0) =   wishrnd(inv(S_Y + Psi.slice(0)),  (deltaMP + k - 1) + (n - 1));
+    Theta.slice(0) =   wishrnd(safe_inv_sympd(S_Y + Psi.slice(0)),  (deltaMP + k - 1) + (n - 1));
 
     // sigma
     Sigma.slice(0) = inv(Theta.slice(0));
@@ -1730,10 +1838,10 @@ Rcpp::List  copula(arma::mat z0_start,
     // scatter matrix
     S_Y = z0.slice(0).t() * z0.slice(0);
 
-    Psi.slice(0) = wishrnd(inv(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
+    Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
 
     // sample Theta
-    Theta.slice(0) =   wishrnd(inv(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
+    Theta.slice(0) =   wishrnd(safe_inv_sympd(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
 
     // sigma
     Sigma.slice(0) = inv(Theta.slice(0));
@@ -2290,10 +2398,10 @@ Rcpp::List var(arma::mat Y,
     S_Y = Y.t() * Y + I_k - beta.t() * S_X * beta;
 
     // sample Psi
-    Psi.slice(0) = wishrnd(inv(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
+    Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
 
     // sample Theta
-    Theta.slice(0) =   wishrnd(inv(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
+    Theta.slice(0) =   wishrnd(safe_inv_sympd(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
 
     // Sigma
     Sigma.slice(0) = inv(Theta.slice(0));
@@ -2837,10 +2945,10 @@ Rcpp::List missing_copula(arma::mat Y,
 
     arma::mat S_Y = z0.slice(0).t() * z0.slice(0);
 
-    Psi.slice(0) = wishrnd(inv(BMPinv + Theta.slice(0)), nuMP + deltaMP + p - 1);
+    Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + p - 1);
 
     // sample Theta
-    Theta.slice(0) = wishrnd(inv(Psi.slice(0) + S_Y),  (deltaMP + p - 1) + (n - 1));
+    Theta.slice(0) = wishrnd(safe_inv_sympd(Psi.slice(0) + S_Y),  (deltaMP + p - 1) + (n - 1));
 
     // Sigma
     Sigma.slice(0) = inv(Theta.slice(0));
@@ -2992,7 +3100,7 @@ Rcpp::List missing_copula_data(arma::mat Y,
 
     arma::mat S_Y = z0.slice(0).t() * z0.slice(0);
 
-    Sigma.slice(0) =  inv(wishrnd(inv(S_Y + I_p * lambda), n + lambda));
+    Sigma.slice(0) =  safe_inv_sympd(wishrnd(safe_inv_sympd(S_Y + I_p * lambda), n + lambda));
 
     for(int i = 0; i < p; ++i){
 
