@@ -74,6 +74,37 @@ arma::mat safe_inv_sympd(const arma::mat& x, double jitter = 1e-8) {
   return current_jitter * arma::eye(x.n_rows, x.n_cols);
 }
 
+void center_ordinal_latents(arma::mat& latents,
+                            const arma::vec& ordinal_mask,
+                            arma::cube* thresholds,
+                            arma::uword iteration_row) {
+  arma::rowvec z_means = arma::mean(latents, 0);
+  for (arma::uword var = 0; var < latents.n_cols; ++var) {
+    bool treat_as_ordinal = ordinal_mask.n_elem == 0 ||
+      (var < ordinal_mask.n_elem && ordinal_mask(var) == 1);
+
+    if (!treat_as_ordinal) {
+      continue;
+    }
+
+    double shift = z_means(var);
+    if (shift == 0.0 || !std::isfinite(shift)) {
+      continue;
+    }
+
+    latents.col(var) -= shift;
+
+    if (thresholds != nullptr && thresholds->n_cols > 1) {
+      for (arma::uword level = 1; level + 1 < thresholds->n_cols; ++level) {
+        double current = (*thresholds)(iteration_row, level, var);
+        if (std::isfinite(current)) {
+          (*thresholds)(iteration_row, level, var) = current - shift;
+        }
+      }
+    }
+  }
+}
+
 // R quantile type = 1
 // Utility for computing empirical cutpoints that match R's type = 1 quantile
 // definition. Used when initializing thresholds from observed ordinal data.
@@ -1603,23 +1634,8 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
     // Center the latent Gaussian draws so each column has mean zero. This keeps
     // the threshold updates from drifting when marginal distributions are highly
     // skewed (rare lower categories otherwise shift the entire latent scale).
-    arma::rowvec z_means = arma::mean(z0.slice(0), 0);
-    for(int var = 0; var < k; ++var){
-      double shift = z_means(var);
-      z0.slice(0).col(var) -= shift;
-
-      // Shift the current thresholds by the same amount so the category bounds
-      // remain aligned with the centered latent draws. The extreme cutpoints
-      // (-inf and +inf) are left untouched.
-      if(shift != 0.0){
-        for(int level = 1; level < K; ++level){
-          double current = thresh.slice(var)(s, level);
-          if(std::isfinite(current)){
-            thresh.slice(var)(s, level) = current - shift;
-          }
-        }
-      }
-    }
+    center_ordinal_latents(z0.slice(0), arma::vec(), &thresh,
+                           static_cast<arma::uword>(s));
 
     for(int i = 0; i < k; ++i){
       D.row(i).col(i) = sqrt(1 / R::rgamma((delta + k - 1) / 2,
@@ -1838,6 +1854,12 @@ Rcpp::List  copula(arma::mat z0_start,
         }
       }
     }
+
+    // Center the latent Gaussian draws for the ordinal variables so each
+    // column has mean zero. This mirrors the ordinal-only sampler and
+    // prevents the thresholds implied by the ranked updates from drifting
+    // when the marginal distributions are highly skewed.
+    center_ordinal_latents(z0.slice(0), idx, nullptr, 0);
 
     // novel matrix-F prior distribution
     // scatter matrix
@@ -2948,6 +2970,18 @@ Rcpp::List missing_copula(arma::mat Y,
 
     }
 
+    // Center ordinal latent columns to keep them on the same scale as the
+    // pure ordinal sampler, preventing mean drift when categories are rare.
+    arma::rowvec z_means = arma::mean(z0.slice(0), 0);
+    for(int var = 0; var < p; ++var){
+      if(idx(var) == 1){
+        double shift = z_means(var);
+        if(shift != 0.0){
+          z0.slice(0).col(var) -= shift;
+        }
+      }
+    }
+
     arma::mat S_Y = z0.slice(0).t() * z0.slice(0);
 
     Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + p - 1);
@@ -3102,6 +3136,10 @@ Rcpp::List missing_copula_data(arma::mat Y,
         }
       }
     }
+
+    // Keep the ordinal latent variables centered to match the pure ordinal
+    // sampler behavior and stabilize the inferred cutpoints.
+    center_ordinal_latents(z0.slice(0), idx, nullptr, 0);
 
     arma::mat S_Y = z0.slice(0).t() * z0.slice(0);
 
