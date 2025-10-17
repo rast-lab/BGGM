@@ -38,21 +38,15 @@ arma::mat stabilize_pd(const arma::mat& x, double jitter = 1e-8) {
     return jitter * arma::eye(sym_x.n_rows, sym_x.n_cols);
   }
 
-  double min_eig = eigval.min();
-  if (!std::isfinite(min_eig)) {
-    min_eig = 0.0;
+  arma::vec clamped = eigval;
+  for (arma::uword i = 0; i < clamped.n_elem; ++i) {
+    if (!std::isfinite(clamped(i)) || clamped(i) < jitter) {
+      clamped(i) = jitter;
+    }
   }
 
-  double delta = 0.0;
-  if (min_eig < jitter) {
-    delta = jitter - min_eig;
-  }
-
-  if (delta > 0.0) {
-    sym_x += delta * arma::eye(sym_x.n_rows, sym_x.n_cols);
-  }
-
-  return arma::symmatu(sym_x);
+  arma::mat rebuilt = eigvec * arma::diagmat(clamped) * eigvec.t();
+  return arma::symmatu(rebuilt);
 }
 
 arma::mat safe_inv_sympd(const arma::mat& x, double jitter = 1e-8) {
@@ -1548,35 +1542,38 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
 
       } else{
 
-
-        for(int i = 0; i < k; ++i){
+        // Update the interior thresholds so each one sits between the largest
+        // latent draw from the lower category and the smallest draw from the
+        // upper category. This maintains ordered, data-consistent cutpoints
+        // even when some categories are empty in the current iteration.
+        for(int var = 0; var < k; ++var){
 
           for(int j = 2; j < (K); ++j){
 
-            arma::uvec idx_current = find(Y.col(i) == j);
-            arma::uvec idx_next = find(Y.col(i) == j + 1);
+            arma::uvec idx_current = find(Y.col(var) == j);
+            arma::uvec idx_next = find(Y.col(var) == j + 1);
 
-            double lower = thresh.slice(i)(s - 1, j - 1);
+            double lower = thresh.slice(var)(s - 1, j - 1);
             if(idx_current.n_elem > 0){
-              double max_current = arma::max(select_col(z0.slice(0), i).elem(idx_current));
+              double max_current = arma::max(select_col(z0.slice(0), var).elem(idx_current));
               if(max_current > lower){
                 lower = max_current;
               }
             }
 
-            double upper = thresh.slice(i)(s - 1, j + 1);
+            double upper = thresh.slice(var)(s - 1, j + 1);
             if(idx_next.n_elem > 0){
-              double min_next = arma::min(select_col(z0.slice(0), i).elem(idx_next));
+              double min_next = arma::min(select_col(z0.slice(0), var).elem(idx_next));
               if(min_next < upper){
                 upper = min_next;
               }
             }
 
             if(lower >= upper){
-              thresh.slice(i).row(s).col(j) = lower;
+              thresh.slice(var).row(s).col(j) = lower;
             } else {
               arma::vec v = Rcpp::runif(1, lower, upper);
-              thresh.slice(i).row(s).col(j) = arma::as_scalar(v);
+              thresh.slice(var).row(s).col(j) = arma::as_scalar(v);
             }
 
           }
@@ -1602,7 +1599,22 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
     // the threshold updates from drifting when marginal distributions are highly
     // skewed (rare lower categories otherwise shift the entire latent scale).
     arma::rowvec z_means = arma::mean(z0.slice(0), 0);
-    z0.slice(0).each_row() -= z_means;
+    for(int var = 0; var < k; ++var){
+      double shift = z_means(var);
+      z0.slice(0).col(var) -= shift;
+
+      // Shift the current thresholds by the same amount so the category bounds
+      // remain aligned with the centered latent draws. The extreme cutpoints
+      // (-inf and +inf) are left untouched.
+      if(shift != 0.0){
+        for(int level = 1; level < K; ++level){
+          double current = thresh.slice(var)(s, level);
+          if(std::isfinite(current)){
+            thresh.slice(var)(s, level) = current - shift;
+          }
+        }
+      }
+    }
 
     for(int i = 0; i < k; ++i){
       D.row(i).col(i) = sqrt(1 / R::rgamma((delta + k - 1) / 2,
