@@ -1839,6 +1839,20 @@ Rcpp::List  copula(arma::mat z0_start,
       }
     }
 
+    // Center the latent Gaussian draws for the ordinal variables so each
+    // column has mean zero. This mirrors the ordinal-only sampler and
+    // prevents the thresholds implied by the ranked updates from drifting
+    // when the marginal distributions are highly skewed.
+    arma::rowvec z_means = arma::mean(z0.slice(0), 0);
+    for(int var = 0; var < k; ++var){
+      if(idx(var) == 1){
+        double shift = z_means(var);
+        if(shift != 0.0){
+          z0.slice(0).col(var) -= shift;
+        }
+      }
+    }
+
     // novel matrix-F prior distribution
     // scatter matrix
     S_Y = z0.slice(0).t() * z0.slice(0);
@@ -2948,6 +2962,18 @@ Rcpp::List missing_copula(arma::mat Y,
 
     }
 
+    // Center ordinal latent columns to keep them on the same scale as the
+    // pure ordinal sampler, preventing mean drift when categories are rare.
+    arma::rowvec z_means = arma::mean(z0.slice(0), 0);
+    for(int var = 0; var < p; ++var){
+      if(idx(var) == 1){
+        double shift = z_means(var);
+        if(shift != 0.0){
+          z0.slice(0).col(var) -= shift;
+        }
+      }
+    }
+
     arma::mat S_Y = z0.slice(0).t() * z0.slice(0);
 
     Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + p - 1);
@@ -3099,6 +3125,18 @@ Rcpp::List missing_copula_data(arma::mat Y,
 
           z0.slice(0).col(i).row(index_j[m]) = ppd_i(0);
 
+        }
+      }
+    }
+
+    // Keep the ordinal latent variables centered to match the pure ordinal
+    // sampler behavior and stabilize the inferred cutpoints.
+    arma::rowvec z_means = arma::mean(z0.slice(0), 0);
+    for(int var = 0; var < p; ++var){
+      if(idx(var) == 1){
+        double shift = z_means(var);
+        if(shift != 0.0){
+          z0.slice(0).col(var) -= shift;
         }
       }
     }
