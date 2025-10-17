@@ -1875,6 +1875,31 @@ Rcpp::List  copula(arma::mat z0_start,
           int cat = static_cast<int>(levels.col(i)[j]);
           if(cat == 0){
             continue;
+        if(s == 1){
+          for(int j = 0; j < n; ++j){
+            int cat = static_cast<int>(levels.col(i)[j]);
+            if(cat == 0){
+              continue;
+            }
+            double lower = thresh.slice(i)(0, cat - 1);
+            double upper = thresh.slice(i)(0, cat);
+            z0.slice(0).row(j).col(i) = R::qnorm(R::runif(
+              R::pnorm(lower, mm(j), sqrt(ss(0)), TRUE, FALSE),
+              R::pnorm(upper, mm(j), sqrt(ss(0)), TRUE, FALSE)),
+              mm(j), sqrt(ss(0)), TRUE, FALSE);
+          }
+        } else {
+          for(int j = 0; j < n; ++j){
+            int cat = static_cast<int>(levels.col(i)[j]);
+            if(cat == 0){
+              continue;
+            }
+            double lower = thresh.slice(i)(s, cat - 1);
+            double upper = thresh.slice(i)(s, cat);
+            z0.slice(0).row(j).col(i) = R::qnorm(R::runif(
+              R::pnorm(lower, mm(j), sqrt(ss(0)), TRUE, FALSE),
+              R::pnorm(upper, mm(j), sqrt(ss(0)), TRUE, FALSE)),
+              mm(j), sqrt(ss(0)), TRUE, FALSE);
           }
           double lower = thresh.slice(i)(row_index, cat - 1);
           double upper = thresh.slice(i)(row_index, cat);
