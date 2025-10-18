@@ -6,6 +6,7 @@
 #include <truncnorm.h>
 #include <RcppArmadilloExtensions/sample.h>
 #include <cmath>
+#include <algorithm>
 
 // [[Rcpp::depends(RcppArmadillo, RcppDist, RcppProgress)]]
 
@@ -72,6 +73,78 @@ arma::mat safe_inv_sympd(const arma::mat& x, double jitter = 1e-8) {
 
   // Fall back to a diagonal matrix if repeated attempts fail.
   return current_jitter * arma::eye(x.n_rows, x.n_cols);
+}
+
+arma::vec safe_solve_sympd_vec(const arma::mat& A,
+                               const arma::vec& b,
+                               double jitter = 1e-8) {
+  arma::vec x;
+  if (arma::solve(x, A, b, arma::solve_opts::likely_sympd)) {
+    return x;
+  }
+
+  arma::mat stabilized = stabilize_pd(A, jitter);
+  if (arma::solve(x, stabilized, b, arma::solve_opts::likely_sympd)) {
+    return x;
+  }
+
+  arma::mat inv_A = safe_inv_sympd(stabilized, jitter);
+  return inv_A * b;
+}
+
+arma::mat safe_solve_sympd_mat(const arma::mat& A,
+                               const arma::mat& B,
+                               double jitter = 1e-8) {
+  arma::mat X;
+  if (arma::solve(X, A, B, arma::solve_opts::likely_sympd)) {
+    return X;
+  }
+
+  arma::mat stabilized = stabilize_pd(A, jitter);
+  if (arma::solve(X, stabilized, B, arma::solve_opts::likely_sympd)) {
+    return X;
+  }
+
+  arma::mat inv_A = safe_inv_sympd(stabilized, jitter);
+  return inv_A * B;
+}
+
+double clamp01(double x) {
+  if (x < 0.0) {
+    return 0.0;
+  }
+  if (x > 1.0) {
+    return 1.0;
+  }
+  return x;
+}
+
+double sample_truncated_normal(double mean,
+                               double sd,
+                               double lower,
+                               double upper) {
+  const double tol = 1e-12;
+  double safe_sd = std::max(sd, 1e-8);
+
+  double p_lower = clamp01(R::pnorm(lower, mean, safe_sd, TRUE, FALSE));
+  double p_upper = clamp01(R::pnorm(upper, mean, safe_sd, TRUE, FALSE));
+
+  double width = p_upper - p_lower;
+  if (width < tol) {
+    if (std::isfinite(lower) && std::isfinite(upper)) {
+      return 0.5 * (lower + upper);
+    }
+    if (std::isfinite(lower) && !std::isfinite(upper)) {
+      return lower;
+    }
+    if (!std::isfinite(lower) && std::isfinite(upper)) {
+      return upper;
+    }
+    return mean;
+  }
+
+  double u = R::runif(p_lower, p_upper);
+  return R::qnorm(u, mean, safe_sd, TRUE, FALSE);
 }
 
 // R quantile type = 1
@@ -1733,428 +1806,429 @@ Rcpp::List mv_binary(arma::mat Y,
       }
     }
 
-    arma::cube fisher_z = atanh(pcors_mcmc);
+// ordinal sampler customary
+// [[Rcpp::export]]
+Rcpp::List mv_ordinal_albert(arma::mat Y,
+                          arma::mat X,
+                          int iter,
+                          float delta,
+                          float epsilon,
+                          int K,
+                          arma::mat start,
+                          bool progress
+                          ) {
 
-    Rcpp::List ret;
-    ret["pcors"] = pcors_mcmc;
-    ret["cors"] = cors_mcmc;
-    ret["beta"] = beta_mcmc;
-    ret["Theta"] = Theta_mcmc;
-    ret["Sigma"] = Sigma_mcmc;
-    ret["acc"] = acc;
-    ret["thresh"] = thresh;
-    ret["fisher_z"] = fisher_z;
-    return ret;
+  Progress pr(iter, progress);
+
+  int n = Y.n_rows;
+  int k = Y.n_cols;
+  int p = X.n_cols;
+
+  arma::mat I_k(k, k, arma::fill::eye);
+  arma::mat I_p(p, p, arma::fill::eye);
+
+  arma::mat S_X = X.t() * X + 0.001 * I_p;
+  arma::mat Sinv_X = safe_solve_sympd_mat(S_X, I_p);
+
+  int nu = 1 / epsilon;
+  int nuMP = delta + k - 1;
+  int deltaMP = nu - k + 1;
+
+  arma::mat B = epsilon * I_k;
+  arma::mat BMP = safe_inv_sympd(B);
+  arma::mat BMPinv = safe_inv_sympd(BMP);
+
+  arma::mat Theta_current = arma::symmatu(start);
+  arma::mat Sigma_current = safe_inv_sympd(Theta_current);
+
+  arma::vec sigma_diag = Sigma_current.diag();
+  sigma_diag.transform([](double val) { return std::max(val, 1e-8); });
+  arma::vec inv_sqrt_sigma = 1.0 / arma::sqrt(sigma_diag);
+  arma::mat Dinv_current = arma::diagmat(inv_sqrt_sigma);
+
+  arma::mat cors = arma::symmatu(Dinv_current * Sigma_current * Dinv_current);
+  arma::mat R_current = cors;
+  arma::mat Rinv_current = safe_inv_sympd(R_current);
+
+  arma::mat D = arma::eye(k, k);
+
+  arma::mat beta = arma::zeros(p, k);
+  arma::mat gamma = arma::zeros(p, k);
+  arma::mat Xbhat = X * beta;
+  arma::mat w = arma::zeros(n, k);
+
+  arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
+  arma::cube beta_mcmc(p, k, iter, arma::fill::zeros);
+  arma::cube thresh_store(iter, K + 1, k, arma::fill::zeros);
+  arma::ivec levels_per_var(k);
+  for (int var = 0; var < k; ++var) {
+    arma::vec col = Y.col(var);
+    arma::uvec finite_idx = arma::find_finite(col);
+    int max_cat = 1;
+    if (!finite_idx.is_empty()) {
+      double max_val = arma::max(col.elem(finite_idx));
+      max_cat = std::max(1, static_cast<int>(std::round(max_val)));
+    }
+    levels_per_var(var) = std::min(max_cat, K);
   }
 
+  arma::mat current_thresh(k, K + 1, arma::fill::zeros);
+  current_thresh.fill(arma::datum::inf);
+  for (int var = 0; var < k; ++var) {
+    current_thresh(var, 0) = -arma::datum::inf;
+    int max_level = levels_per_var(var);
+    current_thresh(var, max_level) = arma::datum::inf;
+    for (int level = 1; level < max_level; ++level) {
+      current_thresh(var, level) = static_cast<double>(level) - 1.0;
+    }
+  }
 
-
-  // ordinal sampler customary
-  // [[Rcpp::export]]
-  Rcpp::List mv_ordinal_albert(arma::mat Y,
-                            arma::mat X,
-                            int iter,
-                            float delta,
-                            float epsilon,
-                            int K,
-                            arma::mat start,
-                            bool progress
-                            ){
-
-    Progress  pr(iter, progress);
-
-    int n = Y.n_rows;
-    int k = Y.n_cols;
-    int p = X.n_cols;
-
-    int nu = 1 / epsilon;
-    int nuMP = delta + k - 1;
-    int deltaMP = nu - k + 1;
-
-    arma::mat I_k = arma::eye(k, k);
-    arma::mat I_p = arma::eye(p, p);
-
-    arma::mat S_X = X.t() * X + I_p * 1e-6;
-    arma::mat Sinv_X = safe_inv_sympd(S_X);
-
-    arma::cube Psi(k, k, 1, arma::fill::zeros);
-    arma::mat S_Y(k, k, arma::fill::zeros);
-    arma::mat B = epsilon * I_k;
-    arma::mat BMP = safe_inv_sympd(B);
-    arma::mat BMPinv = safe_inv_sympd(BMP);
-
-    arma::cube Theta(k, k, 1, arma::fill::zeros);
-    arma::cube Theta_mcmc(k, k, iter, arma::fill::zeros);
-
-    arma::mat pcors(k, k, arma::fill::zeros);
-    arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
-
-    arma::cube Sigma(k, k, 1, arma::fill::zeros);
-
-    arma::cube z0(n, k, 1, arma::fill::zeros);
-    arma::mat& z_current = z0.slice(0);
-
-    arma::mat w(n, k, arma::fill::zeros);
-    arma::cube Xbhat(n, k, 1, arma::fill::zeros);
-    arma::mat& Xbhat_current = Xbhat.slice(0);
-
-    arma::cube Rinv(k, k, 1, arma::fill::zeros);
-    arma::cube R(k, k, 1, arma::fill::zeros);
-
-    arma::mat M(p, k, arma::fill::zeros);
-    arma::mat beta(p, k, arma::fill::zeros);
-    arma::cube beta_mcmc(p, k, iter, arma::fill::zeros);
-    arma::mat gamma(p, k, arma::fill::zeros);
-
-    arma::cube Dinv(k, k, 1, arma::fill::zeros);
-    arma::mat D = arma::eye(k, k);
-
-    Theta.slice(0) = start;
-    Sigma.slice(0) = safe_inv_sympd(start);
-    Psi.slice(0) = I_k;
-    Rinv.slice(0) = I_k;
-    R.slice(0) = I_k;
-    Dinv.slice(0) = arma::inv(diagmat(arma::sqrt(Sigma.slice(0).diag())));
-
-    arma::ivec K_by_var(k, arma::fill::ones);
-    int K_max = std::max(K, 1);
-    for(int var = 0; var < k; ++var) {
-      arma::vec col = Y.col(var);
-      arma::uvec finite_idx = arma::find_finite(col);
-      int K_var = 1;
-      if(finite_idx.n_elem > 0) {
-        K_var = static_cast<int>(arma::max(col.elem(finite_idx)));
-      }
-      if(K_var < 1) {
-        K_var = 1;
-      }
-      if(K_var > K_max) {
-        K_var = K_max;
-      }
-      K_by_var(var) = K_var;
+  arma::mat z = arma::zeros(n, k);
+  arma::mat Psi = arma::eye(k, k);
+  arma::mat S_Y(k, k, arma::fill::zeros);
+  for (int s = 0; s < iter; ++s) {
+    pr.increment();
+    if ((s + 1) % 250 == 0) {
+      Rcpp::checkUserInterrupt();
     }
 
-    arma::mat thresholds(k, K_max + 1, arma::fill::zeros);
-    for(int var = 0; var < k; ++var) {
-      int K_var = K_by_var(var);
-      thresholds(var, 0) = -arma::datum::inf;
-      for(int level = 1; level <= K_max; ++level) {
-        thresholds(var, level) = arma::datum::inf;
-      }
-      if(K_var > 1) {
-        arma::rowvec init = initialize_thresholds(Y.col(var), K_var);
-        for(int level = 1; level < K_var; ++level) {
-          thresholds(var, level) = init(level);
+    for (int i = 0; i < k; ++i) {
+      arma::mat R_oo = remove_row(remove_col(R_current, i), i);
+      arma::vec R_io = Sigma_i_not_i(R_current, i).t();
+
+      arma::vec weights = safe_solve_sympd_vec(R_oo, R_io);
+      double cond_var = R_current(i, i) - arma::dot(R_io, weights);
+      cond_var = std::max(cond_var, 1e-8);
+      double cond_sd = std::sqrt(cond_var);
+
+      arma::mat z_minus = remove_col(z, i);
+      arma::mat xb_minus = remove_col(Xbhat, i);
+      arma::vec cond_mean = Xbhat.col(i) + (z_minus - xb_minus) * weights;
+
+      int max_level = levels_per_var(i);
+      for (int j = 0; j < n; ++j) {
+        int cat = static_cast<int>(std::round(Y(j, i)));
+        if (cat < 1) {
+          cat = 1;
         }
-        thresholds(var, K_var) = arma::datum::inf;
-      } else {
-        thresholds(var, 1) = arma::datum::inf;
+        if (cat > max_level) {
+          cat = max_level;
+        }
+        double lower = current_thresh(i, cat - 1);
+        double upper = current_thresh(i, cat);
+        z(j, i) = sample_truncated_normal(cond_mean(j), cond_sd, lower, upper);
       }
     }
 
-    arma::cube thresh(iter, K_max + 1, k, arma::fill::zeros);
+    for (int var = 0; var < k; ++var) {
+      int max_level = levels_per_var(var);
+      for (int level = 1; level < max_level; ++level) {
+        arma::uvec idx_lower = arma::find(arma::round(Y.col(var)) == level);
+        arma::uvec idx_upper = arma::find(arma::round(Y.col(var)) == (level + 1));
 
-    arma::vec cond_mean(n);
-    double cond_var = 0.0;
-
-    for(int s = 0; s < iter; ++s) {
-      pr.increment();
-
-      if (s % 250 == 0){
-        Rcpp::checkUserInterrupt();
-      }
-
-      for(int i = 0; i < k; ++i){
-        conditional_gaussian(R.slice(0), z_current, Xbhat_current, i, cond_mean, cond_var);
-        double sd = std::sqrt(std::max(cond_var, 1e-8));
-        int K_var = K_by_var(i);
-
-        for(int j = 0; j < n; ++j){
-          double y_val = Y(j, i);
-          if(!std::isfinite(y_val)){
-            continue;
+        double lower = current_thresh(var, level - 1);
+        if (!idx_lower.is_empty()) {
+          double max_lower = arma::max(z.col(var).elem(idx_lower));
+          if (max_lower > lower) {
+            lower = max_lower;
           }
-          int cat = static_cast<int>(y_val);
-          if(cat <= 0){
-            continue;
-          }
-          if(cat > K_var){
-            cat = K_var;
-          }
-          double lower = thresholds(i, cat - 1);
-          double upper = (cat >= K_var) ? arma::datum::inf : thresholds(i, cat);
-          z_current(j, i) = truncated_normal_sample(lower, upper, cond_mean(j), sd);
         }
-      }
 
-      for(int var = 0; var < k; ++var){
-        int K_var = K_by_var(var);
-        if(K_var > 1){
-          double shift = arma::mean(z_current.col(var));
-          z_current.col(var) -= shift;
-          if(std::abs(shift) > 1e-12){
-            for(int level = 1; level < K_var; ++level){
-              double current = thresholds(var, level);
-              if(std::isfinite(current)){
-                thresholds(var, level) = current - shift;
-              }
-            }
+        double upper = current_thresh(var, level + 1);
+        if (!idx_upper.is_empty()) {
+          double min_upper = arma::min(z.col(var).elem(idx_upper));
+          if (min_upper < upper) {
+            upper = min_upper;
           }
-          update_thresholds_uniform(Y.col(var), z_current.col(var), thresholds.row(var), K_var);
-        } else {
-          z_current.col(var) -= arma::mean(z_current.col(var));
         }
+
+        if (!(upper > lower)) {
+          upper = lower + 1e-8;
+        }
+
+        current_thresh(var, level) = R::runif(lower, upper);
       }
 
-      for(int i = 0; i < k; ++i){
-        double diag_val = Rinv.slice(0)(i, i);
-        if(!std::isfinite(diag_val) || diag_val <= 0.0){
-          diag_val = 1.0;
+      for (int level = max_level + 1; level <= K; ++level) {
+        current_thresh(var, level) = arma::datum::inf;
+      }
+    }
+    arma::rowvec z_means = arma::mean(z, 0);
+    for (int var = 0; var < k; ++var) {
+      double shift = z_means(var);
+      z.col(var) -= shift;
+      int max_level = levels_per_var(var);
+      for (int level = 1; level < max_level; ++level) {
+        double val = current_thresh(var, level);
+        if (std::isfinite(val)) {
+          current_thresh(var, level) = val - shift;
         }
         D(i, i) = std::sqrt(1.0 / R::rgamma((delta + k - 1.0) / 2.0, 2.0 / diag_val));
       }
-
-      w = z_current * D;
-      M = Sinv_X * X.t() * w;
-
-      arma::vec mean_vec = arma::vectorise(M);
-      arma::mat cov_mat = arma::kron(Sigma.slice(0), Sinv_X);
-      gamma = arma::reshape(mvnrnd(mean_vec, cov_mat), p, k);
-      beta = gamma * Dinv.slice(0);
-      Xbhat_current = X * beta;
-
-      S_Y = w.t() * w + I_k - M.t() * S_X * M;
-
-      Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
-      Theta.slice(0) = wishrnd(safe_inv_sympd(Psi.slice(0) + S_Y), (deltaMP + k - 1) + (n - 1));
-      Sigma.slice(0) = safe_inv_sympd(Theta.slice(0));
-
-      arma::vec sigma_diag = Sigma.slice(0).diag();
-      arma::vec theta_diag = Theta.slice(0).diag();
-
-      arma::vec inv_sqrt_sigma = 1.0 / arma::sqrt(sigma_diag);
-      arma::vec inv_sqrt_theta = 1.0 / arma::sqrt(theta_diag);
-
-      R.slice(0) = diagmat(inv_sqrt_sigma) * Sigma.slice(0) * diagmat(inv_sqrt_sigma);
-      pcors = diagmat(inv_sqrt_theta) * Theta.slice(0) * diagmat(inv_sqrt_theta);
-      Rinv.slice(0) = safe_inv_sympd(R.slice(0));
-
-      Dinv.slice(0) = arma::inv(diagmat(arma::sqrt(sigma_diag)));
-
-      beta_mcmc.slice(s) = beta;
-      pcors_mcmc.slice(s) = -(pcors - I_k);
-      Theta_mcmc.slice(s) = Theta.slice(0);
-
-      for(int var = 0; var < k; ++var){
-        int K_var = K_by_var(var);
-        for(int level = 0; level <= K_max; ++level){
-          if(level == 0){
-            thresh(s, level, var) = -arma::datum::inf;
-          } else if(level > K_var){
-            thresh(s, level, var) = arma::datum::inf;
-          } else {
-            thresh(s, level, var) = thresholds(var, level);
-          }
-        }
-      }
     }
 
-    arma::cube fisher_z = atanh(pcors_mcmc);
+    for (int i = 0; i < k; ++i) {
+      double rate = std::max(Rinv_current(i, i), 1e-12);
+      double draw = R::rgamma((delta + k - 1.0) / 2.0, 2.0 / rate);
+      draw = std::max(draw, 1e-12);
+      D(i, i) = std::sqrt(1.0 / draw);
+    }
 
-    int burn = std::min(iter, 50);
-    arma::cube pcors_tail = (iter > burn) ? pcors_mcmc.slices(burn, iter - 1) : pcors_mcmc;
-    arma::mat pcor_mat = arma::mean(pcors_tail, 2);
+    w = z * D;
 
-    Rcpp::List ret;
-    ret["pcors"] = pcors_mcmc;
-    ret["pcor_mat"] = pcor_mat;
-    ret["beta"] = beta_mcmc;
-    ret["thresh"]  = thresh;
-    ret["fisher_z"] = fisher_z;
-    return  ret;
+    arma::mat M = Sinv_X * X.t() * w;
+    arma::mat kron_cov = arma::symmatu(kron(Sigma_current, Sinv_X));
+    arma::vec gamma_vec = mvnrnd(reshape(M, k * p, 1), kron_cov);
+    gamma = reshape(gamma_vec, p, k);
 
+    arma::mat beta_current = gamma * Dinv_current;
+    beta_mcmc.slice(s) = reshape(beta_current, p, k);
+    Xbhat = X * beta_current;
 
+    S_Y = w.t() * w + I_k - M.t() * S_X * M;
+    S_Y = arma::symmatu(S_Y);
+
+    Psi = wishrnd(safe_inv_sympd(BMPinv + Theta_current), nuMP + deltaMP + k - 1);
+    Theta_current = wishrnd(safe_inv_sympd(S_Y + Psi), (deltaMP + k - 1) + (n - 1));
+    Theta_current = arma::symmatu(Theta_current);
+
+    Sigma_current = safe_inv_sympd(Theta_current);
+
+    sigma_diag = Sigma_current.diag();
+    sigma_diag.transform([](double val) { return std::max(val, 1e-8); });
+    inv_sqrt_sigma = 1.0 / arma::sqrt(sigma_diag);
+    Dinv_current = arma::diagmat(inv_sqrt_sigma);
+
+    arma::mat inv_sqrt_sigma_mat = Dinv_current;
+    cors = arma::symmatu(inv_sqrt_sigma_mat * Sigma_current * inv_sqrt_sigma_mat);
+
+    arma::vec theta_diag = Theta_current.diag();
+    theta_diag.transform([](double val) { return std::max(val, 1e-8); });
+    arma::vec inv_sqrt_theta = 1.0 / arma::sqrt(theta_diag);
+    arma::mat inv_sqrt_theta_mat = arma::diagmat(inv_sqrt_theta);
+    arma::mat pcors = arma::symmatu(inv_sqrt_theta_mat * Theta_current * inv_sqrt_theta_mat);
+
+    R_current = cors;
+    Rinv_current = safe_inv_sympd(R_current);
+
+    pcors_mcmc.slice(s) = -(pcors - I_k);
+
+    for (int var = 0; var < k; ++var) {
+      thresh_store.slice(var).row(s) = current_thresh.row(var);
+    }
   }
 
+  arma::cube fisher_z = atanh(pcors_mcmc);
+  arma::mat pcor_mat;
+  if (iter > 50) {
+    pcor_mat = mean(pcors_mcmc.tail_slices(iter - 50), 2);
+  } else {
+    pcor_mat = mean(pcors_mcmc, 2);
+  }
 
-  // mixed data sampler
-  // [[Rcpp::export]]
-  Rcpp::List  copula(arma::mat z0_start,
-                     arma::mat levels,
-                     arma::vec K,
-                     arma::mat Sigma_start,
-                     int iter,
-                     float delta,
-                     float epsilon,
-                     arma::vec idx,
-                     bool progress
-                     ) {
+  Rcpp::List ret;
+  ret["pcors"] = pcors_mcmc;
+  ret["pcor_mat"] = pcor_mat;
+  ret["beta"] = beta_mcmc;
+  ret["thresh"] = thresh_store;
+  ret["fisher_z"] = fisher_z;
+  return ret;
+}
 
-    Progress  pr(iter, progress);
+// mixed data sampler
+// [[Rcpp::export]]
+Rcpp::List  copula(arma::mat z0_start,
+                   arma::mat levels,
+                   arma::vec K,
+                   arma::mat Sigma_start,
+                   int iter,
+                   float delta,
+                   float epsilon,
+                   arma::vec idx,
+                   bool progress
+                   ) {
 
-    int n = z0_start.n_rows;
-    int k = z0_start.n_cols;
+  Progress pr(iter, progress);
 
-    arma::mat  I_k(k, k, arma::fill::eye);
+  int n = z0_start.n_rows;
+  int k = z0_start.n_cols;
 
-    int nu = 1 / epsilon;
-    int nuMP = delta + k - 1;
-    int deltaMP = nu - k + 1;
+  arma::mat I_k(k, k, arma::fill::eye);
 
-    arma::cube z0(n, k, 1,  arma::fill::zeros);
-    arma::mat& z_current = z0.slice(0);
-    z_current = z0_start;
+  int nu = 1 / epsilon;
+  int nuMP = delta + k - 1;
+  int deltaMP = nu - k + 1;
 
-    arma::cube Psi(k, k, 1, arma::fill::zeros);
-    arma::mat S_Y(k, k, arma::fill::zeros);
-    arma::mat B = epsilon * I_k;
-    arma::mat BMP = safe_inv_sympd(B);
-    arma::mat BMPinv = safe_inv_sympd(BMP);
+  arma::mat B = epsilon * I_k;
+  arma::mat BMP = safe_inv_sympd(B);
+  arma::mat BMPinv = safe_inv_sympd(BMP);
 
-    arma::cube Sigma(k, k, 1, arma::fill::zeros);
-    Sigma.slice(0) = Sigma_start;
+  arma::mat Sigma_current = stabilize_pd(arma::symmatu(Sigma_start));
+  arma::mat Theta_current = safe_inv_sympd(Sigma_current);
 
-    arma::cube Theta(k, k, 1, arma::fill::zeros);
-    Theta.slice(0) = safe_inv_sympd(Sigma_start);
+  arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
+  arma::ivec K_int = arma::conv_to<arma::ivec>::from(K);
+  int K_max = 0;
+  if (!K_int.is_empty()) {
+    K_max = K_int.max();
+  }
+  if (K_max < 1) {
+    K_max = 1;
+  }
 
-    arma::mat pcors(k,k, arma::fill::zeros);
-    arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
+  arma::mat current_thresh(k, K_max + 1, arma::fill::zeros);
+  current_thresh.fill(0.0);
+  for (int var = 0; var < k; ++var) {
+    if (idx(var) >= 0.5) {
+      int K_var = std::max(1, K_int(var));
+      current_thresh(var, 0) = -arma::datum::inf;
+      current_thresh(var, K_var) = arma::datum::inf;
+      for (int level = 1; level < K_var; ++level) {
+        current_thresh(var, level) = static_cast<double>(level) - 1.0;
+      }
+      for (int level = K_var + 1; level <= K_max; ++level) {
+        current_thresh(var, level) = arma::datum::inf;
+      }
+    }
+  }
 
-    arma::ivec K_int = arma::conv_to<arma::ivec>::from(K);
-    arma::ivec K_by_var(k, arma::fill::ones);
-    int K_max = 1;
-    for(int var = 0; var < k; ++var){
-      if(idx(var) == 1){
-        int K_var = std::max(1, K_int(var));
-        K_by_var(var) = K_var;
-        if(K_var > K_max){
-          K_max = K_var;
+  arma::cube thresh_store(iter, K_max + 1, k, arma::fill::zeros);
+
+  arma::imat level_codes(levels.n_rows, levels.n_cols);
+  for (arma::uword j = 0; j < levels.n_rows; ++j) {
+    for (arma::uword i = 0; i < levels.n_cols; ++i) {
+      double val = levels(j, i);
+      if (!std::isfinite(val)) {
+        level_codes(j, i) = 0;
+      } else {
+        int rounded = static_cast<int>(std::round(val));
+        level_codes(j, i) = std::max(0, rounded);
+      }
+    }
+  }
+
+  arma::mat z = z0_start;
+  z.replace(arma::datum::nan, 0.0);
+  for (int s = 0; s < iter; ++s) {
+    pr.increment();
+    if ((s + 1) % 250 == 0) {
+      Rcpp::checkUserInterrupt();
+    }
+
+    for (int i = 0; i < k; ++i) {
+      arma::mat Sigma_oo = remove_row(remove_col(Sigma_current, i), i);
+      arma::vec Sigma_io = Sigma_i_not_i(Sigma_current, i).t();
+
+      arma::vec weights = safe_solve_sympd_vec(Sigma_oo, Sigma_io);
+      double cond_var = Sigma_current(i, i) - arma::dot(Sigma_io, weights);
+      cond_var = std::max(cond_var, 1e-8);
+      double cond_sd = std::sqrt(cond_var);
+
+      arma::mat z_minus = remove_col(z, i);
+      arma::vec cond_mean = z_minus * weights;
+
+      if (idx(i) >= 0.5) {
+        int K_var = std::max(1, K_int(i));
+        for (int j = 0; j < n; ++j) {
+          int cat = level_codes(j, i);
+          if (cat <= 0) {
+            continue;
+          }
+          if (cat > K_var) {
+            cat = K_var;
+          }
+          double lower = current_thresh(i, cat - 1);
+          double upper = current_thresh(i, cat);
+          z(j, i) = sample_truncated_normal(cond_mean(j), cond_sd, lower, upper);
         }
       } else {
-        K_by_var(var) = 1;
-      }
-    }
-
-    arma::mat thresholds(k, K_max + 1, arma::fill::zeros);
-    for(int var = 0; var < k; ++var){
-      thresholds(var, 0) = -arma::datum::inf;
-      for(int level = 1; level <= K_max; ++level){
-        thresholds(var, level) = arma::datum::inf;
-      }
-      if(idx(var) == 1){
-        int K_var = K_by_var(var);
-        arma::rowvec init = initialize_thresholds(levels.col(var), K_var);
-        for(int level = 1; level < K_var; ++level){
-          thresholds(var, level) = init(level);
-        }
-        thresholds(var, K_var) = arma::datum::inf;
-      }
-    }
-
-    arma::cube thresh(iter, K_max + 1, k, arma::fill::zeros);
-
-    arma::vec cond_mean(n);
-    double cond_var = 0.0;
-    arma::mat zero_mean(n, k, arma::fill::zeros);
-
-    for(int s = 0; s < iter; ++s){
-      pr.increment();
-
-      if (s % 250 == 0){
-        Rcpp::checkUserInterrupt();
+        arma::vec draws = cond_mean + cond_sd * arma::randn<arma::vec>(n);
+        z.col(i) = draws;
       }
 
-      for(int i = 0; i < k; ++i){
-        conditional_gaussian(Sigma.slice(0), z_current, zero_mean, i, cond_mean, cond_var);
-        double sd = std::sqrt(std::max(cond_var, 1e-8));
+    for (int var = 0; var < k; ++var) {
+      if (idx(var) < 0.5) {
+        continue;
+      }
+      int K_var = std::max(1, K_int(var));
+      for (int level = 1; level < K_var; ++level) {
+        arma::uvec idx_lower = arma::find(level_codes.col(var) == level);
+        arma::uvec idx_upper = arma::find(level_codes.col(var) == (level + 1));
 
-        if(idx(i) == 1){
-          int K_var = K_by_var(i);
-          for(int j = 0; j < n; ++j){
-            double level_val = levels(j, i);
-            if(!std::isfinite(level_val)){
-              continue;
-            }
-            int cat = static_cast<int>(level_val);
-            if(cat <= 0){
-              continue;
-            }
-            if(cat > K_var){
-              cat = K_var;
-            }
-            double lower = thresholds(i, cat - 1);
-            double upper = (cat >= K_var) ? arma::datum::inf : thresholds(i, cat);
-            z_current(j, i) = truncated_normal_sample(lower, upper, cond_mean(j), sd);
-          }
-        } else {
-          for(int j = 0; j < n; ++j){
-            z_current(j, i) = R::rnorm(cond_mean(j), sd);
+        double lower = current_thresh(var, level - 1);
+        if (!idx_lower.is_empty()) {
+          double max_lower = arma::max(z.col(var).elem(idx_lower));
+          if (max_lower > lower) {
+            lower = max_lower;
           }
         }
+
+        double upper = current_thresh(var, level + 1);
+        if (!idx_upper.is_empty()) {
+          double min_upper = arma::min(z.col(var).elem(idx_upper));
+          if (min_upper < upper) {
+            upper = min_upper;
+          }
+        }
+
+        if (!(upper > lower)) {
+          upper = lower + 1e-8;
+        }
+
+        current_thresh(var, level) = R::runif(lower, upper);
       }
 
-      for(int var = 0; var < k; ++var){
-        if(idx(var) == 1){
-          int K_var = K_by_var(var);
-          double shift = arma::mean(z_current.col(var));
-          z_current.col(var) -= shift;
-          if(std::abs(shift) > 1e-12){
-            for(int level = 1; level < K_var; ++level){
-              double current = thresholds(var, level);
-              if(std::isfinite(current)){
-                thresholds(var, level) = current - shift;
-              }
-            }
+    arma::rowvec z_means = arma::mean(z, 0);
+    for (int var = 0; var < k; ++var) {
+      double shift = z_means(var);
+      z.col(var) -= shift;
+      if (idx(var) >= 0.5) {
+        int K_var = std::max(1, K_int(var));
+        for (int level = 1; level < K_var; ++level) {
+          double val = current_thresh(var, level);
+          if (std::isfinite(val)) {
+            current_thresh(var, level) = val - shift;
           }
           update_thresholds_uniform(levels.col(var), z_current.col(var), thresholds.row(var), K_var);
         }
       }
-
-      S_Y = z_current.t() * z_current;
-
-      Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
-      Theta.slice(0) = wishrnd(safe_inv_sympd(Psi.slice(0) + S_Y), (deltaMP + k - 1) + (n - 1));
-      Sigma.slice(0) = safe_inv_sympd(Theta.slice(0));
-
-      arma::vec theta_diag = Theta.slice(0).diag();
-      arma::vec inv_sqrt_theta = 1.0 / arma::sqrt(theta_diag);
-      pcors = diagmat(inv_sqrt_theta) * Theta.slice(0) * diagmat(inv_sqrt_theta);
-
-      pcors_mcmc.slice(s) = -(pcors - I_k);
-
-      for(int var = 0; var < k; ++var){
-        if(idx(var) == 1){
-          int K_var = K_by_var(var);
-          for(int level = 0; level <= K_max; ++level){
-            if(level == 0){
-              thresh(s, level, var) = -arma::datum::inf;
-            } else if(level > K_var){
-              thresh(s, level, var) = arma::datum::inf;
-            } else {
-              thresh(s, level, var) = thresholds(var, level);
-            }
-          }
-        } else {
-          thresh(s, 0, var) = -arma::datum::inf;
-          thresh(s, 1, var) = arma::datum::inf;
-        }
-      }
     }
+    arma::mat S_Y = arma::symmatu(z.t() * z);
 
-    arma::cube fisher_z = atanh(pcors_mcmc);
+    arma::mat Psi = wishrnd(safe_inv_sympd(BMPinv + Theta_current), nuMP + deltaMP + k - 1);
+    Theta_current = wishrnd(safe_inv_sympd(S_Y + Psi), (deltaMP + k - 1) + (n - 1));
+    Theta_current = arma::symmatu(Theta_current);
 
-    int burn = std::min(iter, 50);
-    arma::cube pcors_tail = (iter > burn) ? pcors_mcmc.slices(burn, iter - 1) : pcors_mcmc;
-    arma::mat pcor_mat = arma::mean(pcors_tail, 2);
+    Sigma_current = safe_inv_sympd(Theta_current);
 
-    Rcpp::List ret;
-    ret["pcors"] = pcors_mcmc;
-    ret["pcor_mat"] = pcor_mat;
-    ret["fisher_z"] = fisher_z;
-    ret["thresh"] = thresh;
-    return ret;
+    arma::vec theta_diag = Theta_current.diag();
+    theta_diag.transform([](double val) { return std::max(val, 1e-8); });
+    arma::vec inv_sqrt_theta = 1.0 / arma::sqrt(theta_diag);
+    arma::mat inv_sqrt_theta_mat = arma::diagmat(inv_sqrt_theta);
+    arma::mat pcors = arma::symmatu(inv_sqrt_theta_mat * Theta_current * inv_sqrt_theta_mat);
+
+    pcors_mcmc.slice(s) = -(pcors - I_k);
+
+    for (int var = 0; var < k; ++var) {
+      thresh_store.slice(var).row(s) = current_thresh.row(var);
+    }
   }
 
+  arma::cube fisher_z = atanh(pcors_mcmc);
+  arma::mat pcor_mat;
+  if (iter > 50) {
+    pcor_mat = mean(pcors_mcmc.tail_slices(iter - 50), 2);
+  } else {
+    pcor_mat = mean(pcors_mcmc, 2);
+  }
+
+  Rcpp::List ret;
+  ret["pcors"] = pcors_mcmc;
+  ret["pcor_mat"] = pcor_mat;
+  ret["fisher_z"] = fisher_z;
+  ret["thresh"] = thresh_store;
+  return ret;
+}
 
 // partials to correlations
 // [[Rcpp::export]]
@@ -3090,6 +3164,7 @@ arma::cube contrained_helper(arma::cube cors,
 }
 
 // [[Rcpp::export]]
+// [[Rcpp::export]]
 Rcpp::List missing_copula(arma::mat Y,
                              arma::mat Y_missing,
                              arma::mat z0_start,
@@ -3101,238 +3176,202 @@ Rcpp::List missing_copula(arma::mat Y,
                              arma::vec idx,
                              float epsilon,
                              float delta) {
-  // progress
-  Progress  pr(iter_missing, progress_impute);
+  Progress pr(iter_missing, progress_impute);
 
-  int p = Y.n_cols;
   int n = Y.n_rows;
+  int p = Y.n_cols;
 
-  arma::mat Y_impute = Y;
+  arma::mat I_p(p, p, arma::fill::eye);
 
-  arma::cube Y_collect(n, p, iter_missing, arma::fill::zeros);
-
-  // p by p identity mat
-  arma::mat  I_p(p, p, arma::fill::eye);
-  arma::cube Psi(p, p, 1, arma::fill::zeros);
-
-  // latent update
-  arma::cube  z0(n, p, 1,  arma::fill::zeros);
-
-  z0.slice(0) = z0_start;
-
-  arma::uvec index = find(Y_missing == 1);
-
-  //No more use:  int n_na = index.n_elem;
-
-  int nu = 1/ epsilon;
-
-  // // #nu in Mulder & Pericchi (2018) formula (30) line 1.
+  int nu = 1 / epsilon;
   int nuMP = delta + p - 1;
-
-  // // #delta in Mulder & Pericchi (2018) formula (30) line 1.
   int deltaMP = nu - p + 1;
 
-  arma::mat B(epsilon * I_p);
-  arma::mat BMP(inv(B));
-  arma::mat BMPinv(inv(BMP));
+  arma::mat B = epsilon * I_p;
+  arma::mat BMP = safe_inv_sympd(B);
+  arma::mat BMPinv = safe_inv_sympd(BMP);
 
-  arma::mat z(n,p);
+  arma::mat Sigma_current = stabilize_pd(arma::symmatu(Sigma_start));
+  arma::mat Theta_current = safe_inv_sympd(Sigma_current);
 
-  arma::cube Sigma(p, p, 1, arma::fill::zeros);
-  arma::cube Theta(p, p, 1, arma::fill::zeros);
-  Sigma.slice(0) = Sigma_start;
-
-  arma::mat mm(n,1);
-  arma::mat ss(1,1);
+  arma::cube pcors_mcmc(p, p, iter_missing, arma::fill::zeros);
+  arma::cube Y_collect(n, p, iter_missing, arma::fill::zeros);
 
   arma::ivec K_int = arma::conv_to<arma::ivec>::from(K);
   int K_max = 0;
-  for(int var = 0; var < p; ++var){
-    if(idx(var) == 1){
-      int K_var = K_int(var);
-      if(K_var > K_max){
-        K_max = K_var;
-      }
-    }
+  if (!K_int.is_empty()) {
+    K_max = K_int.max();
   }
-  if(K_max == 0){
+  if (K_max < 1) {
     K_max = 1;
   }
 
-  arma::cube thresh(iter_missing, K_max + 1, p, arma::fill::zeros);
-
-  for(int var = 0; var < p; ++var){
-    if(idx(var) == 1){
-      int K_var = K_int(var);
-      thresh.slice(var).col(0).fill(-arma::datum::inf);
-      thresh.slice(var).col(K_var).fill(arma::datum::inf);
-      for(int level = 1; level < K_var; ++level){
-        thresh.slice(var).col(level).fill(level - 1);
+  arma::mat current_thresh(p, K_max + 1, arma::fill::zeros);
+  current_thresh.fill(0.0);
+  for (int var = 0; var < p; ++var) {
+    if (idx(var) >= 0.5) {
+      int K_var = std::max(1, K_int(var));
+      current_thresh(var, 0) = -arma::datum::inf;
+      current_thresh(var, K_var) = arma::datum::inf;
+      for (int level = 1; level < K_var; ++level) {
+        current_thresh(var, level) = static_cast<double>(level) - 1.0;
+      }
+      for (int level = K_var + 1; level <= K_max; ++level) {
+        current_thresh(var, level) = arma::datum::inf;
       }
     }
   }
 
-  // partial correlations
-  arma::mat pcors(p,p);
-  arma::cube pcors_mcmc(p, p, iter_missing, arma::fill::zeros);
+  arma::cube thresh_store(iter_missing, K_max + 1, p, arma::fill::zeros);
 
-  for(int  s = 0; s < iter_missing; ++s){
+  arma::imat level_codes(levels.n_rows, levels.n_cols);
+  for (arma::uword j = 0; j < levels.n_rows; ++j) {
+    for (arma::uword i = 0; i < levels.n_cols; ++i) {
+      double val = levels(j, i);
+      if (!std::isfinite(val)) {
+        level_codes(j, i) = 0;
+      } else {
+        int rounded = static_cast<int>(std::round(val));
+        level_codes(j, i) = std::max(0, rounded);
+      }
+    }
+  }
 
+  arma::mat z = z0_start;
+  z.replace(arma::datum::nan, 0.0);
+  for (int s = 0; s < iter_missing; ++s) {
     pr.increment();
-
-    if (s % 250 == 0){
+    if ((s + 1) % 250 == 0) {
       Rcpp::checkUserInterrupt();
     }
 
-    if(s > 0){
-      for(int var = 0; var < p; ++var){
-        if(idx(var) == 1){
-          thresh.slice(var).row(s) = thresh.slice(var).row(s - 1);
-        }
-      }
-    }
+    for (int i = 0; i < p; ++i) {
+      arma::mat Sigma_oo = remove_row(remove_col(Sigma_current, i), i);
+      arma::vec Sigma_io = Sigma_i_not_i(Sigma_current, i).t();
 
-    if(s > 0){
-      for(int var = 0; var < p; ++var){
-        if(idx(var) != 1){
-          continue;
-        }
+      arma::vec weights = safe_solve_sympd_vec(Sigma_oo, Sigma_io);
+      double cond_var = Sigma_current(i, i) - arma::dot(Sigma_io, weights);
+      cond_var = std::max(cond_var, 1e-8);
+      double cond_sd = std::sqrt(cond_var);
 
-        int K_var = K_int(var);
-        for(int level = 1; level < K_var; ++level){
+      arma::mat z_minus = remove_col(z, i);
+      arma::vec cond_mean = z_minus * weights;
 
-          arma::uvec idx_current = find(levels.col(var) == level);
-          arma::uvec idx_next = find(levels.col(var) == level + 1);
-
-          double lower = thresh.slice(var)(s - 1, level - 1);
-          if(idx_current.n_elem > 0){
-            double max_current = arma::max(select_col(z0.slice(0), var).elem(idx_current));
-            if(max_current > lower){
-              lower = max_current;
-            }
-          }
-
-          double upper = thresh.slice(var)(s - 1, level + 1);
-          if(idx_next.n_elem > 0){
-            double min_next = arma::min(select_col(z0.slice(0), var).elem(idx_next));
-            if(min_next < upper){
-              upper = min_next;
-            }
-          }
-
-          if(lower >= upper){
-            thresh.slice(var)(s, level) = lower;
-          } else {
-            arma::vec v = Rcpp::runif(1, lower, upper);
-            thresh.slice(var)(s, level) = arma::as_scalar(v);
-          }
-        }
-      }
-    }
-
-    for(int i = 0; i < p; ++i){
-
-      mm = Sigma_i_not_i(Sigma.slice(0), i) *
-
-        inv(remove_row(remove_col(Sigma.slice(0), i), i)) *
-
-        remove_col(z0.slice(0), i).t();
-
-      ss = select_row(Sigma.slice(0), i).col(i) -
-        Sigma_i_not_i(Sigma.slice(0), i) *
-        inv(remove_row(remove_col(Sigma.slice(0), i), i)) *
-        Sigma_i_not_i(Sigma.slice(0), i).t();
-
-      if(idx(i) == 1){
-        int row_index = s;
-        for(int j = 0; j < n; ++j){
-          int cat = static_cast<int>(levels.col(i)[j]);
-          if(cat == 0){
+      if (idx(i) >= 0.5) {
+        int K_var = std::max(1, K_int(i));
+        for (int j = 0; j < n; ++j) {
+          int cat = level_codes(j, i);
+          if (cat <= 0) {
             continue;
           }
-          double lower = thresh.slice(i)(row_index, cat - 1);
-          double upper = thresh.slice(i)(row_index, cat);
-          z0.slice(0).row(j).col(i) = R::qnorm(R::runif(
-            R::pnorm(lower, mm(j), sqrt(ss(0)), TRUE, FALSE),
-            R::pnorm(upper, mm(j), sqrt(ss(0)), TRUE, FALSE)),
-            mm(j), sqrt(ss(0)), TRUE, FALSE);
-        }
-      }
-
-      arma::vec Y_j = Y_missing.col(i);
-
-      double check_na = sum(Y_j);
-
-      if(check_na > 0){
-
-        arma::uvec  index_j = find(Y_missing.col(i) == 1);
-
-        int  n_missing = index_j.n_elem;
-
-        for(int m = 0; m < n_missing;  ++m){
-
-          arma::vec ppd_i = Rcpp::rnorm(1,  mm(index_j[m]), sqrt(ss(0)));
-
-          z0.slice(0).col(i).row(index_j[m]) = ppd_i(0);
-
+          if (cat > K_var) {
+            cat = K_var;
+          }
+          double lower = current_thresh(i, cat - 1);
+          double upper = current_thresh(i, cat);
+          z(j, i) = sample_truncated_normal(cond_mean(j), cond_sd, lower, upper);
         }
 
+        arma::uvec miss_idx = arma::find(Y_missing.col(i) == 1);
+        for (arma::uword m = 0; m < miss_idx.n_elem; ++m) {
+          arma::uword obs = miss_idx[m];
+          double draw = R::rnorm(cond_mean(obs), cond_sd);
+          z(obs, i) = draw;
+        }
+      } else {
+        arma::vec draws = cond_mean + cond_sd * arma::randn<arma::vec>(n);
+        z.col(i) = draws;
       }
-
     }
 
-    arma::rowvec z_means = arma::mean(z0.slice(0), 0);
-    for(int var = 0; var < p; ++var){
-      if(idx(var) == 1){
-        double shift = z_means(var);
-        z0.slice(0).col(var) -= shift;
-        if(shift != 0.0){
-          int K_var = K_int(var);
-          for(int level = 1; level < K_var; ++level){
-            double current = thresh.slice(var)(s, level);
-            if(std::isfinite(current)){
-              thresh.slice(var)(s, level) = current - shift;
-            }
+    for (int var = 0; var < p; ++var) {
+      if (idx(var) < 0.5) {
+        continue;
+      }
+      int K_var = std::max(1, K_int(var));
+      for (int level = 1; level < K_var; ++level) {
+        arma::uvec idx_lower = arma::find(level_codes.col(var) == level);
+        arma::uvec idx_upper = arma::find(level_codes.col(var) == (level + 1));
+
+        double lower = current_thresh(var, level - 1);
+        if (!idx_lower.is_empty()) {
+          double max_lower = arma::max(z.col(var).elem(idx_lower));
+          if (max_lower > lower) {
+            lower = max_lower;
+          }
+        }
+
+        double upper = current_thresh(var, level + 1);
+        if (!idx_upper.is_empty()) {
+          double min_upper = arma::min(z.col(var).elem(idx_upper));
+          if (min_upper < upper) {
+            upper = min_upper;
+          }
+        }
+
+        if (!(upper > lower)) {
+          upper = lower + 1e-8;
+        }
+
+        current_thresh(var, level) = R::runif(lower, upper);
+      }
+    }
+
+    arma::rowvec z_means = arma::mean(z, 0);
+    for (int var = 0; var < p; ++var) {
+      double shift = z_means(var);
+      z.col(var) -= shift;
+      if (idx(var) >= 0.5) {
+        int K_var = std::max(1, K_int(var));
+        for (int level = 1; level < K_var; ++level) {
+          double val = current_thresh(var, level);
+          if (std::isfinite(val)) {
+            current_thresh(var, level) = val - shift;
           }
         }
       }
     }
 
-    arma::mat S_Y = z0.slice(0).t() * z0.slice(0);
+    arma::mat S_Y = arma::symmatu(z.t() * z);
 
-    Psi.slice(0) = wishrnd(safe_inv_sympd(BMPinv + Theta.slice(0)), nuMP + deltaMP + p - 1);
+    arma::mat Psi = wishrnd(safe_inv_sympd(BMPinv + Theta_current), nuMP + deltaMP + p - 1);
+    Theta_current = wishrnd(safe_inv_sympd(S_Y + Psi), (deltaMP + p - 1) + (n - 1));
+    Theta_current = arma::symmatu(Theta_current);
 
-    // sample Theta
-    Theta.slice(0) = wishrnd(safe_inv_sympd(Psi.slice(0) + S_Y),  (deltaMP + p - 1) + (n - 1));
+    Sigma_current = safe_inv_sympd(Theta_current);
 
-    // Sigma
-    Sigma.slice(0) = inv(Theta.slice(0));
+    arma::vec theta_diag = Theta_current.diag();
+    theta_diag.transform([](double val) { return std::max(val, 1e-8); });
+    arma::vec inv_sqrt_theta = 1.0 / arma::sqrt(theta_diag);
+    arma::mat inv_sqrt_theta_mat = arma::diagmat(inv_sqrt_theta);
+    arma::mat pcors = arma::symmatu(inv_sqrt_theta_mat * Theta_current * inv_sqrt_theta_mat);
 
-    // partial correlations
-    pcors = diagmat(1 / sqrt(Theta.slice(0).diag())) *
-      Theta.slice(0) *
-      diagmat(1 / sqrt(Theta.slice(0).diag()));
+    pcors_mcmc.slice(s) = -(pcors - I_p);
 
-    // store posterior samples
-    pcors_mcmc.slice(s) =  -(pcors - I_p);
+    Y_collect.slice(s) = z;
 
+    for (int var = 0; var < p; ++var) {
+      thresh_store.slice(var).row(s) = current_thresh.row(var);
+    }
   }
 
   arma::cube fisher_z = atanh(pcors_mcmc);
-  arma::mat  pcor_mat = mean(pcors_mcmc.tail_slices(iter_missing - 50), 2);
+  arma::mat pcor_mat;
+  if (iter_missing > 50) {
+    pcor_mat = mean(pcors_mcmc.tail_slices(iter_missing - 50), 2);
+  } else {
+    pcor_mat = mean(pcors_mcmc, 2);
+  }
 
   Rcpp::List ret;
   ret["pcors"] = pcors_mcmc;
   ret["pcor_mat"] = pcor_mat;
   ret["fisher_z"] = fisher_z;
   ret["Y_collect"] = Y_collect;
-  ret["thresh"] = thresh;
+  ret["thresh"] = thresh_store;
   return  ret;
 }
 
-
-
-// [[Rcpp::export]]
 Rcpp::List missing_copula_data(arma::mat Y,
                    arma::mat Y_missing,
                    arma::mat z0_start,
