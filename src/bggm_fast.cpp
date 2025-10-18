@@ -1622,12 +1622,14 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
           double upper_candidate = current_thresh(i, level + 1);
           arma::uvec lower_idx = arma::find(Y.col(i) == level);
           if (!lower_idx.is_empty()) {
-            arma::vec lower_vals = z0.slice(0).col(i).elem(lower_idx);
+            arma::vec z_col = z0.slice(0).col(i);
+            arma::vec lower_vals = z_col.elem(lower_idx);
             lower_candidate = std::max(lower_candidate, lower_vals.max());
           }
           arma::uvec upper_idx = arma::find(Y.col(i) == (level + 1));
           if (!upper_idx.is_empty()) {
-            arma::vec upper_vals = z0.slice(0).col(i).elem(upper_idx);
+            arma::vec z_col = z0.slice(0).col(i);
+            arma::vec upper_vals = z_col.elem(upper_idx);
             upper_candidate = std::min(upper_candidate, upper_vals.min());
           }
           double finite_lower = clamp_probit_bound(lower_candidate);
