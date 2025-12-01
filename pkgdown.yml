@@ -1,0 +1,18 @@
+pandoc: 3.1.11
+pkgdown: 2.2.0
+pkgdown_sha: ~
+articles:
+  control: control.html
+  hyp_3_ways: hyp_3_ways.html
+  in_tandem: in_tandem.html
+  mcmc_diagnostics: mcmc_diagnostics.html
+  netplot: netplot.html
+  netstat_custom: netstat_custom.html
+  ppc_custom: ppc_custom.html
+  predictability: predictability.html
+  test_sum: test_sum.html
+  var_model: var_model.html
+last_built: 2025-12-01T23:44Z
+urls:
+  reference: https://rast-lab.github.io/BGGM/reference
+  article: https://rast-lab.github.io/BGGM/articles
