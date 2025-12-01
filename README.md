@@ -7,7 +7,7 @@
 [![CRAN
 Version](https://www.r-pkg.org/badges/version/BGGM)](https://cran.r-project.org/package=BGGM)
 [![Downloads](https://cranlogs.r-pkg.org/badges/BGGM)](https://cran.r-project.org/package=BGGM)
-[![build](https://github.com/donaldRwilliams/BGGM/actions/workflows/build.yml/badge.svg)](https://github.com/donaldRwilliams/BGGM/actions/workflows/build.yml)
+[![build](https://github.com/rast-lab/BGGM/actions/workflows/build.yml/badge.svg)](https://github.com/rast-lab/BGGM/actions/workflows/build.yml)
 [![status](https://joss.theoj.org/papers/10.21105/joss.02111/status.svg)](https://joss.theoj.org/papers/10.21105/joss.02111)
 [![codecov](https://codecov.io/github/rast-lab/BGGM/graph/badge.svg?token=5OECW8W1M7)](https://codecov.io/github/rast-lab/BGGM)
 
@@ -43,7 +43,7 @@ The current developmental version can be installed with
     if (!requireNamespace("remotes")) { 
       install.packages("remotes")   
     }   
-    remotes::install_github("donaldRwilliams/BGGM")
+    remotes::install_github("rast-lab/BGGM")
 
 ## Overview
 
@@ -1013,9 +1013,9 @@ the future, support for high-dimensional data may be added to **BGGM**.
 ## Bug Reports, Feature Requests, and Contributing
 
 Bug reports and feature requests can be made by opening an issue on
-[Github](https://github.com/donaldRwilliams/BGGM/issues). To contribute
-towards the development of **BGGM**, you can start a branch with a pull
-request and we can discuss the proposed changes there.
+[Github](https://github.com/rast-lab/BGGM/issues). To contribute towards
+the development of **BGGM**, you can start a branch with a pull request
+and we can discuss the proposed changes there.
 
 ## Comparison to Other Software
 
