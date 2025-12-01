@@ -21,9 +21,11 @@ library(BGGM)
 
 
 <!-- badges: start -->
-[![CRAN Version](http://www.r-pkg.org/badges/version/BGGM)](https://cran.r-project.org/package=BGGM)
+[![CRAN Version](https://www.r-pkg.org/badges/version/BGGM)](https://cran.r-project.org/package=BGGM)
 [![Downloads](https://cranlogs.r-pkg.org/badges/BGGM)](https://cran.r-project.org/package=BGGM)
-[![Build Status](https://travis-ci.org/donaldRwilliams/BGGM.svg?branch=master)](https://travis-ci.org/donaldRwilliams/BGGM)
+[![build](https://github.com/rast-lab/BGGM/actions/workflows/build.yml/badge.svg)](https://github.com/rast-lab/BGGM/actions/workflows/build.yml)
+[![status](https://joss.theoj.org/papers/10.21105/joss.02111/status.svg)](https://joss.theoj.org/papers/10.21105/joss.02111)
+[![codecov](https://codecov.io/github/rast-lab/BGGM/graph/badge.svg?token=5OECW8W1M7)](https://codecov.io/github/rast-lab/BGGM)
 <!-- badges: end -->
 
 
@@ -35,7 +37,7 @@ predictive distribution [@Gelman1996a; see section 5 in @rubin1984bayesianly], w
 latter focuses on model comparison with the Bayes factor [@Jeffreys1961; @Kass1995].
 
 ## <i class="fas fa-cog"></i> Installation
-To install the latest release version (`2.1.1`) from CRAN use
+To install the latest release version (`2.1.6`) from CRAN use
 ```{r gh-installation, eval = FALSE}	
 install.packages("BGGM")	
 ```
@@ -46,14 +48,13 @@ The current developmental version can be installed with
 if (!requireNamespace("remotes")) {	
   install.packages("remotes")	
 }	
-remotes::install_github("donaldRwilliams/BGGM")
+
+remotes::install_github("rast-lab/BGGM")
 ```
 
 
 ### <i class="fas fa-skull-crossbones"></i> Dealing with Errors
-There are automatic checks for [**BGGM**](https://travis-ci.org/github/donaldRwilliams/BGGM/branches). However, that only checks for Linux and **BGGM** is built on Windows. 
-The most common installation errors occur on OSX. An evolving guide to address these
-issues is provided in the [Troubleshoot Section](https://donaldrwilliams.github.io/BGGM/articles/installation.html). 
+
 
 ## <i class="fas fa-clipboard-list"></i> Overview
 The methods in **BGGM** build upon existing algorithms that are well-known in the literature.
@@ -65,28 +66,28 @@ The central contribution of **BGGM** is to extend those approaches:
 
 2. Bayesian hypothesis testing with the matrix-F prior distribution [@Williams2019_bf]
 
-    + [Exploratory hypothesis testing](https://github.com/donaldRwilliams/BGGM#Exploratory)
+    + [Exploratory hypothesis testing](https://github.com/rast-lab/BGGM#Exploratory)
   
-    + [Confirmatory hypothesis testing](https://github.com/donaldRwilliams/BGGM#confirmatory)
+    + [Confirmatory hypothesis testing](https://github.com/rast-lab/BGGM#confirmatory)
     
 3. Comparing Gaussian graphical models [@Williams2019; @williams2020comparing]
     
-    + [Partial correlation differences](https://github.com/donaldRwilliams/BGGM#partial-correlation-differences)
+    + [Partial correlation differences](https://github.com/rast-lab/BGGM#partial-correlation-differences)
     
-    + [Posterior predictive check](https://github.com/donaldRwilliams/BGGM#posterior-predictive-check)
+    + [Posterior predictive check](https://github.com/rast-lab/BGGM#posterior-predictive-check)
     
-    + [Exploratory hypothesis testing](https://github.com/donaldRwilliams/BGGM#exploratory-groups)
+    + [Exploratory hypothesis testing](https://github.com/rast-lab/BGGM#exploratory-groups)
     
-    + [Confirmatory hypothesis testing](https://github.com/donaldRwilliams/BGGM#confirmatory-groups)
+    + [Confirmatory hypothesis testing](https://github.com/rast-lab/BGGM#confirmatory-groups)
 
 4. Extending inference beyond the conditional (in)dependence structure [@Williams2019]
 
-    +  [Predictability](https://github.com/donaldRwilliams/BGGM#predictability)
+    +  [Predictability](https://github.com/rast-lab/BGGM#predictability)
     
-    +  [Posterior uncertainty intervals](https://github.com/donaldRwilliams/BGGM#posterior-uncertainty) for the 
+    +  [Posterior uncertainty intervals](https://github.com/rast-lab/BGGM#posterior-uncertainty) for the 
        partial correlations
        
-    +  [Custom Network Statistics](https://github.com/donaldRwilliams/BGGM#custom-network-statistics)
+    +  [Custom Network Statistics](https://github.com/rast-lab/BGGM#custom-network-statistics)
     
     
 The computationally intensive tasks are written in `c++` via the `R` package **Rcpp** [@eddelbuettel2011rcpp] and the `c++` library **Armadillo** [@sanderson2016armadillo]. The Bayes factors are computed with the `R` package **BFpack** [@mulder2019bfpack]. Furthermore, there are plotting functions
@@ -113,7 +114,7 @@ and there is support for missing values (see `bggm_missing`).
 
 
 ##  <i class="fas fa-folder-open"></i> Illustrative Examples
-There are several examples in the [Vignettes](https://donaldrwilliams.github.io/BGGM/articles/) section.
+There are several examples in the [Vignettes](https://rast-lab.github.io/BGGM/articles/) section.
 
 ## <i class="fas fa-play-circle"></i> Basic Usage
 It is common to have some combination of continuous and discrete (e.g., ordinal, binary, etc.) variables. **BGGM** (as of version `2.0.0`) can readily be used for these kinds of data. In this example, a model is fitted for the `gss` data in **BGGM**. 
@@ -132,7 +133,7 @@ Y <- gss
 # histogram for each node
 psych::multi.hist(Y, density = FALSE)
 ```
-![](man/figures/index_hist.png)
+![Posterior histogram](man/figures/index_hist.png)
 
 
 
@@ -193,7 +194,7 @@ The summary can also be plotted
 ```r
 plot(summary(fit))
 ```
-![](man/figures/index_summ.png)
+![Summary illustration](man/figures/index_summ.png)
 
 ### Graph Selection
 The graph is selected and plotted with
@@ -204,7 +205,7 @@ plot(E, node_size = 12,
      edge_magnify = 5)
 ```
 
-![](man/figures/netplot_index.png)
+![Nodes](man/figures/netplot_index.png)
 
 
 The Bayes factor testing approach is readily implemented by changing `estimate` to `explore`. 
