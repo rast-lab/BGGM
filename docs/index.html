@@ -6,20 +6,19 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>BGGM • BGGM</title>
-<!-- favicons --><link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-<link rel="apple-touch-icon" type="image/png" sizes="180x180" href="apple-touch-icon.png">
-<link rel="apple-touch-icon" type="image/png" sizes="120x120" href="apple-touch-icon-120x120.png">
-<link rel="apple-touch-icon" type="image/png" sizes="76x76" href="apple-touch-icon-76x76.png">
-<link rel="apple-touch-icon" type="image/png" sizes="60x60" href="apple-touch-icon-60x60.png">
+<!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
+<link rel="icon" type="”image/svg+xml”" href="favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" sizes="any" href="favicon.ico">
+<link rel="manifest" href="site.webmanifest">
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.4.2/css/all.min.css" rel="stylesheet">
-<link href="deps/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet">
+<script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="BGGM">
 <meta name="description" content="Fit Bayesian Gaussian graphical models. The methods are separated into two Bayesian approaches for inference: hypothesis testing and estimation. There are extensions for confirmatory hypothesis testing, comparing Gaussian graphical models, and node wise predictability. These methods were recently introduced in the Gaussian graphical model literature, including Williams (2019) &lt;doi:10.31234/osf.io/x8dpr&gt;, Williams and Mulder (2019) &lt;doi:10.31234/osf.io/ypxd8&gt;, Williams, Rast, Pericchi, and Mulder (2019) &lt;doi:10.31234/osf.io/yt386&gt;.">
 <meta property="og:description" content="Fit Bayesian Gaussian graphical models. The methods are separated into two Bayesian approaches for inference: hypothesis testing and estimation. There are extensions for confirmatory hypothesis testing, comparing Gaussian graphical models, and node wise predictability. These methods were recently introduced in the Gaussian graphical model literature, including Williams (2019) &lt;doi:10.31234/osf.io/x8dpr&gt;, Williams and Mulder (2019) &lt;doi:10.31234/osf.io/ypxd8&gt;, Williams, Rast, Pericchi, and Mulder (2019) &lt;doi:10.31234/osf.io/yt386&gt;.">
-<meta property="og:image" content="https://donaldrwilliams.github.io/BGGM/reference/figures/hex.jpg">
+<meta property="og:image" content="https://rast-lab.github.io/BGGM/reference/figures/hex.jpg">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -29,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">BGGM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2.1.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2.1.5.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,7 +45,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/donaldRwilliams/BGGM/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/rast-lab/BGGM/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -66,18 +65,17 @@
 <h2 id="id_-installation">
 <i class="fas fa-cog"></i> Installation<a class="anchor" aria-label="anchor" href="#id_-installation"></a>
 </h2>
-<p>To install the latest release version (<code>2.1.4</code>) from CRAN use</p>
+<p>To install the latest release version (<code>2.1.6</code>) from CRAN use</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">"BGGM"</span>)    </span></code></pre></div>
 <p>The current developmental version can be installed with</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">requireNamespace</span>(<span class="st">"remotes"</span>)) { </span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="fu">install.packages</span>(<span class="st">"remotes"</span>)   </span>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>}   </span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">"donaldRwilliams/BGGM"</span>)</span></code></pre></div>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">"rast-lab/BGGM"</span>)</span></code></pre></div>
 <div class="section level3">
 <h3 id="id_-dealing-with-errors">
 <i class="fas fa-skull-crossbones"></i> Dealing with Errors<a class="anchor" aria-label="anchor" href="#id_-dealing-with-errors"></a>
 </h3>
-<p>There are automatic checks for <a href="https://travis-ci.org/github/donaldRwilliams/BGGM/branches" class="external-link"><strong>BGGM</strong></a>. However, that only checks for Linux and <strong>BGGM</strong> is built on Windows. The most common installation errors occur on OSX. An evolving guide to address these issues is provided in the <a href="https://donaldrwilliams.github.io/BGGM/articles/installation.html">Troubleshoot Section</a>.</p>
 </div>
 </div>
 <div class="section level2">
@@ -95,25 +93,25 @@
 <li>
 <p>Bayesian hypothesis testing with the matrix-F prior distribution (Williams and Mulder 2019)</p>
 <ul>
-<li><p><a href="https://github.com/donaldRwilliams/BGGM#Exploratory" class="external-link">Exploratory hypothesis testing</a></p></li>
-<li><p><a href="https://github.com/donaldRwilliams/BGGM#confirmatory" class="external-link">Confirmatory hypothesis testing</a></p></li>
+<li><p><a href="https://github.com/rast-lab/BGGM#Exploratory" class="external-link">Exploratory hypothesis testing</a></p></li>
+<li><p><a href="https://github.com/rast-lab/BGGM#confirmatory" class="external-link">Confirmatory hypothesis testing</a></p></li>
 </ul>
 </li>
 <li>
 <p>Comparing Gaussian graphical models (Williams 2018; Williams et al. 2020)</p>
 <ul>
-<li><p><a href="https://github.com/donaldRwilliams/BGGM#partial-correlation-differences" class="external-link">Partial correlation differences</a></p></li>
-<li><p><a href="https://github.com/donaldRwilliams/BGGM#posterior-predictive-check" class="external-link">Posterior predictive check</a></p></li>
-<li><p><a href="https://github.com/donaldRwilliams/BGGM#exploratory-groups" class="external-link">Exploratory hypothesis testing</a></p></li>
-<li><p><a href="https://github.com/donaldRwilliams/BGGM#confirmatory-groups" class="external-link">Confirmatory hypothesis testing</a></p></li>
+<li><p><a href="https://github.com/rast-lab/BGGM#partial-correlation-differences" class="external-link">Partial correlation differences</a></p></li>
+<li><p><a href="https://github.com/rast-lab/BGGM#posterior-predictive-check" class="external-link">Posterior predictive check</a></p></li>
+<li><p><a href="https://github.com/rast-lab/BGGM#exploratory-groups" class="external-link">Exploratory hypothesis testing</a></p></li>
+<li><p><a href="https://github.com/rast-lab/BGGM#confirmatory-groups" class="external-link">Confirmatory hypothesis testing</a></p></li>
 </ul>
 </li>
 <li>
 <p>Extending inference beyond the conditional (in)dependence structure (Williams 2018)</p>
 <ul>
-<li><p><a href="https://github.com/donaldRwilliams/BGGM#predictability" class="external-link">Predictability</a></p></li>
-<li><p><a href="https://github.com/donaldRwilliams/BGGM#posterior-uncertainty" class="external-link">Posterior uncertainty intervals</a> for the partial correlations</p></li>
-<li><p><a href="https://github.com/donaldRwilliams/BGGM#custom-network-statistics" class="external-link">Custom Network Statistics</a></p></li>
+<li><p><a href="https://github.com/rast-lab/BGGM#predictability" class="external-link">Predictability</a></p></li>
+<li><p><a href="https://github.com/rast-lab/BGGM#posterior-uncertainty" class="external-link">Posterior uncertainty intervals</a> for the partial correlations</p></li>
+<li><p><a href="https://github.com/rast-lab/BGGM#custom-network-statistics" class="external-link">Custom Network Statistics</a></p></li>
 </ul>
 </li>
 </ol>
@@ -133,7 +131,7 @@
 <h2 id="id_-illustrative-examples">
 <i class="fas fa-folder-open"></i> Illustrative Examples<a class="anchor" aria-label="anchor" href="#id_-illustrative-examples"></a>
 </h2>
-<p>There are several examples in the <a href="https://donaldrwilliams.github.io/BGGM/articles/">Vignettes</a> section.</p>
+<p>There are several examples in the <a href="https://rast-lab.github.io/BGGM/articles/">Vignettes</a> section.</p>
 </div>
 <div class="section level2">
 <h2 id="id_-basic-usage">
@@ -153,7 +151,9 @@
 <span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a></span>
 <span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co"># histogram for each node</span></span>
 <span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>psych<span class="sc">::</span><span class="fu">multi.hist</span>(Y, <span class="at">density =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
-<p><img src="reference/figures/index_hist.png"></p>
+<div class="float">
+<img src="reference/figures/index_hist.png" alt="Posterior Histogram"><div class="figcaption">Posterior Histogram</div>
+</div>
 </div>
 <div class="section level3">
 <h3 id="fit-model">Fit Model<a class="anchor" aria-label="anchor" href="#fit-model"></a>
@@ -207,7 +207,9 @@
 <span id="cb5-39"><a href="#cb5-39" tabindex="-1"></a><span class="co">#&gt; --- </span></span></code></pre></div>
 <p>The summary can also be plotted</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">summary</span>(fit))</span></code></pre></div>
-<p><img src="reference/figures/index_summ.png"></p>
+<div class="float">
+<img src="reference/figures/index_summ.png" alt="Summary illustration"><div class="figcaption">Summary illustration</div>
+</div>
 </div>
 <div class="section level3">
 <h3 id="graph-selection">Graph Selection<a class="anchor" aria-label="anchor" href="#graph-selection"></a>
@@ -217,7 +219,9 @@
 <span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a></span>
 <span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="fu">plot</span>(E, <span class="at">node_size =</span> <span class="dv">12</span>,</span>
 <span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>     <span class="at">edge_magnify =</span> <span class="dv">5</span>)</span></code></pre></div>
-<p><img src="reference/figures/netplot_index.png"></p>
+<div class="float">
+<img src="reference/figures/netplot_index.png" alt="Posterior"><div class="figcaption">Posterior</div>
+</div>
 <p>The Bayes factor testing approach is readily implemented by changing <code>estimate</code> to <code>explore</code>.</p>
 </div>
 </div>
@@ -249,8 +253,8 @@
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
 <li><a href="https://cloud.r-project.org/package=BGGM" class="external-link">View on CRAN</a></li>
-<li><a href="https://github.com/donaldRwilliams/BGGM/" class="external-link">Browse source code</a></li>
-<li><a href="https://github.com/donaldRwilliams/BGGM/issues" class="external-link">Report a bug</a></li>
+<li><a href="https://github.com/rast-lab/BGGM/" class="external-link">Browse source code</a></li>
+<li><a href="https://github.com/rast-lab/BGGM/issues" class="external-link">Report a bug</a></li>
 <li><a href="https://groups.google.com/forum/#!forum/bggm-users" class="external-link">Ask a question about BGGM</a></li>
 </ul>
 </div>
@@ -273,9 +277,9 @@
 <div class="developers">
 <h2 data-toc-skip>Developers</h2>
 <ul class="list-unstyled">
-<li>Donald Williams <br><small class="roles"> Author </small>  </li>
-<li>Joris Mulder <br><small class="roles"> Author </small>  </li>
-<li>Philippe Rast <br><small class="roles"> Author, maintainer </small>  </li>
+<li>Donald Williams <br><small class="roles"> Author </small>   </li>
+<li>Joris Mulder <br><small class="roles"> Author </small>   </li>
+<li>Philippe Rast <br><small class="roles"> Author, maintainer </small>   </li>
 </ul>
 </div>
 
@@ -284,7 +288,7 @@
 <ul class="list-unstyled">
 <li><a href="https://cran.r-project.org/package=BGGM" class="external-link"><img src="http://www.r-pkg.org/badges/version/BGGM" alt="CRAN Version"></a></li>
 <li><a href="https://cran.r-project.org/package=BGGM" class="external-link"><img src="https://cranlogs.r-pkg.org/badges/BGGM" alt="Downloads"></a></li>
-<li><a href="https://travis-ci.org/donaldRwilliams/BGGM" class="external-link"><img src="https://travis-ci.org/donaldRwilliams/BGGM.svg?branch=master" alt="Build Status"></a></li>
+<li><a href="https://github.com/rast-lab/BGGM/actions/workflows/build.yml" class="external-link"><img src="https://github.com/rast-lab/BGGM/actions/workflows/build.yml/badge.svg" alt="build"></a></li>
 </ul>
 </div>
 
@@ -297,7 +301,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.2.</p>
 </div>
 
     </footer>

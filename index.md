@@ -6,8 +6,7 @@ Bayesian Gaussian Graphical Models <img src="man/figures/logo.png" align="right"
 [![CRAN
 Version](http://www.r-pkg.org/badges/version/BGGM)](https://cran.r-project.org/package=BGGM)
 [![Downloads](https://cranlogs.r-pkg.org/badges/BGGM)](https://cran.r-project.org/package=BGGM)
-[![Build
-Status](https://travis-ci.org/donaldRwilliams/BGGM.svg?branch=master)](https://travis-ci.org/donaldRwilliams/BGGM)
+[![build](https://github.com/rast-lab/BGGM/actions/workflows/build.yml/badge.svg)](https://github.com/rast-lab/BGGM/actions/workflows/build.yml)
 <!-- badges: end -->
 
 The `R` package **BGGM** provides tools for making Bayesian inference in
@@ -22,7 +21,7 @@ factor (Jeffreys 1961; Kass and Raftery 1995).
 <i class="fas fa-cog"></i> Installation
 ---------------------------------------
 
-To install the latest release version (`2.1.1`) from CRAN use
+To install the latest release version (`2.1.6`) from CRAN use
 
     install.packages("BGGM")    
 
@@ -31,16 +30,10 @@ The current developmental version can be installed with
     if (!requireNamespace("remotes")) { 
       install.packages("remotes")   
     }   
-    remotes::install_github("donaldRwilliams/BGGM")
+    remotes::install_github("rast-lab/BGGM")
 
 ### <i class="fas fa-skull-crossbones"></i> Dealing with Errors
 
-There are automatic checks for
-[**BGGM**](https://travis-ci.org/github/donaldRwilliams/BGGM/branches).
-However, that only checks for Linux and **BGGM** is built on Windows.
-The most common installation errors occur on OSX. An evolving guide to
-address these issues is provided in the [Troubleshoot
-Section](https://donaldrwilliams.github.io/BGGM/articles/installation.html).
 
 <i class="fas fa-clipboard-list"></i> Overview
 ----------------------------------------------
@@ -58,37 +51,37 @@ extend those approaches:
     (Williams and Mulder 2019)
 
     -   [Exploratory hypothesis
-        testing](https://github.com/donaldRwilliams/BGGM#Exploratory)
+        testing](https://github.com/rast-lab/BGGM#Exploratory)
 
     -   [Confirmatory hypothesis
-        testing](https://github.com/donaldRwilliams/BGGM#confirmatory)
+        testing](https://github.com/rast-lab/BGGM#confirmatory)
 
 3.  Comparing Gaussian graphical models (Williams 2018; Williams et
     al. 2020)
 
     -   [Partial correlation
-        differences](https://github.com/donaldRwilliams/BGGM#partial-correlation-differences)
+        differences](https://github.com/rast-lab/BGGM#partial-correlation-differences)
 
     -   [Posterior predictive
-        check](https://github.com/donaldRwilliams/BGGM#posterior-predictive-check)
+        check](https://github.com/rast-lab/BGGM#posterior-predictive-check)
 
     -   [Exploratory hypothesis
-        testing](https://github.com/donaldRwilliams/BGGM#exploratory-groups)
+        testing](https://github.com/rast-lab/BGGM#exploratory-groups)
 
     -   [Confirmatory hypothesis
-        testing](https://github.com/donaldRwilliams/BGGM#confirmatory-groups)
+        testing](https://github.com/rast-lab/BGGM#confirmatory-groups)
 
 4.  Extending inference beyond the conditional (in)dependence structure
     (Williams 2018)
 
-    -   [Predictability](https://github.com/donaldRwilliams/BGGM#predictability)
+    -   [Predictability](https://github.com/rast-lab/BGGM#predictability)
 
     -   [Posterior uncertainty
-        intervals](https://github.com/donaldRwilliams/BGGM#posterior-uncertainty)
+        intervals](https://github.com/rast-lab/BGGM#posterior-uncertainty)
         for the partial correlations
 
     -   [Custom Network
-        Statistics](https://github.com/donaldRwilliams/BGGM#custom-network-statistics)
+        Statistics](https://github.com/rast-lab/BGGM#custom-network-statistics)
 
 The computationally intensive tasks are written in `c++` via the `R`
 package **Rcpp** (Eddelbuettel et al. 2011) and the `c++` library
@@ -124,7 +117,7 @@ Supported Data Types
 --------------------------------------------------------
 
 There are several examples in the
-[Vignettes](https://donaldrwilliams.github.io/BGGM/articles/) section.
+[Vignettes](https://rast-lab.github.io/BGGM/articles/) section.
 
 <i class="fas fa-play-circle"></i> Basic Usage
 ----------------------------------------------
@@ -149,7 +142,7 @@ shows the data are “mixed”.
     # histogram for each node
     psych::multi.hist(Y, density = FALSE)
 
-![](man/figures/index_hist.png)
+![Posterior Histogram](man/figures/index_hist.png)
 
 ### Fit Model
 
@@ -209,7 +202,7 @@ The summary can also be plotted
 
     plot(summary(fit))
 
-![](man/figures/index_summ.png)
+![Summary illustration](man/figures/index_summ.png)
 
 ### Graph Selection
 
@@ -220,7 +213,7 @@ The graph is selected and plotted with
     plot(E, node_size = 12,
          edge_magnify = 5)
 
-![](man/figures/netplot_index.png)
+![Posterior](man/figures/netplot_index.png)
 
 The Bayes factor testing approach is readily implemented by changing
 `estimate` to `explore`.
