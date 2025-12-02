@@ -74,24 +74,24 @@ select(fit, cred = 0.95)
 #> Partial Correlations: 
 #> 
 #>               interested disinterested excited  upset strong stressed steps
-#> interested         0.000             0   0.386 -0.209  0.329    0.286     0
+#> interested         0.000             0   0.385 -0.218  0.322    0.288     0
 #> disinterested      0.000             0   0.000  0.000  0.000    0.000     0
-#> excited            0.386             0   0.000  0.000  0.492    0.000     0
-#> upset             -0.209             0   0.000  0.000  0.000    0.354     0
-#> strong             0.329             0   0.492  0.000  0.000    0.000     0
-#> stressed           0.286             0   0.000  0.354  0.000    0.000     0
+#> excited            0.385             0   0.000  0.000  0.495    0.000     0
+#> upset             -0.218             0   0.000  0.000  0.000    0.350     0
+#> strong             0.322             0   0.495  0.000  0.000    0.000     0
+#> stressed           0.288             0   0.000  0.350  0.000    0.000     0
 #> steps              0.000             0   0.000  0.000  0.000    0.000     0
 #> --- 
 #> Coefficients: 
 #> 
 #>                  interested disinterested excited upset strong stressed steps
-#> interested.l1             0             0       0 0.000      0    0.000     0
-#> disinterested.l1          0             0       0 0.000      0    0.000     0
-#> excited.l1                0             0       0 0.000      0    0.000     0
-#> upset.l1                  0             0       0 0.428      0    0.315     0
-#> strong.l1                 0             0       0 0.000      0    0.000     0
-#> stressed.l1               0             0       0 0.000      0    0.000     0
-#> steps.l1                  0             0       0 0.000      0    0.000     0
+#> interested.l1             0         0.000       0 0.000      0    0.000     0
+#> disinterested.l1          0         0.000       0 0.000      0    0.000     0
+#> excited.l1                0         0.000       0 0.000      0    0.000     0
+#> upset.l1                  0         0.257       0 0.429      0    0.315     0
+#> strong.l1                 0         0.000       0 0.000      0    0.000     0
+#> stressed.l1               0         0.000       0 0.000      0    0.000     0
+#> steps.l1                  0         0.000       0 0.000      0    0.000     0
 #> --- 
 
 # }
