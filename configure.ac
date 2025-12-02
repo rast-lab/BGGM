@@ -32,4 +32,3 @@ AC_LANG(C++)
 ## Configure output files
 AC_CONFIG_FILES([src/Makevars])
 AC_OUTPUT
-
