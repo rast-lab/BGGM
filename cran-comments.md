@@ -1,8 +1,17 @@
 # Version 2.1.6
 ## R CMD check results
+❯ checking compilation flags used ... NOTE
+  Compilation used the following non-portable flag(s):
+    ‘-Werror=format-security’ ‘-Wformat’ ‘-Wp,-D_FORTIFY_SOURCE=3’
+    ‘-Wp,-D_GLIBCXX_ASSERTIONS’ ‘-march=x86-64’
+    ‘-mno-omit-leaf-frame-pointer’
+
 0 errors ✔ | 0 warnings ✔ | 1 note ✖
 
 Note is about non-portable compilation flags on my system.
+
+## revdepcheck results
+Checked 1 rev dep: zero problems.
 
 # Version 2.1.5
 ## Addressing CRAN errors
