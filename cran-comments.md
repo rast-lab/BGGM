@@ -2,6 +2,8 @@
 ## R CMD check results
 0 errors ✔ | 0 warnings ✔ | 1 note ✖
 
+Note is about non-portable compilation flags on my system.
+
 # Version 2.1.5
 ## Addressing CRAN errors
 - Adjusted autoconf.ac, dropped refence to openMP as parallelization is not implemented in the c++ file
