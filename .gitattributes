@@ -5,4 +5,3 @@ cleanup text eol=lf
 
 # Default auto text normalization (LF stored in repo)
 * text=auto
-
