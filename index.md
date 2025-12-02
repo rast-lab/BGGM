@@ -23,7 +23,7 @@ the latter focuses on model comparison with the Bayes factor (Jeffreys
 
 To install the latest release version (`2.1.6`) from CRAN use
 
-    install.packages("BGGM")    
+    install.packages("BGGM")
 
 The current developmental version can be installed with
 
@@ -33,7 +33,14 @@ The current developmental version can be installed with
 
     remotes::install_github("rast-lab/BGGM")
 
-### <i class="fas fa-skull-crossbones"></i> Dealing with Errors
+### <i class="fas fa-skull-crossbones"></i> Getting Help and Dealing with Errors
+
+Check out the chatbot at [deepwiki](https://deepwiki.com/rast-lab/BGGM)
+for an interactive way to get help on **BGGM**.
+
+If you find bugs or are looking for additional features, open an
+[issue](https://github.com/rast-lab/BGGM/issues) at the github
+repository.
 
 ## <i class="fas fa-clipboard-list"></i> Overview
 

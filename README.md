@@ -34,7 +34,7 @@ psychology (Rodriguez et al. 2020).
 
 ## Installation
 
-To install the latest release version (2.1.5) from CRAN use
+To install the latest release version (2.1.6) from CRAN use
 
     install.packages("BGGM")
 
@@ -44,6 +44,11 @@ The current developmental version can be installed with
       install.packages("remotes")   
     }   
     remotes::install_github("rast-lab/BGGM")
+
+## Deepwiki
+
+Check out the chatbot at [deepwiki](https://deepwiki.com/rast-lab/BGGM)
+for an interactive way to get help on **BGGM**.
 
 ## Overview
 

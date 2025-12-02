@@ -7,7 +7,12 @@ home:
 url: https://rast-lab.github.io/BGGM/
 template:
   bootstrap: 5
-  bootswatch: flatly
+  params:
+    bootswatch: flatly
+    toc:
+      depth: 3
+      float: true
+      
   opengraph:
     image:
       src: man/figures/hex.jpg

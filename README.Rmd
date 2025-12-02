@@ -62,6 +62,9 @@ if (!requireNamespace("remotes")) {
 remotes::install_github("rast-lab/BGGM")
 ```
 
+## Deepwiki
+Check out the chatbot at [deepwiki](https://deepwiki.com/rast-lab/BGGM) for an interactive way to get help on **BGGM**.
+
 ## Overview
 The methods in **BGGM** build upon existing algorithms that are well-known in the literature.
 The central contribution of **BGGM** is to extend those approaches:
