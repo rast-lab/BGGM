@@ -1,6 +1,8 @@
 # Declare files that will always have LF line endings on checkout.
-^configure\.ac$ text eol=lf
-^cleanup$ text eol=lf
-
-* text=auto
+configure.ac text eol=lf
+cleanup text eol=lf
 *.sh text eol=lf
+
+# Default auto text normalization (LF stored in repo)
+* text=auto
+
