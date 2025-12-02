@@ -2,6 +2,8 @@
 
 ## BGGM 2.1.6
 
+CRAN release: 2025-12-02
+
 #### Major changes to ordinal sampler
 
 - **Stan-style latent centering for ordinal models**: Both the Albert

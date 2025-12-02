@@ -14,7 +14,7 @@ Source:
 [`inst/CITATION`](https://github.com/rast-lab/BGGM/blob/master/inst/CITATION)
 
 Williams DR, Mulder J (2019). “BGGM: Bayesian Gaussian Graphical Models
-in R.” *PsyArXiv*. R package version 2.1.5.9000,
+in R.” *PsyArXiv*. R package version 2.1.6,
 <https://osf.io/preprints/psyarxiv/t2cn7>.
 
     @Article{,
@@ -22,7 +22,7 @@ in R.” *PsyArXiv*. R package version 2.1.5.9000,
       author = {Donald R. Williams and Joris Mulder},
       year = {2019},
       journal = {PsyArXiv},
-      note = {R package version 2.1.5.9000},
+      note = {R package version 2.1.6},
       url = {https://osf.io/preprints/psyarxiv/t2cn7},
     }
 
