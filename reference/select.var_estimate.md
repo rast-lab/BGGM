@@ -73,25 +73,25 @@ select(fit, cred = 0.95)
 #> --- 
 #> Partial Correlations: 
 #> 
-#>               interested disinterested excited upset strong stressed steps
-#> interested         0.000             0   0.384 0.000  0.322    0.267     0
-#> disinterested      0.000             0   0.000 0.000  0.000    0.000     0
-#> excited            0.384             0   0.000 0.000  0.494    0.000     0
-#> upset              0.000             0   0.000 0.000  0.000    0.339     0
-#> strong             0.322             0   0.494 0.000  0.000    0.000     0
-#> stressed           0.267             0   0.000 0.339  0.000    0.000     0
-#> steps              0.000             0   0.000 0.000  0.000    0.000     0
+#>               interested disinterested excited  upset strong stressed steps
+#> interested         0.000             0   0.384 -0.212  0.326    0.276     0
+#> disinterested      0.000             0   0.000  0.000  0.000    0.000     0
+#> excited            0.384             0   0.000  0.000  0.486    0.000     0
+#> upset             -0.212             0   0.000  0.000  0.000    0.353     0
+#> strong             0.326             0   0.486  0.000  0.000    0.000     0
+#> stressed           0.276             0   0.000  0.353  0.000    0.000     0
+#> steps              0.000             0   0.000  0.000  0.000    0.000     0
 #> --- 
 #> Coefficients: 
 #> 
 #>                  interested disinterested excited upset strong stressed steps
-#> interested.l1             0          0.00       0 0.000      0    0.000     0
-#> disinterested.l1          0          0.00       0 0.000      0    0.000     0
-#> excited.l1                0          0.00       0 0.000      0    0.000     0
-#> upset.l1                  0          0.26       0 0.431      0    0.318     0
-#> strong.l1                 0          0.00       0 0.000      0    0.000     0
-#> stressed.l1               0          0.00       0 0.000      0    0.000     0
-#> steps.l1                  0          0.00       0 0.000      0    0.000     0
+#> interested.l1             0         0.000       0 0.000      0    0.000     0
+#> disinterested.l1          0         0.000       0 0.000      0    0.000     0
+#> excited.l1                0         0.000       0 0.000      0    0.000     0
+#> upset.l1                  0         0.255       0 0.432      0    0.317     0
+#> strong.l1                 0         0.000       0 0.000      0    0.000     0
+#> stressed.l1               0         0.000       0 0.000      0    0.000     0
+#> steps.l1                  0         0.000       0 0.000      0    0.000     0
 #> --- 
 
 # }
