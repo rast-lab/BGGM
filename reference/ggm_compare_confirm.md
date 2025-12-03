@@ -318,15 +318,15 @@ test
 #> --- 
 #> Posterior prob: 
 #> 
-#> p(H1|data) = 0.114
-#> p(H2|data) = 0.019
-#> p(H3|data) = 0.867
+#> p(H1|data) = 0.157
+#> p(H2|data) = 0.015
+#> p(H3|data) = 0.828
 #> --- 
 #> Bayes factor matrix: 
 #>       H1     H2    H3
-#> H1 1.000  5.940 0.131
-#> H2 0.168  1.000 0.022
-#> H3 7.616 45.242 1.000
+#> H1 1.000 10.224 0.189
+#> H2 0.098  1.000 0.019
+#> H3 5.284 54.027 1.000
 #> --- 
 #> note: equal hypothesis prior probabilities
 
@@ -367,15 +367,15 @@ test
 #> --- 
 #> Posterior prob: 
 #> 
-#> p(H1|data) = 0.407
-#> p(H2|data) = 0.051
-#> p(H3|data) = 0.542
+#> p(H1|data) = 0.395
+#> p(H2|data) = 0.054
+#> p(H3|data) = 0.551
 #> --- 
 #> Bayes factor matrix: 
 #>       H1     H2    H3
-#> H1 1.000  8.033 0.751
-#> H2 0.124  1.000 0.094
-#> H3 1.331 10.694 1.000
+#> H1 1.000  7.284 0.717
+#> H2 0.137  1.000 0.099
+#> H3 1.394 10.152 1.000
 #> --- 
 #> note: equal hypothesis prior probabilities
 
@@ -411,15 +411,15 @@ test
 #> --- 
 #> Posterior prob: 
 #> 
-#> p(H1|data) = 0.213
-#> p(H2|data) = 0.036
-#> p(H3|data) = 0.751
+#> p(H1|data) = 0.228
+#> p(H2|data) = 0.034
+#> p(H3|data) = 0.738
 #> --- 
 #> Bayes factor matrix: 
 #>       H1     H2    H3
-#> H1 1.000  5.943 0.284
-#> H2 0.168  1.000 0.048
-#> H3 3.518 20.909 1.000
+#> H1 1.000  6.640 0.309
+#> H2 0.151  1.000 0.047
+#> H3 3.236 21.486 1.000
 #> --- 
 #> note: equal hypothesis prior probabilities
 
@@ -465,15 +465,15 @@ test
 #> --- 
 #> Posterior prob: 
 #> 
-#> p(H1|data) = 0.051
-#> p(H2|data) = 0.042
-#> p(H3|data) = 0.907
+#> p(H1|data) = 0.031
+#> p(H2|data) = 0.067
+#> p(H3|data) = 0.903
 #> --- 
 #> Bayes factor matrix: 
 #>        H1     H2    H3
-#> H1  1.000  1.202 0.056
-#> H2  0.832  1.000 0.047
-#> H3 17.867 21.469 1.000
+#> H1  1.000  0.461 0.034
+#> H2  2.170  1.000 0.074
+#> H3 29.449 13.568 1.000
 #> --- 
 #> note: equal hypothesis prior probabilities
 
@@ -524,15 +524,15 @@ test
 #> --- 
 #> Posterior prob: 
 #> 
-#> p(H1|data) = 0.024
-#> p(H2|data) = 0.079
-#> p(H3|data) = 0.897
+#> p(H1|data) = 0.026
+#> p(H2|data) = 0.075
+#> p(H3|data) = 0.898
 #> --- 
 #> Bayes factor matrix: 
 #>        H1     H2    H3
-#> H1  1.000  0.305 0.027
-#> H2  3.280  1.000 0.088
-#> H3 37.308 11.374 1.000
+#> H1  1.000  0.348 0.029
+#> H2  2.873  1.000 0.084
+#> H3 34.280 11.932 1.000
 #> --- 
 #> note: equal hypothesis prior probabilities
 
@@ -589,17 +589,17 @@ test
 #> --- 
 #> Posterior prob: 
 #> 
-#> p(H1|data) = 0.127
-#> p(H2|data) = 0.869
-#> p(H3|data) = 0.001
+#> p(H1|data) = 0.105
+#> p(H2|data) = 0.886
+#> p(H3|data) = 0.006
 #> p(H4|data) = 0.003
 #> --- 
 #> Bayes factor matrix: 
-#>       H1    H2       H3      H4
-#> H1 1.000 0.146  178.326  41.564
-#> H2 6.830 1.000 1218.024 283.897
-#> H3 0.006 0.001    1.000   0.233
-#> H4 0.024 0.004    4.290   1.000
+#>       H1    H2      H3      H4
+#> H1 1.000 0.119  18.124  36.987
+#> H2 8.428 1.000 152.749 311.730
+#> H3 0.055 0.007   1.000   2.041
+#> H4 0.027 0.003   0.490   1.000
 #> --- 
 #> note: equal hypothesis prior probabilities
 # }

@@ -14,7 +14,7 @@ the latter focuses on model comparison with the Bayes factor (Jeffreys
 To install the latest release version (`2.1.6`) from CRAN use
 
 ``` R
-install.packages("BGGM")    
+install.packages("BGGM")
 ```
 
 The current developmental version can be installed with
@@ -27,7 +27,14 @@ if (!requireNamespace("remotes")) {
 remotes::install_github("rast-lab/BGGM")
 ```
 
-###  Dealing with Errors
+###  Getting Help and Dealing with Errors
+
+Check out the chatbot at [deepwiki](https://deepwiki.com/rast-lab/BGGM)
+for an interactive way to get help on **BGGM**.
+
+If you find bugs or are looking for additional features, open an
+[issue](https://github.com/rast-lab/BGGM/issues) at the github
+repository.
 
 ##  Overview
 
