@@ -24,3 +24,4 @@
 ^\.github$
 ^inst/auto$
 ^revdep$
+^\.claude$

@@ -814,6 +814,39 @@ framer <- function(x){
 }
 
 
+# Simple reduced row echelon form (rref) implementation
+# Used for validating constraint matrices
+simple_rref <- function(m, tol = 1e-9) {
+  m <- as.matrix(m)
+  nr <- nrow(m)
+  nc <- ncol(m)
+
+  pivot_row <- 1
+  for (col in seq_len(nc)) {
+    if (pivot_row > nr) break
+
+    # Find the row with the maximum absolute value in this column
+    max_row <- which.max(abs(m[pivot_row:nr, col])) + pivot_row - 1
+    if (abs(m[max_row, col]) < tol) next
+
+    # Swap rows
+    m[c(pivot_row, max_row), ] <- m[c(max_row, pivot_row), ]
+
+    # Scale pivot row
+    m[pivot_row, ] <- m[pivot_row, ] / m[pivot_row, col]
+
+    # Eliminate other rows
+    for (i in seq_len(nr)) {
+      if (i != pivot_row) {
+        m[i, ] <- m[i, ] - m[i, col] * m[pivot_row, ]
+      }
+    }
+
+    pivot_row <- pivot_row + 1
+  }
+  m
+}
+
 
 create_matrices <- function(framed, varnames) {
 
@@ -999,7 +1032,7 @@ create_matrices <- function(framed, varnames) {
   # beta_zero <- MASS::ginv(R_ei) %*% r_ei
 
   if (nrow(Rr_ei) > 1) {
-    # rref_ei <- pracma::rref(Rr_ei)
+    rref_ei <- simple_rref(Rr_ei)
     nonzero <- rref_ei[, k + 1] != 0
     if (max(nonzero) > 0) {
       row1 <- max(which(nonzero == T))

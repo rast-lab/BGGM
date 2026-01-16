@@ -1,3 +1,14 @@
+# BGGM 2.1.6.9000 (development)
+
+### Bug fixes
+- **Fixed `rref_ei` not found error**: Added `simple_rref()` function in `helpers.R` to replace commented-out `pracma::rref()` call. This fixes a crash in `create_matrices()` when validating constraint matrices for hypothesis testing with multiple groups.
+- **Fixed `ggm_search()` crash**: The C++ `search` function now handles edge cases where the adjacency matrix becomes all zeros or all ones, preventing "sample more elements than in x" errors.
+- **Fixed `qplot()` deprecation warning**: Replaced deprecated `qplot()` with `ggplot()` + `geom_density()` in `plot_prior()`.
+
+### Maintenance
+- Added `rlang` to Imports for proper use of `.data` pronoun in ggplot2 aesthetics.
+- Added unit tests for multiple functions.
+
 # BGGM 2.1.6
 ### Major changes to ordinal sampler
 - **Stan-style latent centering for ordinal models**: Both the Albert and Cowles ordinals samplers have been refactored to improve numerical stability and mixing in the presence of skewed or ceiling/floor ordinal items:

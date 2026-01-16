@@ -2617,7 +2617,25 @@ Rcpp::List search(arma::mat S,
     adj_s = mat_old;
 
     // Flip one edge at a time
-    if (s % 2 == 0){
+    // Handle edge cases where zeros or nonzeros might be empty
+    bool try_add = (s % 2 == 0);
+
+    // If we want to add but zeros is empty, try to remove instead
+    if (try_add && zeros.n_elem == 0) {
+      try_add = false;
+    }
+    // If we want to remove but nonzeros is empty, try to add instead
+    if (!try_add && nonzeros.n_elem == 0) {
+      try_add = true;
+    }
+
+    // Skip iteration if both are empty (shouldn't happen with valid input)
+    if (zeros.n_elem == 0 && nonzeros.n_elem == 0) {
+      adj.slice(s) = mat_old;
+      continue;
+    }
+
+    if (try_add) {
       arma::vec id_add = Rcpp::RcppArmadillo::sample(arma::conv_to<arma::vec>::from(zeros), 1, false);
       adj_s.elem(arma::conv_to<arma::uvec>::from(id_add)).fill(1);
     } else {

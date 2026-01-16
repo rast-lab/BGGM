@@ -12,6 +12,8 @@
 #'
 #' @return A \code{ggplot} object.
 #'
+#' @importFrom rlang .data
+#'
 #' @examples
 #' # note: iter = 250 for demonstrative purposes
 #'
@@ -38,7 +40,8 @@ plot_prior <- function(prior_sd = 0.5, iter = 5000){
                       progress = FALSE
                       )
 
-  qplot(prior_samp$pcors[1,2,], geom = "density") +
+  ggplot(data.frame(x = prior_samp$pcors[1, 2, ]), aes(x = .data$x)) +
+    geom_density() +
     xlab("Implied Prior Distribution")
 
   }
