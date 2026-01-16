@@ -1,5 +1,34 @@
 # Changelog
 
+## BGGM 2.1.6.9000 (development)
+
+#### Bug fixes
+
+- **Fixed `rref_ei` not found error**: Added `simple_rref()` function in
+  `helpers.R` to replace commented-out
+  [`pracma::rref()`](https://rdrr.io/pkg/pracma/man/rref.html) call.
+  This fixes a crash in `create_matrices()` when validating constraint
+  matrices for hypothesis testing with multiple groups.
+- **Fixed
+  [`ggm_search()`](https://rast-lab.github.io/BGGM/reference/ggm_search.md)
+  crash**: The C++ `search` function now handles edge cases where the
+  adjacency matrix becomes all zeros or all ones, preventing “sample
+  more elements than in x” errors.
+- **Fixed
+  [`qplot()`](https://ggplot2.tidyverse.org/reference/qplot.html)
+  deprecation warning**: Replaced deprecated
+  [`qplot()`](https://ggplot2.tidyverse.org/reference/qplot.html) with
+  [`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html) +
+  [`geom_density()`](https://ggplot2.tidyverse.org/reference/geom_density.html)
+  in
+  [`plot_prior()`](https://rast-lab.github.io/BGGM/reference/plot_prior.md).
+
+#### Maintenance
+
+- Added `rlang` to Imports for proper use of `.data` pronoun in ggplot2
+  aesthetics.
+- Added unit tests for multiple functions.
+
 ## BGGM 2.1.6
 
 CRAN release: 2025-12-02

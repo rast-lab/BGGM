@@ -30,7 +30,4 @@ A `ggplot` object.
 # note: iter = 250 for demonstrative purposes
 
 plot_prior(prior_sd = 0.25, iter = 250)
-#> Warning: `qplot()` was deprecated in ggplot2 3.4.0.
-#> ℹ The deprecated feature was likely used in the BGGM package.
-#>   Please report the issue at <https://github.com/rast-lab/BGGM/issues>.
 ```

@@ -33,6 +33,23 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="2.1.6.9000" id="bggm-2169000-development">BGGM 2.1.6.9000 (development)<a class="anchor" aria-label="anchor" href="#bggm-2169000-development"></a></h2>
+<div class="section level4">
+<h4 id="bug-fixes-2-1-6-9000">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-2-1-6-9000"></a></h4>
+<ul><li>
+<strong>Fixed <code>rref_ei</code> not found error</strong>: Added <code>simple_rref()</code> function in <code>helpers.R</code> to replace commented-out <code><a href="https://rdrr.io/pkg/pracma/man/rref.html" class="external-link">pracma::rref()</a></code> call. This fixes a crash in <code>create_matrices()</code> when validating constraint matrices for hypothesis testing with multiple groups.</li>
+<li>
+<strong>Fixed <code><a href="../reference/ggm_search.html">ggm_search()</a></code> crash</strong>: The C++ <code>search</code> function now handles edge cases where the adjacency matrix becomes all zeros or all ones, preventing “sample more elements than in x” errors.</li>
+<li>
+<strong>Fixed <code><a href="https://ggplot2.tidyverse.org/reference/qplot.html" class="external-link">qplot()</a></code> deprecation warning</strong>: Replaced deprecated <code><a href="https://ggplot2.tidyverse.org/reference/qplot.html" class="external-link">qplot()</a></code> with <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code> + <code><a href="https://ggplot2.tidyverse.org/reference/geom_density.html" class="external-link">geom_density()</a></code> in <code><a href="../reference/plot_prior.html">plot_prior()</a></code>.</li>
+</ul></div>
+<div class="section level4">
+<h4 id="maintenance-2-1-6-9000">Maintenance<a class="anchor" aria-label="anchor" href="#maintenance-2-1-6-9000"></a></h4>
+<ul><li>Added <code>rlang</code> to Imports for proper use of <code>.data</code> pronoun in ggplot2 aesthetics.</li>
+<li>Added unit tests for multiple functions.</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="2.1.6" id="bggm-216">BGGM 2.1.6<a class="anchor" aria-label="anchor" href="#bggm-216"></a></h2><p class="text-muted">CRAN release: 2025-12-02</p>
 <div class="section level4">
 <h4 id="major-changes-to-ordinal-sampler-2-1-6">Major changes to ordinal sampler<a class="anchor" aria-label="anchor" href="#major-changes-to-ordinal-sampler-2-1-6"></a></h4>
