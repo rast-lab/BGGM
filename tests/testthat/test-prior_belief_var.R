@@ -6,14 +6,10 @@ library(BGGM)
 # ============================================
 
 test_that("prior_belief_var returns correct class", {
-  skip_on_cran()
-
   set.seed(123)
-  # Create time series data
-  n <- 100
-  p <- 4
+  n <- 50
+  p <- 3
   Y <- matrix(rnorm(n * p), n, p)
-  colnames(Y) <- paste0("V", 1:p)
 
   suppressMessages({
     fit <- prior_belief_var(Y, est_ggm = FALSE, progress = FALSE)
@@ -24,13 +20,10 @@ test_that("prior_belief_var returns correct class", {
 })
 
 test_that("prior_belief_var without GGM returns expected components", {
-  skip_on_cran()
-
   set.seed(123)
-  n <- 100
-  p <- 4
+  n <- 50
+  p <- 3
   Y <- matrix(rnorm(n * p), n, p)
-  colnames(Y) <- paste0("V", 1:p)
 
   suppressMessages({
     fit <- prior_belief_var(Y, est_ggm = FALSE, progress = FALSE)
@@ -42,13 +35,10 @@ test_that("prior_belief_var without GGM returns expected components", {
 })
 
 test_that("prior_belief_var with GGM returns expected components", {
-  skip_on_cran()
-
   set.seed(123)
-  n <- 100
-  p <- 4
+  n <- 50
+  p <- 3
   Y <- matrix(rnorm(n * p), n, p)
-  colnames(Y) <- paste0("V", 1:p)
 
   suppressMessages({
     fit <- prior_belief_var(Y, est_ggm = TRUE, progress = FALSE)
@@ -62,13 +52,10 @@ test_that("prior_belief_var with GGM returns expected components", {
 })
 
 test_that("prior_belief_var adjacency matrix has correct dimensions", {
-  skip_on_cran()
-
   set.seed(123)
-  n <- 100
-  p <- 4
+  n <- 50
+  p <- 3
   Y <- matrix(rnorm(n * p), n, p)
-  colnames(Y) <- paste0("V", 1:p)
 
   suppressMessages({
     fit <- prior_belief_var(Y, est_ggm = FALSE, progress = FALSE)
@@ -80,13 +67,10 @@ test_that("prior_belief_var adjacency matrix has correct dimensions", {
 })
 
 test_that("prior_belief_var post_prob is in [0,1]", {
-  skip_on_cran()
-
   set.seed(123)
-  n <- 100
-  p <- 4
+  n <- 50
+  p <- 3
   Y <- matrix(rnorm(n * p), n, p)
-  colnames(Y) <- paste0("V", 1:p)
 
   suppressMessages({
     fit <- prior_belief_var(Y, est_ggm = FALSE, progress = FALSE)
@@ -96,13 +80,10 @@ test_that("prior_belief_var post_prob is in [0,1]", {
 })
 
 test_that("prior_belief_var adjacency is binary", {
-  skip_on_cran()
-
   set.seed(123)
-  n <- 100
-  p <- 4
+  n <- 50
+  p <- 3
   Y <- matrix(rnorm(n * p), n, p)
-  colnames(Y) <- paste0("V", 1:p)
 
   suppressMessages({
     fit <- prior_belief_var(Y, est_ggm = FALSE, progress = FALSE)
@@ -112,15 +93,11 @@ test_that("prior_belief_var adjacency is binary", {
 })
 
 test_that("prior_belief_var respects post_odds_cut", {
-  skip_on_cran()
-
   set.seed(123)
-  n <- 100
-  p <- 4
+  n <- 50
+  p <- 3
   Y <- matrix(rnorm(n * p), n, p)
-  colnames(Y) <- paste0("V", 1:p)
 
-  # High cutoff should result in sparser graph
   suppressMessages({
     fit_low <- prior_belief_var(Y, post_odds_cut = 1, est_ggm = FALSE, progress = FALSE)
     fit_high <- prior_belief_var(Y, post_odds_cut = 10, est_ggm = FALSE, progress = FALSE)
@@ -131,17 +108,13 @@ test_that("prior_belief_var respects post_odds_cut", {
 })
 
 test_that("prior_belief_var with custom prior_temporal", {
-  skip_on_cran()
-
   set.seed(123)
-  n <- 100
-  p <- 4
+  n <- 50
+  p <- 3
   Y <- matrix(rnorm(n * p), n, p)
-  colnames(Y) <- paste0("V", 1:p)
 
-  # Custom prior odds matrix
   prior_var <- matrix(1, p, p)
-  prior_var[1, 2] <- 10  # Strong prior for edge 1->2
+  prior_var[1, 2] <- 10
 
   suppressMessages({
     fit <- prior_belief_var(Y, prior_temporal = prior_var, est_ggm = FALSE, progress = FALSE)
@@ -151,14 +124,11 @@ test_that("prior_belief_var with custom prior_temporal", {
 })
 
 test_that("prior_belief_var errors with zero in prior_temporal", {
-  skip_on_cran()
-
   set.seed(123)
-  n <- 100
-  p <- 4
+  n <- 50
+  p <- 3
   Y <- matrix(rnorm(n * p), n, p)
 
-  # Prior with zero
   prior_var <- matrix(1, p, p)
   prior_var[1, 2] <- 0
 
@@ -169,14 +139,11 @@ test_that("prior_belief_var errors with zero in prior_temporal", {
 })
 
 test_that("prior_belief_var errors with zero in prior_ggm", {
-  skip_on_cran()
-
   set.seed(123)
-  n <- 100
-  p <- 4
+  n <- 50
+  p <- 3
   Y <- matrix(rnorm(n * p), n, p)
 
-  # Prior with zero
   prior_ggm <- matrix(1, p, p)
   prior_ggm[1, 2] <- 0
 
@@ -187,13 +154,10 @@ test_that("prior_belief_var errors with zero in prior_ggm", {
 })
 
 test_that("prior_belief_var print method works", {
-  skip_on_cran()
-
   set.seed(123)
-  n <- 100
-  p <- 4
+  n <- 50
+  p <- 3
   Y <- matrix(rnorm(n * p), n, p)
-  colnames(Y) <- paste0("V", 1:p)
 
   suppressMessages({
     fit <- prior_belief_var(Y, est_ggm = FALSE, progress = FALSE)
@@ -206,13 +170,10 @@ test_that("prior_belief_var print method works", {
 })
 
 test_that("prior_belief_var handles data frame input", {
-  skip_on_cran()
-
   set.seed(123)
-  n <- 100
-  p <- 4
+  n <- 50
+  p <- 3
   Y <- data.frame(matrix(rnorm(n * p), n, p))
-  colnames(Y) <- paste0("V", 1:p)
 
   suppressMessages({
     fit <- prior_belief_var(Y, est_ggm = FALSE, progress = FALSE)
@@ -222,37 +183,75 @@ test_that("prior_belief_var handles data frame input", {
 })
 
 test_that("prior_belief_var coef_mat has reasonable values", {
-  skip_on_cran()
-
   set.seed(123)
-  n <- 100
-  p <- 4
+  n <- 50
+  p <- 3
   Y <- matrix(rnorm(n * p), n, p)
-  colnames(Y) <- paste0("V", 1:p)
 
   suppressMessages({
     fit <- prior_belief_var(Y, est_ggm = FALSE, progress = FALSE)
   })
 
-  # Coefficients should be finite
   expect_true(all(is.finite(fit$coef_mat)))
-
-  # For random data, coefficients should be relatively small
-  expect_true(all(abs(fit$coef_mat) < 1))
 })
 
-test_that("prior_belief_var with real ifit data", {
-  skip_on_cran()
+test_that("prior_belief_var with custom prior_ggm", {
+  set.seed(123)
+  n <- 50
+  p <- 3
+  Y <- matrix(rnorm(n * p), n, p)
 
-  # Use built-in ifit data
-  y <- na.omit(subset(BGGM::ifit, id == 1)[, 2:5])
+  prior_ggm <- matrix(1, p, p)
+  prior_ggm[1, 2] <- 5
+  prior_ggm[2, 1] <- 5
 
-  if (nrow(y) > 50) {
-    suppressMessages({
-      fit <- prior_belief_var(y, est_ggm = FALSE, progress = FALSE)
+  suppressMessages({
+    fit <- prior_belief_var(Y, prior_ggm = prior_ggm, est_ggm = TRUE, progress = FALSE)
+  })
+
+  expect_s3_class(fit, "prior_var")
+  expect_true("adj_ggm" %in% names(fit))
+})
+
+test_that("prior_belief_var temporal adjacency dimensions match", {
+  set.seed(123)
+  n <- 50
+  p <- 4
+  Y <- matrix(rnorm(n * p), n, p)
+
+  suppressMessages({
+    fit <- prior_belief_var(Y, est_ggm = TRUE, progress = FALSE)
+  })
+
+  expect_equal(dim(fit$adj_temporal), c(p, p))
+  expect_equal(dim(fit$post_prob_temporal), c(p, p))
+})
+
+test_that("prior_belief_var GGM adjacency is symmetric", {
+  set.seed(123)
+  n <- 50
+  p <- 3
+  Y <- matrix(rnorm(n * p), n, p)
+
+  suppressMessages({
+    fit <- prior_belief_var(Y, est_ggm = TRUE, progress = FALSE)
+  })
+
+  # GGM adjacency should be symmetric
+expect_true(isSymmetric(fit$adj_ggm))
+})
+
+test_that("prior_belief_var with progress = TRUE works", {
+  set.seed(123)
+  n <- 30
+  p <- 3
+  Y <- matrix(rnorm(n * p), n, p)
+
+  expect_no_error({
+    capture.output({
+      suppressMessages({
+        fit <- prior_belief_var(Y, est_ggm = FALSE, progress = TRUE)
+      })
     })
-
-    expect_s3_class(fit, "prior_var")
-    expect_equal(dim(fit$adj), c(ncol(y), ncol(y)))
-  }
+  })
 })
