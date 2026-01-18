@@ -179,3 +179,102 @@ test_that("predicted_probability column names match unique values", {
   expected_colnames <- as.character(sort(unique(Y$V1)))
   expect_equal(colnames(prob$collect), expected_colnames)
 })
+
+# ============================================
+# Additional tests for coverage
+# ============================================
+
+test_that("predicted_probability unconditional returns sub_sets", {
+  skip_on_cran()
+
+  set.seed(123)
+  n <- 100
+  p <- 5
+  Y <- matrix(sample(0:2, n * p, replace = TRUE), n, p)
+  colnames(Y) <- paste0("V", 1:p)
+  Y <- as.data.frame(Y)
+
+  fit <- estimate(as.matrix(Y), iter = 100, type = "mixed", progress = FALSE)
+  pred <- posterior_predict(fit, iter = 50, progress = FALSE)
+
+  prob <- predicted_probability(pred, Y = Y, outcome = "V1")
+
+  # sub_sets should be empty list for unconditional
+  expect_true("sub_sets" %in% names(prob))
+})
+
+test_that("predicted_probability conditional returns sub_sets", {
+  skip_on_cran()
+
+  set.seed(123)
+  n <- 200
+  p <- 5
+  Y <- matrix(sample(0:2, n * p, replace = TRUE), n, p)
+  colnames(Y) <- paste0("V", 1:p)
+  Y <- as.data.frame(Y)
+
+  fit <- estimate(as.matrix(Y), iter = 100, type = "mixed", progress = FALSE)
+  pred <- posterior_predict(fit, iter = 50, progress = FALSE)
+
+  prob <- predicted_probability(pred, Y = Y, outcome = "V1", V2 = 1)
+
+  # sub_sets should contain conditional data
+  expect_true("sub_sets" %in% names(prob))
+  expect_true(is.list(prob$sub_sets))
+})
+
+test_that("predicted_probability with binary data", {
+  skip_on_cran()
+
+  set.seed(123)
+  n <- 100
+  p <- 5
+  Y <- matrix(sample(0:1, n * p, replace = TRUE), n, p)
+  colnames(Y) <- paste0("V", 1:p)
+  Y <- as.data.frame(Y)
+
+  fit <- estimate(as.matrix(Y), iter = 100, type = "mixed", progress = FALSE)
+  pred <- posterior_predict(fit, iter = 50, progress = FALSE)
+
+  prob <- predicted_probability(pred, Y = Y, outcome = "V1")
+
+  # Should have 2 columns (for 0 and 1)
+  expect_equal(ncol(prob$collect), 2)
+})
+
+test_that("predicted_probability errors for non-posterior_predict class", {
+  set.seed(123)
+
+  # Create a fake object that passes the initial checks but fails class check
+  fake_obj <- array(1:100, dim = c(10, 5, 2))
+  colnames(fake_obj) <- paste0("V", 1:5)
+
+  Y <- matrix(sample(0:2, 50, replace = TRUE), 10, 5)
+  colnames(Y) <- paste0("V", 1:5)
+  Y_df <- as.data.frame(Y)
+
+  expect_error(
+    predicted_probability(fake_obj, Y = Y_df, outcome = "V1"),
+    "must be of class 'posterior_predict'"
+  )
+})
+
+test_that("predicted_probability with different outcome", {
+  skip_on_cran()
+
+  set.seed(123)
+  n <- 100
+  p <- 5
+  Y <- matrix(sample(0:2, n * p, replace = TRUE), n, p)
+  colnames(Y) <- paste0("V", 1:p)
+  Y <- as.data.frame(Y)
+
+  fit <- estimate(as.matrix(Y), iter = 100, type = "mixed", progress = FALSE)
+  pred <- posterior_predict(fit, iter = 50, progress = FALSE)
+
+  prob1 <- predicted_probability(pred, Y = Y, outcome = "V1")
+  prob2 <- predicted_probability(pred, Y = Y, outcome = "V2")
+
+  expect_true(is.matrix(prob1$collect))
+  expect_true(is.matrix(prob2$collect))
+})

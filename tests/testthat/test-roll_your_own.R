@@ -164,3 +164,132 @@ test_that("roll_your_own result can be used for credible intervals", {
   # Should be able to extract samples from the result
   expect_true(is.list(result))
 })
+
+# ============================================
+# Additional tests for coverage
+# ============================================
+
+test_that("roll_your_own with select = TRUE works", {
+  result <- roll_your_own(fit, FUN = mean_abs_pcor, select = TRUE, cred = 0.50)
+
+  expect_s3_class(result, "roll_your_own")
+})
+
+test_that("roll_your_own with custom iter parameter", {
+  result <- roll_your_own(fit, FUN = mean_abs_pcor, iter = 50)
+
+  expect_s3_class(result, "roll_your_own")
+  expect_equal(result$iter, 50)
+})
+
+test_that("roll_your_own stores iter value", {
+  result <- roll_your_own(fit, FUN = mean_abs_pcor)
+
+  expect_true("iter" %in% names(result))
+})
+
+test_that("print.roll_your_own with single value result", {
+  result <- roll_your_own(fit, FUN = mean_abs_pcor)
+
+  output <- capture.output(print(result))
+
+  expect_true(length(output) > 0)
+  expect_true(any(grepl("BGGM", output)))
+  expect_true(any(grepl("Roll Your Own", output)))
+})
+
+test_that("print.roll_your_own with node-wise result", {
+  node_strength <- function(x) {
+    colSums(abs(x))
+  }
+
+  result <- roll_your_own(fit, FUN = node_strength)
+
+  output <- capture.output(print(result))
+
+  expect_true(length(output) > 0)
+  expect_true(any(grepl("Node", output)))
+})
+
+test_that("print.roll_your_own respects cred parameter", {
+  result <- roll_your_own(fit, FUN = mean_abs_pcor)
+
+  output <- capture.output(print(result, cred = 0.90))
+
+  expect_true(length(output) > 0)
+})
+
+test_that("plot.roll_your_own with single value result", {
+  result <- roll_your_own(fit, FUN = mean_abs_pcor)
+
+  plt <- plot(result)
+
+  expect_true(inherits(plt, "ggplot"))
+})
+
+test_that("plot.roll_your_own with multi-value result", {
+  node_strength <- function(x) {
+    colSums(abs(x))
+  }
+
+  result <- roll_your_own(fit, FUN = node_strength)
+
+  plt <- plot(result)
+
+  expect_true(inherits(plt, "ggplot"))
+})
+
+test_that("plot.roll_your_own respects fill parameter", {
+  result <- roll_your_own(fit, FUN = mean_abs_pcor)
+
+  plt <- plot(result, fill = "blue")
+
+  expect_true(inherits(plt, "ggplot"))
+})
+
+test_that("plot.roll_your_own respects alpha parameter", {
+  result <- roll_your_own(fit, FUN = mean_abs_pcor)
+
+  plt <- plot(result, alpha = 0.3)
+
+  expect_true(inherits(plt, "ggplot"))
+})
+
+test_that("roll_your_own with function returning zeros", {
+  # Function that might return zeros for some nodes
+  zero_func <- function(x) {
+    res <- colSums(abs(x))
+    res[1] <- 0
+    res
+  }
+
+  result <- roll_your_own(fit, FUN = zero_func)
+
+  plt <- plot(result)
+
+  expect_true(inherits(plt, "ggplot"))
+})
+
+test_that("roll_your_own with extra arguments", {
+  # Function that takes extra arguments
+  threshold_density <- function(x, threshold = 0.1) {
+    adj <- abs(x) > threshold
+    sum(adj[upper.tri(adj)]) / sum(upper.tri(adj))
+  }
+
+  result <- roll_your_own(fit, FUN = threshold_density, threshold = 0.2)
+
+  expect_s3_class(result, "roll_your_own")
+})
+
+test_that("roll_your_own results are numeric", {
+  result <- roll_your_own(fit, FUN = mean_abs_pcor)
+
+  expect_true(is.numeric(result$results))
+})
+
+test_that("roll_your_own with progress = FALSE works", {
+  result <- roll_your_own(fit, FUN = mean_abs_pcor, progress = FALSE)
+
+  expect_s3_class(result, "roll_your_own")
+})

@@ -137,3 +137,214 @@ test_that("plot.var_estimate works without error", {
 
   expect_true(is.logical(result))
 })
+
+# ============================================
+# Additional tests for coverage
+# ============================================
+
+test_that("var_estimate accepts beta_sd parameter", {
+  result <- var_estimate(
+    test_ts_data,
+    beta_sd = 0.5,
+    iter = 50,
+    progress = FALSE
+  )
+
+  expect_s3_class(result, "var_estimate")
+})
+
+test_that("var_estimate accepts seed parameter", {
+  result1 <- var_estimate(test_ts_data, iter = 50, seed = 123, progress = FALSE)
+  result2 <- var_estimate(test_ts_data, iter = 50, seed = 123, progress = FALSE)
+
+  expect_s3_class(result1, "var_estimate")
+  expect_s3_class(result2, "var_estimate")
+})
+
+test_that("var_estimate errors with constant variable", {
+  set.seed(123)
+  bad_data <- test_ts_data
+  bad_data[, 1] <- 1  # Constant value
+
+  expect_error(
+    var_estimate(bad_data, iter = 50, progress = FALSE)
+  )
+})
+
+test_that("var_estimate handles NA values", {
+  set.seed(123)
+  na_data <- test_ts_data
+  na_data[1, 1] <- NA
+
+  result <- var_estimate(na_data, iter = 50, progress = FALSE)
+
+  expect_s3_class(result, "var_estimate")
+})
+
+test_that("var_estimate print method works", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+
+  output <- capture.output(print(fit))
+
+  expect_true(length(output) > 0)
+  expect_true(any(grepl("BGGM", output)))
+  expect_true(any(grepl("VAR", output)))
+})
+
+test_that("summary.var_estimate returns correct structure", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  expect_true("pcor_results" %in% names(summ))
+  expect_true("beta_results" %in% names(summ))
+})
+
+test_that("summary.var_estimate pcor_results is data.frame", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  expect_true(is.data.frame(summ$pcor_results))
+})
+
+test_that("summary.var_estimate beta_results is list", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  expect_true(is.list(summ$beta_results))
+  expect_equal(length(summ$beta_results), p)
+})
+
+test_that("summary.var_estimate respects cred parameter", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+
+  summ_95 <- summary(fit, cred = 0.95)
+  summ_90 <- summary(fit, cred = 0.90)
+
+  expect_true(is.data.frame(summ_95$pcor_results))
+  expect_true(is.data.frame(summ_90$pcor_results))
+})
+
+test_that("summary.var_estimate has correct column names", {
+  set.seed(123)
+  Y <- subset(BGGM::ifit, id == 1)[1:50, -1]
+
+  fit <- var_estimate(Y, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  expected_cols <- c("Relation", "Post.mean", "Post.sd", "Cred.lb", "Cred.ub")
+  expect_equal(colnames(summ$pcor_results), expected_cols)
+})
+
+test_that("print.summary.var_estimate works for all params", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  output <- capture.output(print(summ, param = "all"))
+
+  expect_true(length(output) > 0)
+  expect_true(any(grepl("Partial Correlations", output)))
+  expect_true(any(grepl("Coefficients", output)))
+})
+
+test_that("print.summary.var_estimate works for pcor only", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  output <- capture.output(print(summ, param = "pcor"))
+
+  expect_true(length(output) > 0)
+  expect_true(any(grepl("Partial Correlations", output)))
+})
+
+test_that("print.summary.var_estimate works for beta only", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  output <- capture.output(print(summ, param = "beta"))
+
+  expect_true(length(output) > 0)
+  expect_true(any(grepl("Coefficients", output)))
+})
+
+test_that("plot.summary.var_estimate works", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  plt <- plot(summ)
+
+  expect_true(is.list(plt))
+  expect_true("pcor_plt" %in% names(plt))
+  expect_true("beta_plt" %in% names(plt))
+})
+
+test_that("plot.summary.var_estimate pcor only", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  plt <- plot(summ, param = "pcor")
+
+  expect_true(inherits(plt$pcor_plt, "ggplot"))
+  expect_null(plt$beta_plt)
+})
+
+test_that("plot.summary.var_estimate beta only", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  plt <- plot(summ, param = "beta")
+
+  expect_null(plt$pcor_plt)
+  expect_true(is.list(plt$beta_plt))
+})
+
+test_that("plot.summary.var_estimate respects order parameter", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  plt <- plot(summ, order = FALSE)
+
+  expect_true(is.list(plt))
+})
+
+test_that("plot.summary.var_estimate respects color parameter", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  plt <- plot(summ, color = "red")
+
+  expect_true(is.list(plt))
+})
+
+test_that("plot.summary.var_estimate respects size parameter", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  plt <- plot(summ, size = 3)
+
+  expect_true(is.list(plt))
+})
+
+test_that("plot.summary.var_estimate respects width parameter", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+  summ <- summary(fit)
+
+  plt <- plot(summ, width = 0.5)
+
+  expect_true(is.list(plt))
+})
+
+test_that("var_estimate stores correct n and p", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+
+  expect_equal(fit$p, p)
+  expect_true(fit$n > 0)
+})
+
+test_that("var_estimate stores Y and X matrices", {
+  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
+
+  expect_true("Y" %in% names(fit))
+  expect_true("X" %in% names(fit))
+  expect_true(is.matrix(fit$Y))
+  expect_true(is.matrix(fit$X))
+})

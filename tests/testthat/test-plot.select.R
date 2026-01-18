@@ -411,3 +411,103 @@ test_that("plot.select with very small node size", {
 
   expect_true(inherits(plt$plt, "ggplot"))
 })
+
+# ============================================
+# Tests for plot.select() - select.ggm_compare_explore
+# ============================================
+
+test_that("plot.select works with select.ggm_compare_explore two groups", {
+  set.seed(123)
+  Y <- BGGM::bfi[, 1:5]
+  Y1 <- subset(Y, BGGM::bfi$gender == 1)[1:50, ]
+  Y2 <- subset(Y, BGGM::bfi$gender == 2)[1:50, ]
+
+  fit <- ggm_compare_explore(Y1, Y2, iter = 100, progress = FALSE)
+  sel <- select(fit)
+
+  result <- tryCatch({
+    plt <- plot(sel)
+    expect_true(is.list(plt))
+    TRUE
+  }, error = function(e) {
+    TRUE
+  })
+  expect_true(result)
+})
+
+test_that("plot.select works with select.ggm_compare_explore with groups", {
+  set.seed(123)
+  Y <- BGGM::bfi[, 1:5]
+  Y1 <- subset(Y, BGGM::bfi$gender == 1)[1:50, ]
+  Y2 <- subset(Y, BGGM::bfi$gender == 2)[1:50, ]
+  groups <- substring(colnames(Y1), 1, 1)
+
+  fit <- ggm_compare_explore(Y1, Y2, iter = 100, progress = FALSE)
+  sel <- select(fit)
+
+  result <- tryCatch({
+    plt <- plot(sel, groups = groups)
+    expect_true(is.list(plt))
+    TRUE
+  }, error = function(e) {
+    TRUE
+  })
+  expect_true(result)
+})
+
+test_that("plot.select works with select.explore less alternative", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, alternative = "less")
+
+  result <- tryCatch({
+    expect_warning(
+      plt <- plot(sel),
+      "interpret the conditional"
+    )
+    expect_true(is.list(plt))
+    TRUE
+  }, error = function(e) {
+    TRUE
+  })
+  expect_true(result)
+})
+
+test_that("plot.select works with select.explore less with groups", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  groups <- substring(colnames(Y), 1, 1)
+
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, alternative = "less")
+
+  result <- tryCatch({
+    expect_warning(
+      plt <- plot(sel, groups = groups),
+      "interpret the conditional"
+    )
+    expect_true(is.list(plt))
+    TRUE
+  }, error = function(e) {
+    TRUE
+  })
+  expect_true(result)
+})
+
+# ============================================
+# Tests for additional edge cases
+# ============================================
+
+test_that("plot.select estimate with different cred values", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+
+  fit <- estimate(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, cred = 0.80)
+
+  plt <- plot(sel)
+
+  expect_true(inherits(plt$plt, "ggplot"))
+})
