@@ -53,6 +53,7 @@ four trauma patient samples.” *Clinical Psychological Science*,
 ## Examples
 
 ``` r
+
 data(ptsd_cor1)
 
 Y <- MASS::mvrnorm(n = 526,

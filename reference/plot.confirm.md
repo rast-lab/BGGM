@@ -27,6 +27,7 @@ A `ggplot` object.
 ## Examples
 
 ``` r
+
 # \donttest{
 
 #####################################

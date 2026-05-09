@@ -110,6 +110,7 @@ for several examples.
 ## Examples
 
 ``` r
+
 # \donttest{
 #################
 ### example 1 ###

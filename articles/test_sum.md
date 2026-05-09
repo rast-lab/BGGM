@@ -12,6 +12,7 @@ determine whether there is a difference in the sums.
 #### R package
 
 ``` r
+
 # need the developmental version
 if (!requireNamespace("remotes")) { 
   install.packages("remotes")   
@@ -131,6 +132,7 @@ tested are as follows
 ### Sum to String
 
 ``` r
+
 sums <- c("A3--A4 + A4--A5")
 ```
 
@@ -142,6 +144,7 @@ where `A1` is “know how to comfort others”, `A4` is “love children”, and
 The next step is to fit the models
 
 ``` r
+
 # data
 Y <- bfi
 
@@ -163,6 +166,7 @@ fit_male <- estimate(Y_males, seed = 1)
 Then test the sum
 
 ``` r
+
 test_sum <- pcor_sum(fit_female, fit_male, relations = sums)
 
 # print
@@ -195,6 +199,7 @@ For a kind of sanity check, here is the sum for the male group obtained
 from the point estimates.
 
 ``` r
+
 pcor_mat(fit_male)["A3", "A4"] + pcor_mat(fit_male)["A4", "A5"] 
 
 #>  0.305

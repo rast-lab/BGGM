@@ -70,6 +70,7 @@ from the posterior, was estimated in less than 1 second.
 The results can then be printed
 
 ``` r
+
 # print 
 fit
 
@@ -122,6 +123,7 @@ PDC (which requires a transformation).
 Here are the estimates from the `vars` package
 
 ``` r
+
 t(round(
   vars::Bcoef( 
   vars:::VAR(scale(na.omit(Y)), type = "none")), 
@@ -149,6 +151,7 @@ the “estimation” methods are perhaps a nice place to start.
 The model can also be summarized with
 
 ``` r
+
 print(
   summary(fit,  cred = 0.95), 
   param = "pcor"
@@ -190,6 +193,7 @@ The coefficients can also be printed by changing `param` to either `all`
 or `beta`, The summary can also be plotted. Here are the coefficients
 
 ``` r
+
 plts <- plot(summary(fit,  cred = 0.95))
 
 cowplot::plot_grid(
@@ -216,6 +220,7 @@ There is a plot for the partial correlations in the object `plts`.
 The graphs are selected with
 
 ``` r
+
 select(fit, cred = 0.95)
 
 #> BGGM: Bayesian Gaussian Graphical Models 
@@ -257,6 +262,7 @@ select(fit, cred = 0.95)
 For plotting, I use the **qgraph** package.
 
 ``` r
+
 par(mfrow=c(1,2))
 qgraph::qgraph(sel$pcor_weighted_adj, title = "Partials")
 qgraph::qgraph(sel$beta_weighted_adj, title = "Coefficients")
@@ -267,9 +273,10 @@ qgraph::qgraph(sel$beta_weighted_adj, title = "Coefficients")
 ## Predictability
 
 Finally, it is also possible to compute predictability, in this case
-Bayesian $R^{2}$
+Bayesian $`R^2`$
 
 ``` r
+
 r2 <- predictability(fit)
 
 # print
@@ -295,6 +302,7 @@ r2
 The object `r2` can also be plotted
 
 ``` r
+
 plot(r2, type = "ridgeline")
 ```
 

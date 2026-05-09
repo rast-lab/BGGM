@@ -196,7 +196,7 @@ Kass RE, Raftery AE (1995). “Bayes Factors.” *Journal of the American
 Statistical Association*, **90**(430), 773–795.  
   
 Mulder J, Pericchi L (2018). “The Matrix-F Prior for Estimating and
-Testing Covariance Matrices.” *Bayesian Analysis*, 1–22. ISSN 19316690,
+Testing Covariance Matrices.” *Bayesian Analysis*, 1–22. ISSN 19316690.
 [doi:10.1214/17-BA1092](https://doi.org/10.1214/17-BA1092) .  
   
 Williams DR, Mulder J (2019). “Bayesian Hypothesis Testing for Gaussian

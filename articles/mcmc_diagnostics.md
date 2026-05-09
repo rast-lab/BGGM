@@ -14,6 +14,7 @@ introduction to MCMC diagnostics.
 #### R packages
 
 ``` r
+
 # need the developmental version
 if (!requireNamespace("remotes")) { 
   install.packages("remotes")   
@@ -28,8 +29,8 @@ library(BGGM)
 
 This first example includes an “acf” plot that looks at the auto
 correlation of the samples. In general, we do not want the samples to be
-strongly correlated or related to the previous samples (or lags $k$). I
-am not sure there are general guidelines, but typically we do not want
+strongly correlated or related to the previous samples (or lags $`k`$).
+I am not sure there are general guidelines, but typically we do not want
 “auto correlation…for higher values of k, \[because\] this indicates a
 high degree of correlation between our samples and slow mixing”
 [source](https://sbfnk.github.io/mfiidd/mcmc_diagnostics.html)
@@ -37,6 +38,7 @@ high degree of correlation between our samples and slow mixing”
 Here is an example for ordinal data.
 
 ``` r
+
 # data
 Y <- ptsd[,1:10]
 
@@ -49,6 +51,7 @@ To check the convergence of a partial correlation, we need the parameter
 name. These are printed as follows
 
 ``` r
+
 convergence(fit, print_names = TRUE)
 
 #>  [1] "B1--B2"         "B1--B3"         "B2--B3"         "B1--B4"         "B2--B4"         "B3--B4"         "B1--B5"        
@@ -67,6 +70,7 @@ is a multivariate probit model with only intercepts.
 The next step is to make the plot
 
 ``` r
+
 convergence(fit, param = "B1--B2", type = "acf")
 ```
 
@@ -82,6 +86,7 @@ To make this clear, I simulated time series data taking the code from
 [here](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/arima.sim.html)
 
 ``` r
+
 # sim time series
 ts.sim <- arima.sim(list(order = c(1,1,0), ar = 0.7), n = 200)
 
@@ -94,6 +99,7 @@ This would be considered problematic. If this occurs, one solution could
 be to thin the samples manually
 
 ``` r
+
 # extract samples
 samps <- fit$post_samp$pcors
 
@@ -127,6 +133,7 @@ to know that the samples can be replaced and the other functions in
 The next example is a trace plot. Here we are looking for good “mixing”.
 
 ``` r
+
 convergence(fit, param = "B1--B2", type = "trace")
 ```
 

@@ -50,6 +50,7 @@ disorder networks are compared (Fried et al. 2018).
 #### R packages
 
 ``` r
+
 # need the developmental version
 if (!requireNamespace("remotes")) { 
   install.packages("remotes")   
@@ -66,6 +67,7 @@ data is generated with that *exact* correlation structure via the `R`
 package **MASS**.
 
 ``` r
+
 # need these packages
 library(BGGM)
 library(ggplot2)
@@ -103,6 +105,7 @@ matrices and the output is the chosen test-statistic (in this case a
 correlation)
 
 ``` r
+
 f <- function(Yg1, Yg2){
   # number of nodes
   p <- ncol(Yg1)
@@ -133,6 +136,7 @@ The next step is to compute the observed test-statistic, that is, the
 correlation between the partial correlations.
 
 ``` r
+
 obs <- f(Yg1, Yg2)
 
 # observed
@@ -147,6 +151,7 @@ With the function, `f`, and the observed scores, `obs`, in hand, what is
 left is the predictive check
 
 ``` r
+
 ppc <- BGGM::ggm_compare_ppc(Yg1, Yg2, 
                        FUN = f, 
                        custom_obs = obs, 
@@ -160,6 +165,7 @@ this case, a large correlation is a good thing so it is set to `FALSE`.
 The results can then be printed
 
 ``` r
+
 ppc
 ```
 
@@ -190,6 +196,7 @@ group equality)
 and finally plot the results
 
 ``` r
+
 plot(ppc)
 ```
 
@@ -216,6 +223,7 @@ matrices and the output is the chosen test-statistic (in this case
 Hamming distance)
 
 ``` r
+
 f <- function(Yg1, Yg2){
   # nodes
   p <- ncol(Yg1)
@@ -242,6 +250,7 @@ The next step is to compute the observed test-statistic, that is, the
 Hamming distance between adjacency matrices
 
 ``` r
+
 obs <- f(Yg1, Yg2)
 
 # observed
@@ -256,6 +265,7 @@ With the function, `f`, and the observed scores, `obs`, in hand, what is
 left is the predictive check
 
 ``` r
+
 ppc <- BGGM::ggm_compare_ppc(Yg1, Yg2, 
                        FUN = f, 
                        custom_obs = obs, 
@@ -265,6 +275,7 @@ ppc <- BGGM::ggm_compare_ppc(Yg1, Yg2,
 The results can then be printed
 
 ``` r
+
 ppc
 ```
 
@@ -289,6 +300,7 @@ ppc
 And then plot the results
 
 ``` r
+
 plot(ppc)
 ```
 
@@ -310,6 +322,7 @@ for the partial correlation matrix.
 #### Step 1: Define Custom Function
 
 ``` r
+
 f <- function(Yg1, Yg2){
   # nodes
   p <- ncol(Yg1)
@@ -336,6 +349,7 @@ The next step is to compute the observed test-statistic, that is, the
 Partial Correlation Matrix Distance
 
 ``` r
+
 obs <- f(Yg1, Yg2)
 
 # observed
@@ -350,6 +364,7 @@ With the function, `f`, and the observed scores, `obs`, in hand, what is
 left is the predictive check
 
 ``` r
+
 ppc <- BGGM::ggm_compare_ppc(Yg1, Yg2, 
                        FUN = f, 
                        custom_obs = obs, 
@@ -359,6 +374,7 @@ ppc <- BGGM::ggm_compare_ppc(Yg1, Yg2,
 The results can then be printed
 
 ``` r
+
 ppc
 ```
 
@@ -386,6 +402,7 @@ Note that the object `ppc` includes the predictive samples that allows
 for user defined plots (in the event something custom is desired).
 
 ``` r
+
 hist(ppc$predictive_custom, 
      xlim = c(0, obs), 
      main = "Partial Correlation Matrix Distance")
@@ -407,6 +424,7 @@ for each draw from the predictive distribution.
 #### Step 1: Define Custom Function
 
 ``` r
+
 # clusters based on DSM-5
 comms <- c(
   rep("A", 4),
@@ -439,6 +457,7 @@ The next step is to compute the observed test-statistic, that is,
 assortment for the two groups
 
 ``` r
+
 obs <- f(Yg1, Yg2)
 
 # observed
@@ -453,6 +472,7 @@ With the function, `f`, and the observed score, `obs`, in hand, the next
 step is the predictive check
 
 ``` r
+
 ppc <- BGGM::ggm_compare_ppc(Yg1, Yg2, 
                        FUN = f, 
                        custom_obs = obs, 
@@ -462,6 +482,7 @@ ppc <- BGGM::ggm_compare_ppc(Yg1, Yg2,
 The results can then be printed
 
 ``` r
+
 ppc
 ```
 
@@ -486,6 +507,7 @@ ppc
 and plotted
 
 ``` r
+
 plot(ppc)
 ```
 
@@ -501,13 +523,14 @@ which shows that the clustering in the data appears to be different
 ### Expected Influence
 
 This last example looks at the expected influence for the network
-(Robinaugh, Millner, and McNally 2016). In this case, the sum of squared
-error is the test statistic. This is computed from the squared error for
-each draw from the predictive distribution.
+(Robinaugh et al. 2016). In this case, the sum of squared error is the
+test statistic. This is computed from the squared error for each draw
+from the predictive distribution.
 
 #### Step 1: Define Custom Function
 
 ``` r
+
 f <- function(Yg1, Yg2){
 
   fit1 <-  BGGM::estimate(Yg1, analytic = TRUE)
@@ -529,6 +552,7 @@ The next step is to compute the observed test-statistic, that is, the
 sum of squared error for expected influence
 
 ``` r
+
 obs <- f(Yg1, Yg2)
 
 # observed
@@ -543,6 +567,7 @@ With the function, `f`, and the observed scores, `obs`, in hand, what is
 left is the predictive check
 
 ``` r
+
 ppc <- BGGM:::ggm_compare_ppc(Yg1, Yg2, 
                        FUN = f, 
                        custom_obs = obs, 
@@ -552,6 +577,7 @@ ppc <- BGGM:::ggm_compare_ppc(Yg1, Yg2,
 The results can then be printed
 
 ``` r
+
 ppc
 ```
 
@@ -576,6 +602,7 @@ ppc
 and plotted
 
 ``` r
+
 hist(ppc$predictive_custom, 
     xlim = c(0, obs),
      main = "Expected Influence\n Sum of Squared Error")
@@ -590,8 +617,8 @@ would be expected, assuming the null model were true.
 
 1.  Note that only the default in **BGGM** have been shown to have
     nominal error rates. However, there is a proof that suggests the
-    error rate cannot be larger than $2\alpha$(Meng et al. 1994), and,
-    further, a predictive check is typically below $\alpha$(i.e., a
+    error rate cannot be larger than $`2\alpha`$(Meng et al. 1994), and,
+    further, a predictive check is typically below $`\alpha`$(i.e., a
     tendency to be conservative, Gelman et al. 2013).
 
 2.  Failing to reject the null model does not indicate the groups are
@@ -605,25 +632,23 @@ to answer specific research questions.
 
 ## References
 
-Fried, Eiko I, Marloes B Eidhof, Sabina Palic, Giulio Costantini, Hilde
-M Huisman-van Dijk, Claudi LH Bockting, Iris Engelhard, Cherie Armour,
-Anni BS Nielsen, and Karen-Inge Karstoft. 2018. “Replicability and
-Generalizability of Posttraumatic Stress Disorder (PTSD) Networks: A
-Cross-Cultural Multisite Study of PTSD Symptoms in Four Trauma Patient
-Samples.” *Clinical Psychological Science* 6 (3): 335–51.
+Fried, Eiko I, Marloes B Eidhof, Sabina Palic, et al. 2018.
+“Replicability and Generalizability of Posttraumatic Stress Disorder
+(PTSD) Networks: A Cross-Cultural Multisite Study of PTSD Symptoms in
+Four Trauma Patient Samples.” *Clinical Psychological Science* 6 (3):
+335–51.
 
 Gelman, Andrew et al. 2013. “Two Simple Examples for Understanding
 Posterior p-Values Whose Distributions Are Far from Uniform.”
-*Electronic Journal of Statistics* 7: 2595–2602.
+*Electronic Journal of Statistics* 7: 2595–602.
 <https://doi.org/10.1214/13-ejs854>.
 
 Herdin, Markus, Nicolai Czink, Hüseyin Ozcelik, and Ernst Bonek. 2005.
 “Correlation Matrix Distance, a Meaningful Measure for Evaluation of
-Non-Stationary MIMO Channels.” In *2005 IEEE 61st Vehicular Technology
-Conference*, 1:136–40. IEEE.
-<https://doi.org/10.1109/vetecs.2005.1543265>.
+Non-Stationary MIMO Channels.” *2005 IEEE 61st Vehicular Technology
+Conference* 1: 136–40. <https://doi.org/10.1109/vetecs.2005.1543265>.
 
-Meng, Xiao-Li et al. 1994. “Posterior Predictive $p$-Values.” *The
+Meng, Xiao-Li et al. 1994. “Posterior Predictive $`p`$-Values.” *The
 Annals of Statistics* 22 (3): 1142–60.
 
 Newman, Mark EJ. 2003. “Mixing Patterns in Networks.” *Physical Review
@@ -635,5 +660,5 @@ Robinaugh, Donald J, Alexander J Millner, and Richard J McNally. 2016.
 
 Williams, Donald R, Philippe Rast, Luis R Pericchi, and Joris Mulder.
 2020. “Comparing Gaussian Graphical Models with the Posterior Predictive
-Distribution and Bayesian Model Selection.” *Psychological Methods*.
-<https://doi.org/10.1037/met0000254>.
+Distribution and Bayesian Model Selection.” *Psychological Methods*,
+ahead of print. <https://doi.org/10.1037/met0000254>.

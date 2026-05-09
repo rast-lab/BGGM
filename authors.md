@@ -29,7 +29,7 @@ in R.” *PsyArXiv*. R package version 2.1.6.9000,
 Williams DR (2018). “Bayesian estimation for Gaussian graphical models:
 Structure learning, predictability, and network comparisons.”
 *PsyArXiv*.
-[doi:10.31234/osf.io/x8dpr](https://doi.org/10.31234/osf.io/x8dpr),
+[doi:10.31234/osf.io/x8dpr](https://doi.org/10.31234/osf.io/x8dpr).
 <https://osf.io/preprints/psyarxiv/x8dpr/>.
 
     @Article{,
@@ -45,7 +45,7 @@ Structure learning, predictability, and network comparisons.”
 Williams DR, Mulder J (2019). “Bayesian hypothesis testing for Gaussian
 graphical models: Conditional independence and order constraints.”
 *PsyArXiv*.
-[doi:10.31234/osf.io/ypxd8](https://doi.org/10.31234/osf.io/ypxd8),
+[doi:10.31234/osf.io/ypxd8](https://doi.org/10.31234/osf.io/ypxd8).
 <https://osf.io/preprints/psyarxiv/ypxd8/>.
 
     @Article{,
@@ -61,7 +61,7 @@ graphical models: Conditional independence and order constraints.”
 Williams DR, Philipe R, Luis PR, Mulder J (2020). “Comparing Gaussian
 graphical models with the posterior predictive distribution and Bayesian
 model selection.” *Psychological Methods*.
-[doi:10.1037/met0000254](https://doi.org/10.1037/met0000254),
+[doi:10.1037/met0000254](https://doi.org/10.1037/met0000254).
 <https://doi.org/10.1037/met0000254>.
 
     @Article{,

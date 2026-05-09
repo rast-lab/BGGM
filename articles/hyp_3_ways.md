@@ -15,6 +15,7 @@ of partial correlations between groups.
 #### R package
 
 ``` r
+
 # need the developmental version
 if (!requireNamespace("remotes")) { 
   install.packages("remotes")   
@@ -52,17 +53,21 @@ make a feature request
 The hypothesis was that a sum of relations was larger in one group, for
 example,
 
-$$\begin{array}{r}
-{\mathcal{H}_{0}:\left( \rho_{A1 - - A2}^{male}\; + \;\rho_{A1 - - A3}^{male} \right) = \left( \rho_{A1 - - A2}^{female}\; + \;\rho_{A1 - - A3}^{female} \right)} \\
-{\mathcal{H}_{1}:\left( \rho_{A1 - - A2}^{male}\; + \;\rho_{A1 - - A3}^{male} \right) > \left( \rho_{A1 - - A2}^{female}\; + \;\rho_{A1 - - A3}^{female} \right)}
-\end{array}$$ Note that the hypothesis is related to the sum of
-relations, which is readily tested in **BGGM**.
+``` math
+\begin{align}
+\mathcal{H}_0: (\rho^{male}_{A1--A2}\; + \; \rho^{male}_{A1--A3}) = (\rho^{female}_{A1--A2}\; + \; \rho^{female}_{A1--A3}) \\
+\mathcal{H}_1: (\rho^{male}_{A1--A2}\; + \; \rho^{male}_{A1--A3}) > (\rho^{female}_{A1--A2}\; + \; \rho^{female}_{A1--A3})
+\end{align}
+```
+Note that the hypothesis is related to the sum of relations, which is
+readily tested in **BGGM**.
 
 ### Fit Models
 
 The first step is to estimate the model for each group
 
 ``` r
+
 # fit female
 fit_female <- estimate(Y_females, seed = 2)
 
@@ -79,6 +84,7 @@ or `mixed`.
 The next step is to extract the posterior samples for each relation
 
 ``` r
+
 post_male <- posterior_samples(fit_male)[,c("A1--A2", "A1--A3")]
 
 post_female <- posterior_samples(fit_female)[,c("A1--A2", "A1--A3")]
@@ -95,6 +101,7 @@ whereas `2--1` will result in an error.
 The next step is to sum the relations and compute the difference
 
 ``` r
+
 # sum males
 sum_male <- rowSums(post_male) 
 
@@ -108,6 +115,7 @@ diff <- sum_male - sum_female
 which can then be plotted
 
 ``` r
+
 # three column
 par(mfrow=c(1,3))
 
@@ -129,6 +137,7 @@ Next compute the posterior probability the sum is larger in males than
 females
 
 ``` r
+
 # posterior prob
 mean(sum_male > sum_female)
 
@@ -148,10 +157,13 @@ The next approach is based on a posterior predictive check. The
 hypothesis is essentially the same as above, but for the predictive
 distribution, that is,
 
-$$\begin{array}{r}
-{\mathcal{H}_{0}:\left( \rho_{A1 - - A2}^{male^{yrep}}\; + \;\rho_{A1 - - A3}^{male^{yrep}} \right) = \left( \rho_{A1 - - A2}^{female^{yrep}}\; + \;\rho_{A1 - - A3}^{female^{yrep}} \right)} \\
-{\mathcal{H}_{1}:\left( \rho_{A1 - - A2}^{male^{yrep}}\; + \;\rho_{A1 - - A3}^{male^{yrep}} \right) > \left( \rho_{A1 - - A2}^{female^{yrep}}\; + \;\rho_{A1 - - A3}^{female^{yrep}} \right)}
-\end{array}$$ where the only difference is $yrep$. See more details
+``` math
+\begin{align}
+\mathcal{H}_0: (\rho^{male^{yrep}}_{A1--A2}\; + \; \rho^{male^{yrep}}_{A1--A3}) = (\rho^{female^{yrep}}_{A1--A2}\; + \; \rho^{female^{yrep}}_{A1--A3}) \\
+\mathcal{H}_1: (\rho^{male^{yrep}}_{A1--A2}\; + \; \rho^{male^{yrep}}_{A1--A3}) > (\rho^{female^{yrep}}_{A1--A2}\; + \; \rho^{female^{yrep}}_{A1--A3})
+\end{align}
+```
+where the only difference is $`yrep`$. See more details
 [here](https://donaldrwilliams.github.io/BGGM/articles/ppc_custom.html).
 
 ### Define Function
@@ -159,6 +171,7 @@ $$\begin{array}{r}
 The first step is to define a function to compute the difference in sums
 
 ``` r
+
 # colnames
 cn <- colnames(Y_males)
 
@@ -199,6 +212,7 @@ The next step is to compute the observed difference and then perform the
 check.
 
 ``` r
+
 # observed
 obs <- f(Y_males, Y_females)
 
@@ -230,13 +244,14 @@ ppc
 #> --- 
 ```
 
-Note this requires the user to determine $\alpha$.
+Note this requires the user to determine $`\alpha`$.
 
 ### Plot
 
 The check can also be plotted
 
 ``` r
+
 plot(ppc)
 ```
 
@@ -251,13 +266,15 @@ other words, just because there was not a difference, this does not
 provide evidence for equality. The Bayes factor methods allow for
 formally assessing the equality model, that is,
 
-$$\begin{aligned}
-\mathcal{H}_{1} & {:\left( \rho_{A1 - - A2}^{male}\; + \;\rho_{A1 - - A3}^{male} \right) > \left( \rho_{A1 - - A2}^{female}\; + \;\rho_{A1 - - A3}^{female} \right)} \\
-\mathcal{H}_{2} & {:\left( \rho_{A1 - - A2}^{male}\; + \;\rho_{A1 - - A3}^{male} \right) = \left( \rho_{A1 - - A2}^{female}\; + \;\rho_{A1 - - A3}^{female} \right)} \\
-\mathcal{H}_{3} & {:\text{not}\;\mathcal{H}_{1}\;\text{or}\;\mathcal{H}_{2}}
-\end{aligned}$$
+``` math
+\begin{align}
+\mathcal{H}_1&: (\rho^{male}_{A1--A2}\; + \; \rho^{male}_{A1--A3}) > (\rho^{female}_{A1--A2}\; + \; \rho^{female}_{A1--A3}) \\
+\mathcal{H}_2&: (\rho^{male}_{A1--A2}\; + \; \rho^{male}_{A1--A3}) = (\rho^{female}_{A1--A2}\; + \; \rho^{female}_{A1--A3}) \\
+\mathcal{H}_3&: \text{not} \; \mathcal{H}_1 \; \text{or} \; \mathcal{H}_2
+\end{align}
+```
 
-where $\mathcal{H}_{3}$ is the complement and can be understood as
+where $`\mathcal{H}_3`$ is the complement and can be understood as
 neither the first or second hypothesis.
 
 ### Test Hypothesis
@@ -265,6 +282,7 @@ neither the first or second hypothesis.
 The hypothesis is easily translated to `R` code
 
 ``` r
+
 hyp <- c("g1_A1--A2 + g1_A1--A3 > g2_A1--A2 + g2_A1--A3; 
           g1_A1--A2 + g1_A1--A3 = g2_A1--A2 + g2_A1--A3")
 ```
@@ -275,6 +293,7 @@ again assume the data is Gaussian (although this can be changed to
 [here](https://donaldrwilliams.github.io/BGGM/reference/ggm_compare_confirm.html))
 
 ``` r
+
 test <- ggm_compare_confirm(Y_males, Y_females, 
                             hypothesis = hyp)
 
@@ -319,14 +338,15 @@ test
 
 Note the posterior hypothesis probability for the equality model is
 0.825. The Bayes factor matrix then divides those values, for example,
-$BF_{21}$ indicates the data were about 6 times more likely under
-$\mathcal{H}_{2}$ than $\mathcal{H}_{1}$.
+$`BF_{21}`$ indicates the data were about 6 times more likely under
+$`\mathcal{H}_2`$ than $`\mathcal{H}_1`$.
 
 ### Plot Hypothesis
 
 The hypothesis can be plotted
 
 ``` r
+
 plot(test)
 ```
 
@@ -338,6 +358,7 @@ It is also important to check the robustness. Here the width of the
 prior distribution is decreased
 
 ``` r
+
 test <- ggm_compare_confirm(Y_males, Y_females, 
                             hypothesis = hyp, 
                             prior_sd = 0.15)
@@ -347,8 +368,8 @@ test$out_hyp_prob
 #> 0.18523406 0.74906147 0.06570447
 ```
 
-which results in a probability of 0.75 for $\mathcal{H}_{2}$
-($BF_{21} = 4.04$).
+which results in a probability of 0.75 for $`\mathcal{H}_2`$
+($`BF_{21} = 4.04`$).
 
 ## Conclusion
 
@@ -360,5 +381,5 @@ this vignette. This highlights that any hypothesis can be tested in
 
 Rodriguez, Josue E, Donald R Williams, Philippe Rast, and Joris Mulder.
 2020. “On Formalizing Theoretical Expectations: Bayesian Testing of
-Central Structures in Psychological Networks.” *PsyArXiv*.
-<https://doi.org/10.31234/osf.io/zw7pf>.
+Central Structures in Psychological Networks.” *PsyArXiv*, ahead of
+print. <https://doi.org/10.31234/osf.io/zw7pf>.

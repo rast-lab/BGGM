@@ -4,11 +4,12 @@
 
 This vignette describes a new feature to **BGGM** (`2.0.0`) that allows
 for computing network predictability for binary and ordinal data.
-Currently the available option is Bayesian $R^{2}$(Gelman et al. 2019).
+Currently the available option is Bayesian $`R^2`$(Gelman et al. 2019).
 
 #### R packages
 
 ``` r
+
 # need the developmental version
 if (!requireNamespace("remotes")) { 
   install.packages("remotes")   
@@ -28,6 +29,7 @@ descriptions are provided in **BGGM**.
 The model is estimated with
 
 ``` r
+
 # binary data
 Y <- women_math
 
@@ -38,6 +40,7 @@ fit <- estimate(Y, type = "binary")
 and then predictability is computed
 
 ``` r
+
 r2 <- predictability(fit)
 
 # print
@@ -64,6 +67,7 @@ There are then two options for plotting. The first is with error bars,
 denoting the credible interval (i.e., `cred`),
 
 ``` r
+
 plot(r2,
      type = "error_bar",
      size = 4,
@@ -75,6 +79,7 @@ plot(r2,
 and the second is with a ridgeline plot
 
 ``` r
+
 plot(r2,
      type = "ridgeline",
      cred = 0.50)
@@ -86,11 +91,12 @@ plot(r2,
 
 In the following, the `ptsd` data is used (5-level Likert). The variable
 descriptions are provided in **BGGM**. This is based on the polychoric
-partial correlations, with $R^{2}$ computed from the corresponding
+partial correlations, with $`R^2`$ computed from the corresponding
 correlations (due to the correspondence between the correlation matrix
 and multiple regression).
 
 ``` r
+
 Y <- ptsd
 
 fit <- estimate(Y + 1, type = "ordinal")
@@ -102,6 +108,7 @@ approach the first category must be 1 (in `ptsd` the first category is
 coded as 0).
 
 ``` r
+
 r2 <- predictability(fit)
 
 # print 
@@ -141,6 +148,7 @@ r2
 Here is the `error_bar` plot.
 
 ``` r
+
 plot(r2)
 ```
 
@@ -156,6 +164,7 @@ Gaussian. In the context of Bayesian GGMs, this was introduced in
 (Williams 2018). This can also be implemented in **BGGM**.
 
 ``` r
+
 # fit model
 fit <- estimate(Y)
 
@@ -167,7 +176,7 @@ r2 <- predictability(fit)
 
 ## Note
 
-$R^{2}$ for binary and ordinal data is computed for the underlying
+$`R^2`$ for binary and ordinal data is computed for the underlying
 latent variables. This is also the case when `type = "mixed` (a
 semi-parametric copula). In future releases, there will be support for
 predicting the variables on the observed scale.
@@ -180,4 +189,4 @@ Gelman, Andrew, Ben Goodrich, Jonah Gabry, and Aki Vehtari. 2019.
 
 Williams, Donald R. 2018. “Bayesian Estimation for Gaussian Graphical
 Models: Structure Learning, Predictability, and Network Comparisons.”
-*arXiv*. <https://doi.org/10.31234/OSF.IO/X8DPR>.
+*arXiv*, ahead of print. <https://doi.org/10.31234/OSF.IO/X8DPR>.

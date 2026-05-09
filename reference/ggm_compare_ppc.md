@@ -171,6 +171,7 @@ model selection.” *Psychological Methods*.
 ## Examples
 
 ``` r
+
 # \donttest{
 # note: iter = 250 for demonstrative purposes
 

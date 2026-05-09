@@ -49,5 +49,6 @@ setting `edge_prob` to a small value).
 ## Examples
 
 ``` r
+
 true_net <- gen_net(p = 10)
 ```

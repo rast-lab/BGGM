@@ -25,6 +25,7 @@ Suppose that we want to control for education level, with five variables
 included in the GGM.
 
 ``` r
+
 # data
 Y <- bfi[,c(1:5, 27)]
 

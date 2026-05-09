@@ -7,6 +7,7 @@ This vignette shows how to make network plots.
 #### R packages
 
 ``` r
+
 # need the developmental version
 if (!requireNamespace("remotes")) { 
   install.packages("remotes")   
@@ -33,6 +34,7 @@ In this example, I use the `bfi` data which consists of 25 variables
 measureing different aspects of personality.
 
 ``` r
+
 # data
 Y <- bfi[,1:25]
 
@@ -46,6 +48,7 @@ The next step is to selec the graph or those relations for which the
 credible excludes zero
 
 ``` r
+
 # select the edge set
 E <- select(fit, 
             cred = 0.95, 
@@ -63,6 +66,7 @@ Here is the basic plot. This works for any object from `select` (e.g.,
 comparing groups).
 
 ``` r
+
 plot(E)
 ```
 
@@ -73,6 +77,7 @@ plot(E)
 The above is `ggplot` that can be futher honed in. Here is an example.
 
 ``` r
+
 # extract communities
 comm <- substring(colnames(Y), 1, 1)
 
@@ -116,6 +121,7 @@ package, which is linked in the documentation for `plot.select` in
 **BGGM**. Here is an example using `layout = "random"`
 
 ``` r
+
 plot(E, 
      # enlarge edges
      edge_magnify = 5, 
@@ -150,6 +156,7 @@ To highlight this advantage, `ptsd` data is used that has a relatively
 small sample size.
 
 ``` r
+
 # fit model
 fit <- explore(Y)
 
@@ -160,6 +167,7 @@ Then plot the results. Note that there are three plots, so the package
 **cowplot** is used to combine them into one plot.
 
 ``` r
+
 plts <- plot(E, 
              edge_magnify = 5, 
              groups = comm)
@@ -205,4 +213,5 @@ Statistical Software* 48 (4): 1–18.
 
 Williams, Donald R, and Joris Mulder. 2019. “Bayesian Hypothesis Testing
 for Gaussian Graphical Models: Conditional Independence and Order
-Constraints.” *PsyArXiv*. <https://doi.org/10.31234/osf.io/ypxd8>.
+Constraints.” *PsyArXiv*, ahead of print.
+<https://doi.org/10.31234/osf.io/ypxd8>.

@@ -20,6 +20,7 @@ Several examples are provided below.
 #### R packages
 
 ``` r
+
 # need the developmental version
 if (!requireNamespace("remotes")) { 
   install.packages("remotes")   
@@ -36,6 +37,7 @@ two of the “communities” of symptoms (details for these data can be
 found in Armour et al. 2017). The data are ordinal (5-level Likert).
 
 ``` r
+
 # need these packages
 library(BGGM)
 library(ggplot2)
@@ -56,6 +58,7 @@ once which highlights that only the posterior samples are needed to
 compute any network statistic.
 
 ``` r
+
 library(BGGM)
 
 # copula ggm
@@ -66,10 +69,11 @@ fit <- estimate(Y, type = "mixed", iter = 1000)
 
 ### Expected Influence
 
-The first example computes expected influence (Robinaugh, Millner, and
-McNally 2016). The first step is to define a function
+The first example computes expected influence (Robinaugh et al. 2016).
+The first step is to define a function
 
 ``` r
+
 # define function
 f <- function(x,...){
   networktools::expectedInf(x,...)$step1
@@ -82,6 +86,7 @@ function. An example is provided below. With the function defined, the
 next step is to compute the network statistic.
 
 ``` r
+
 # iter = 250 for demonstrative purposes
 # (but note even 1000 iters takes less than 1 second)
 # compute
@@ -116,6 +121,7 @@ with `select = TRUE`. Internally, each of the sampled partial
 correlation matrices is multiplied by the adjacency matrix.
 
 ``` r
+
 net_stat <- roll_your_own(object = fit,
                           FUN = f,
                           select = TRUE,
@@ -145,6 +151,7 @@ net_stat
 The results are then plotted with
 
 ``` r
+
 plot(net_stat)
 ```
 
@@ -152,10 +159,11 @@ plot(net_stat)
 
 ### Bridge Strength
 
-The next example computes bridge strength (Jones, Ma, and McNally 2019).
-This requires the user to define clusters or “communities”.
+The next example computes bridge strength (Jones et al. 2019). This
+requires the user to define clusters or “communities”.
 
 ``` r
+
 # clusters
 communities <- substring(colnames(Y), 1, 1)
 
@@ -200,6 +208,7 @@ This can then be plotted and further customized (the returned object is
 a `ggplot`)
 
 ``` r
+
 plot(net_stat, 
      fill = "lightblue") + 
   ggtitle("Bridge Strength") + 
@@ -213,6 +222,7 @@ plot(net_stat,
 The next example computes assortment (Newman 2003).
 
 ``` r
+
 # clusters
 communities <- substring(colnames(Y), 1, 1)
 
@@ -247,6 +257,7 @@ This example demonstrate that `...` can take several arguments. The
 results are stored in the `net_stat` object. They can be accessed with
 
 ``` r
+
 hist(net_stat$results, main = "Assortment")
 ```
 
