@@ -1,6 +1,4 @@
-#' @importFrom stats coef cov2cor var dnorm lm
-#' na.omit pnorm quantile rWishart runif dnorm rnorm
-#' sd qnorm residuals fitted density weighted.mean
+#' @importFrom stats coef cov2cor var dnorm lm na.omit pnorm quantile rWishart runif rnorm sd qnorm residuals fitted density weighted.mean
 #' @importFrom utils combn
 #' @importFrom graphics plot
 #' @importFrom Rdpack reprompt

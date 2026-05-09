@@ -50,7 +50,6 @@ Encoding: UTF-8
 LazyData: true
 VignetteBuilder: 
     knitr
-RoxygenNote: 7.3.2
 LinkingTo: Rcpp, 
            RcppArmadillo, 
            RcppDist, 
@@ -59,3 +58,4 @@ RdMacros: Rdpack
 BugReports: https://github.com/rast-lab/BGGM/issues
 Config/testthat/edition: 3
 URL: https://rast-lab.github.io/BGGM/
+Config/roxygen2/version: 8.0.0
