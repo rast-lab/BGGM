@@ -113,7 +113,7 @@ net_stat
 #> Estimates: 
 #> 
 #>  Post.mean Post.sd Cred.lb Cred.ub
-#>      0.361   0.114    0.13   0.592
+#>      0.358   0.112   0.161   0.577
 #> --- 
 
 

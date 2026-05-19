@@ -78,11 +78,11 @@ BGGM:::performance(Estimate = prior_est$adj,
 #> $results
 #>       measure     score
 #> 1 Specificity 0.9849624
-#> 2 Sensitivity 0.6666667
-#> 3   Precision 0.9500000
-#> 4      Recall 0.6666667
-#> 5    F1_score 0.7835052
-#> 6         MCC 0.7324670
+#> 2 Sensitivity 0.7017544
+#> 3   Precision 0.9523810
+#> 4      Recall 0.7017544
+#> 5    F1_score 0.8080808
+#> 6         MCC 0.7583775
 #> 
 
 # default in BGGM
@@ -93,12 +93,12 @@ BGGM:::performance(Estimate = default_est$Adj_10,
                    True = main$adj)
 #> $results
 #>       measure     score
-#> 1 Specificity 0.9924812
-#> 2 Sensitivity 0.2982456
-#> 3   Precision 0.9444444
-#> 4      Recall 0.2982456
-#> 5    F1_score 0.4533333
-#> 6         MCC 0.4549334
+#> 1 Specificity 0.9849624
+#> 2 Sensitivity 0.3508772
+#> 3   Precision 0.9090909
+#> 4      Recall 0.3508772
+#> 5    F1_score 0.5063291
+#> 6         MCC 0.4809824
 #> 
 
 # }
