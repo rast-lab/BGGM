@@ -4,16 +4,45 @@
 \alias{select.explore}
 \title{Graph selection for \code{explore} Objects}
 \usage{
-\method{select}{explore}(object, BF_cut = 3, alternative = "two.sided", ...)
+\method{select}{explore}(
+  object,
+  method = c("BF_cut", "BMA"),
+  BF_cut = 3,
+  prior.prob.H0 = 0.5,
+  alternative = "two.sided",
+  ...
+)
 }
 \arguments{
 \item{object}{An object of class \code{explore.default}}
 
-\item{BF_cut}{Numeric. Threshold for including an edge (defaults to 3).}
+\item{method}{Character string specifying the edge selection method.
+       Options include:
+
+       \itemize{
+       \item \code{"BF_cut"}: Select edges based on a Bayes factor threshold.
+       This is the original approach described in
+       \insertCite{Williams2019_bf}{BGGM}.
+
+       \item \code{"BMA"}: Bayesian model averaging based on posterior model
+       probabilities. For each edge, posterior draws are generated from a
+       mixture distribution placing mass at zero under the null model and
+       using posterior draws from the alternative model otherwise.
+       Reported edges are based on the posterior median of these draws.
+       }}
+
+\item{BF_cut}{Numeric. Bayes factor threshold for including an edge when
+\code{method = "BF_cut"} (defaults to 3).}
+
+\item{prior.prob.H0}{Numeric between 0 and 1. Prior probability assigned
+to the null hypothesis for each edge when
+\code{method = "BMA"} (defaults to \code{0.5}).}
 
 \item{alternative}{A character string specifying the alternative hypothesis. It
 must be one of "two.sided" (default), "greater", "less",
-or "exhaustive". See note for further details.}
+or "exhaustive". See note for further details.
+Note that \code{alternative = "exhaustive"} is not supported
+for \code{method = "BMA"}.}
 
 \item{...}{Currently ignored.}
 }
@@ -76,6 +105,17 @@ Provides the selected graph based on the Bayes factor
 \details{
 Exhaustive provides the posterior hypothesis probabilities for
 a positive, negative, or null relation \insertCite{@see Table 3 in @Williams2019_bf}{BGGM}.
+
+\code{method = "BF_cut"} performs edge selection using Bayes factor
+thresholding.
+
+\code{method = "BMA"} performs Bayesian model averaging by generating
+posterior draws from a spike-and-slab style mixture distribution for each
+edge. The spike corresponds to the null hypothesis (exactly zero partial
+correlation), whereas the slab corresponds to posterior draws under the
+alternative hypothesis. Posterior model probabilities are computed from the
+Bayes factors and \code{prior.prob.H0}. The selected network is based on
+the posterior median of the resulting draws.
 }
 \note{
 Care must be taken with the options \code{alternative = "less"} and

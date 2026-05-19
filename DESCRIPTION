@@ -2,7 +2,7 @@ Package: BGGM
 Type: Package
 Title: Bayesian Gaussian Graphical Models
 Version: 2.1.6.9000
-Date: 2026-01-15
+Date: 2026-05-19
 Authors@R: c(person("Donald", "Williams", email = "drwwilliams@ucdavis.edu", role = "aut"),
              person("Joris", "Mulder", email = "J.Mulder3@uvt.nl", role = "aut"),
 	     person("Philippe", "Rast", email = "rast.ph@gmail.com", role = c("aut", "cre")))
@@ -36,6 +36,7 @@ Imports:
     rlang,
     sna (>= 2.5),
     stats,
+    truncnorm,
     utils,
 Suggests: 
     abind (>= 1.4-5),
