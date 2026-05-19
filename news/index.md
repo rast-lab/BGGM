@@ -2,6 +2,23 @@
 
 ## BGGM 2.1.6.9000 (development)
 
+#### New features
+
+- **[`select.explore()`](https://rast-lab.github.io/BGGM/reference/select.explore.md)
+  gains a `method = "BMA"` option**: Bayesian model averaging as an
+  alternative to the hard Bayes factor threshold (`method = "BF_cut"`).
+  For each edge, the posterior model probabilities under H0 and H1 are
+  used to draw a spike-and-slab mixture; the resulting network weights
+  are posterior medians of those draws, yielding exact zeros when
+  P(H0\|data) \> 0.5. The new `prior.prob.H0` argument (default 0.5)
+  controls the prior probability assigned to the null (zero-edge)
+  hypothesis; setting `prior.prob.H0 = 0.75` approximately recovers the
+  selection threshold of `BF_cut = 3`. One-sided alternatives
+  (`"greater"`, `"less"`) are supported; `"exhaustive"` is not (stops
+  with an informative error).
+- **`truncnorm` added to `Imports`**: required for the truncated-normal
+  draws used in one-sided BMA alternatives.
+
 #### Bug fixes
 
 - **Fixed `rref_ei` not found error**: Added `simple_rref()` function in

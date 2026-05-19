@@ -65,7 +65,7 @@ net_stat <- roll_your_own(object = fit,
 
 # plot
 plot(net_stat)
-#> Picking joint bandwidth of 0.0324
+#> Picking joint bandwidth of 0.0304
 
 
 # }

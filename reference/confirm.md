@@ -288,7 +288,7 @@ test_cheat
 #> --- 
 #> Bayes factor matrix: 
 #>       H1      H2
-#> H1 1.000 229.001
+#> H1 1.000 229.076
 #> H2 0.004   1.000
 #> --- 
 #> note: equal hypothesis prior probabilities
