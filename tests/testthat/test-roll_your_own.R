@@ -36,8 +36,8 @@ test_that("roll_your_own works with simple function", {
 test_that("roll_your_own returns correct structure", {
   result <- roll_your_own(fit, FUN = mean_abs_pcor)
 
-  # Should contain samples or summary
-  expect_true(any(c("samples", "samp", "results", "summary") %in% names(result)))
+  expect_true("results" %in% names(result))
+  expect_true("iter"    %in% names(result))
 })
 
 test_that("roll_your_own works with different custom functions", {
@@ -70,18 +70,10 @@ test_that("print.roll_your_own works", {
 })
 
 # Test plot method
-test_that("plot.roll_your_own works without error", {
+test_that("plot.roll_your_own returns a ggplot", {
   ryo <- roll_your_own(fit, FUN = mean_abs_pcor)
-
-  result <- tryCatch(
-    {
-      plot(ryo)
-      TRUE
-    },
-    error = function(e) FALSE
-  )
-
-  expect_true(is.logical(result))
+  plt <- plot(ryo)
+  expect_true(inherits(plt, "ggplot"))
 })
 
 # Test with node-wise function
@@ -107,13 +99,8 @@ test_that("roll_your_own rejects explore object", {
 test_that("roll_your_own returns numeric samples", {
   result <- roll_your_own(fit, FUN = mean_abs_pcor)
 
-  if ("samples" %in% names(result)) {
-    expect_true(is.numeric(result$samples))
-  }
-
-  if ("samp" %in% names(result)) {
-    expect_true(is.numeric(result$samp))
-  }
+  expect_true(is.numeric(result$results))
+  expect_true(length(result$results) > 0)
 })
 
 # Test with lambda function (inline)
@@ -126,12 +113,9 @@ test_that("roll_your_own works with inline function", {
 # Test samples have correct length
 test_that("roll_your_own samples match iterations", {
   fit_100 <- estimate(test_data, iter = 100, progress = FALSE)
-  result <- roll_your_own(fit_100, FUN = mean_abs_pcor)
+  result  <- roll_your_own(fit_100, FUN = mean_abs_pcor)
 
-  if ("samples" %in% names(result)) {
-    # Samples should have length related to iterations
-    expect_true(length(result$samples) > 0)
-  }
+  expect_equal(length(result$results), 100)
 })
 
 # Test with different data types

@@ -10,14 +10,14 @@ test_that("gen_net works with default parameters", {
   result <- gen_net(p = 5)
 
   expect_true(is.list(result))
+  expect_true(all(c("pcors", "cors", "adj") %in% names(result)))
 })
 
 test_that("gen_net returns correct structure", {
   set.seed(123)
   result <- gen_net(p = 5)
 
-  # Should contain partial correlation matrix and possibly other elements
-  expect_true(any(c("pcor", "pcor_mat", "adj", "Sigma") %in% names(result)))
+  expect_true(all(c("pcors", "cors", "adj") %in% names(result)))
 })
 
 test_that("gen_net returns matrix of correct dimensions", {
@@ -25,71 +25,54 @@ test_that("gen_net returns matrix of correct dimensions", {
   p <- 6
   result <- gen_net(p = p)
 
-  if ("pcor" %in% names(result)) {
-    expect_equal(dim(result$pcor), c(p, p))
-  }
-
-  if ("pcor_mat" %in% names(result)) {
-    expect_equal(dim(result$pcor_mat), c(p, p))
-  }
+  expect_equal(dim(result$pcors), c(p, p))
+  expect_equal(dim(result$adj),   c(p, p))
+  expect_equal(dim(result$cors),  c(p, p))
 })
 
 test_that("gen_net partial correlation matrix is symmetric", {
   set.seed(789)
   result <- gen_net(p = 5)
 
-  if ("pcor" %in% names(result)) {
-    expect_equal(result$pcor, t(result$pcor), tolerance = 1e-10)
-  }
+  expect_equal(result$pcors, t(result$pcors), tolerance = 1e-10)
 })
 
-test_that("gen_net edge_prob parameter works", {
+test_that("gen_net edge_prob parameter affects density", {
   set.seed(111)
-  # Low edge probability
   result_sparse <- gen_net(p = 10, edge_prob = 0.1)
+  set.seed(222)
+  result_dense  <- gen_net(p = 10, edge_prob = 0.9)
 
-  set.seed(111)
-  # High edge probability
-  result_dense <- gen_net(p = 10, edge_prob = 0.9)
-
-  expect_true(is.list(result_sparse))
-  expect_true(is.list(result_dense))
+  density_sparse <- mean(result_sparse$adj[upper.tri(result_sparse$adj)])
+  density_dense  <- mean(result_dense$adj[upper.tri(result_dense$adj)])
+  expect_true(density_sparse < density_dense)
 })
 
-test_that("gen_net lb and ub parameters work", {
+test_that("gen_net lb and ub parameters constrain partial correlations", {
   set.seed(222)
   result <- gen_net(p = 5, lb = 0.2, ub = 0.6)
 
-  if ("pcor" %in% names(result)) {
-    pcor <- result$pcor
-    # Non-zero partial correlations should be within bounds (in absolute value)
-    non_zero <- pcor[upper.tri(pcor) & pcor != 0]
-    if (length(non_zero) > 0) {
-      expect_true(all(abs(non_zero) >= 0.2 & abs(non_zero) <= 0.6))
-    }
+  non_zero <- result$pcors[upper.tri(result$pcors) & result$pcors != 0]
+  if (length(non_zero) > 0) {
+    expect_true(all(abs(non_zero) >= 0.2 & abs(non_zero) <= 0.6))
   }
-
-  expect_true(is.list(result))
 })
 
-test_that("gen_net returns positive definite covariance", {
+test_that("gen_net correlation matrix is positive definite", {
   set.seed(333)
   result <- gen_net(p = 5)
 
-  if ("Sigma" %in% names(result)) {
-    # Check positive definiteness by ensuring all eigenvalues are positive
-    eigenvalues <- eigen(result$Sigma)$values
-    expect_true(all(eigenvalues > 0))
-  }
+  eigenvalues <- eigen(result$cors)$values
+  expect_true(all(eigenvalues > 0))
 })
 
 test_that("gen_net works with different number of variables", {
   set.seed(444)
-  result_3 <- gen_net(p = 3)
+  result_3  <- gen_net(p = 3)
   result_10 <- gen_net(p = 10)
 
-  expect_true(is.list(result_3))
-  expect_true(is.list(result_10))
+  expect_equal(dim(result_3$pcors),  c(3,  3))
+  expect_equal(dim(result_10$pcors), c(10, 10))
 })
 
 # ============================================
@@ -198,20 +181,13 @@ test_that("gen_ordinal works with binary data (levels = 2)", {
 
 test_that("gen_net output can be used for simulation", {
   set.seed(555)
-  # Generate network
   net <- gen_net(p = 4)
 
-  # If Sigma is provided, can generate data
-  if ("Sigma" %in% names(net)) {
-    # Generate data from the network
-    Y <- MASS::mvrnorm(n = 100, mu = rep(0, 4), Sigma = net$Sigma)
-    colnames(Y) <- paste0("V", 1:4)
+  Y <- MASS::mvrnorm(n = 100, mu = rep(0, 4), Sigma = net$cors)
+  colnames(Y) <- paste0("V", 1:4)
 
-    # Fit model
-    fit <- estimate(Y, iter = 50, progress = FALSE)
-
-    expect_s3_class(fit, "estimate")
-  }
+  fit <- estimate(Y, iter = 50, progress = FALSE)
+  expect_s3_class(fit, "estimate")
 })
 
 test_that("gen_ordinal output can be used with estimate", {

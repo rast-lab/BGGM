@@ -151,21 +151,11 @@ test_that("weighted_adj_mat has zeros on diagonal", {
   expect_equal(as.numeric(diag(result)), rep(0, p))
 })
 
-test_that("weighted_adj_mat works with select.explore object", {
+test_that("weighted_adj_mat errors on select.explore object", {
   fit_explore <- explore(test_data, progress = FALSE)
   sel <- select(fit_explore)
 
-  # This may or may not be supported - use tryCatch
-
-  result <- tryCatch(
-    weighted_adj_mat(sel),
-    error = function(e) NULL
-  )
-
-  # If it works, check it's a matrix
-  if (!is.null(result)) {
-    expect_true(is.matrix(result))
-  }
+  expect_error(weighted_adj_mat(sel), "weighted adjacency matrix not found")
 })
 
 # ============================================

@@ -7,7 +7,7 @@ test_that("select.explore returns expected structure for two-sided alternative",
   result <- select.explore(fit, alternative = "two.sided")
   
   expect_s3_class(result, "select.explore")
-  expect_named(result, c("pcor_mat_zero", "pcor_mat", "pcor_sd_fisher","Adj_10", "Adj_01", "BF_10", "BF_01", "BF_cut", "alternative", "call", "type", "formula", "analytic", "object"))
+  expect_named(result, c("pcor_mat_zero", "pcor_mat", "pcor_sd_fisher", "Adj_10", "Adj_01", "BF_10", "BF_01", "BF_cut", "method", "alternative", "call", "type", "formula", "analytic", "object"))
   expect_true(is.matrix(result$pcor_mat_zero))
   expect_true(is.matrix(result$pcor_mat))
   expect_true(is.matrix(result$Adj_10))
@@ -20,7 +20,7 @@ test_that("select.explore returns expected structure for greater alternative", {
   result <- select.explore(fit, alternative = "greater")
   
   expect_s3_class(result, "select.explore")
-  expect_named(result, c("pcor_mat_zero", "pcor_mat", "pcor_sd_fisher", "Adj_20", "Adj_02", "BF_20", "BF_02", "BF_cut", "alternative", "call", "type", "formula", "analytic", "object"))
+  expect_named(result, c("pcor_mat_zero", "pcor_mat", "pcor_sd_fisher", "Adj_20", "Adj_02", "BF_20", "BF_02", "BF_cut", "method", "alternative", "call", "type", "formula", "analytic", "object"))
   expect_true(is.matrix(result$pcor_mat_zero))
   expect_true(is.matrix(result$pcor_mat))
   expect_true(is.matrix(result$Adj_20))
@@ -33,7 +33,7 @@ test_that("select.explore returns expected structure for exhaustive alternative"
   result <- select.explore(fit, alternative = "exhaustive")
 
   expect_s3_class(result, "select.explore")
-  expect_named(result, c("post_prob", "neg_mat", "pos_mat", "null_mat", "alternative", "pcor_mat", "pcor_sd_fisher", "call", "prob", "type", "formula", "analytic", "object"))
+  expect_named(result, c("post_prob", "neg_mat", "pos_mat", "null_mat", "alternative", "pcor_mat", "pcor_sd_fisher", "call", "prob", "method", "type", "formula", "analytic", "object"))
   expect_true(is.data.frame(result$post_prob))
   expect_true(is.matrix(result$neg_mat))
   expect_true(is.matrix(result$pos_mat))

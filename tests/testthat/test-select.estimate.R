@@ -22,24 +22,17 @@ test_that("select.estimate works with default parameters", {
 test_that("select.estimate returns correct structure", {
   result <- select(fit)
 
-  # Should contain pcor_adj (partial correlations with zeros for non-selected edges)
-  # and adj (adjacency matrix)
-  expect_true("pcor_adj" %in% names(result) || "adj" %in% names(result))
+  expect_true("pcor_adj" %in% names(result))
+  expect_true("adj"      %in% names(result))
 })
 
 test_that("select.estimate returns adjacency and partial correlation matrices", {
   result <- select(fit)
 
-  # Check for key outputs
-  if ("pcor_mat_zero" %in% names(result)) {
-    expect_true(is.matrix(result$pcor_mat_zero))
-    expect_equal(dim(result$pcor_mat_zero), c(p, p))
-  }
-
-  if ("Adj" %in% names(result)) {
-    expect_true(is.matrix(result$Adj))
-    expect_equal(dim(result$Adj), c(p, p))
-  }
+  expect_true(is.matrix(result$pcor_adj))
+  expect_equal(dim(result$pcor_adj), c(p, p))
+  expect_true(is.matrix(result$adj))
+  expect_equal(dim(result$adj), c(p, p))
 })
 
 # Test different credible interval levels
@@ -80,19 +73,14 @@ test_that("print.select.estimate works", {
   expect_output(print(sel))
 })
 
-# Test plot method
-test_that("plot.select.estimate works without error", {
-  sel <- select(fit)
-
-  result <- tryCatch(
-    {
-      plot(sel)
-      TRUE
-    },
-    error = function(e) FALSE
-  )
-
-  expect_true(is.logical(result))
+# Test plot method — needs selected edges, so use real correlational data
+test_that("plot.select.estimate returns a list with ggplot element", {
+  Y   <- BGGM::bfi[1:100, 1:5]
+  fit_bfi <- estimate(Y, iter = 100, progress = FALSE)
+  sel <- select(fit_bfi, cred = 0.50)
+  plt <- plot(sel)
+  expect_true(is.list(plt))
+  expect_true(inherits(plt$plt, "ggplot"))
 })
 
 # Test with different data types
@@ -122,21 +110,15 @@ test_that("select.estimate works with ordinal data", {
 test_that("select.estimate adjacency matrix is symmetric", {
   result <- select(fit)
 
-  if ("Adj" %in% names(result)) {
-    expect_equal(result$Adj, t(result$Adj))
-  }
-
-  if ("pcor_mat_zero" %in% names(result)) {
-    expect_equal(result$pcor_mat_zero, t(result$pcor_mat_zero))
-  }
+  expect_equal(result$adj,      t(result$adj))
+  expect_equal(result$pcor_adj, t(result$pcor_adj), tolerance = 1e-10)
 })
 
 test_that("select.estimate adjacency has zeros on diagonal", {
   result <- select(fit)
 
-  if ("Adj" %in% names(result)) {
-    expect_equal(diag(result$Adj), rep(0, p))
-  }
+  expect_equal(as.numeric(diag(result$adj)),      rep(0, p))
+  expect_equal(as.numeric(diag(result$pcor_adj)), rep(0, p))
 })
 
 # Test with ROPE (Region of Practical Equivalence) if supported
@@ -154,12 +136,10 @@ test_that("select.estimate handles rope parameter", {
   expect_s3_class(result, "select.estimate")
 })
 
-# Test column names preserved
-test_that("select.estimate preserves variable names", {
+# Test column names preserved in the underlying object
+test_that("select.estimate preserves variable names in object", {
   result <- select(fit)
 
-  if ("pcor_mat_zero" %in% names(result)) {
-    expect_equal(colnames(result$pcor_mat_zero), paste0("V", 1:p))
-    expect_equal(rownames(result$pcor_mat_zero), paste0("V", 1:p))
-  }
+  # Variable names are stored in the embedded estimate object
+  expect_equal(colnames(result$object$Y), paste0("V", 1:p))
 })

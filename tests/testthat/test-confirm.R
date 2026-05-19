@@ -99,13 +99,14 @@ test_that("confirm handles binary data", {
 
   hypothesis <- "V1--V2 = 0"
 
-  result <- confirm(
+  # binary/ordinal types always emit an imputation-not-supported warning
+  result <- suppressWarnings(confirm(
     Y = binary_data,
     hypothesis = hypothesis,
     type = "binary",
     iter = 50,
     progress = FALSE
-  )
+  ))
 
   expect_s3_class(result, "confirm")
   expect_identical(result$type, "binary")
@@ -118,13 +119,13 @@ test_that("confirm handles ordinal data", {
 
   hypothesis <- "V1--V2 = 0"
 
-  result <- confirm(
+  result <- suppressWarnings(confirm(
     Y = ordinal_data,
     hypothesis = hypothesis,
     type = "ordinal",
     iter = 50,
     progress = FALSE
-  )
+  ))
 
   expect_s3_class(result, "confirm")
   expect_identical(result$type, "ordinal")

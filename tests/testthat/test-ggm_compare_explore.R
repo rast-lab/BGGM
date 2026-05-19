@@ -174,31 +174,18 @@ test_that("ggm_compare_explore handles unequal group sizes", {
   expect_s3_class(result, "ggm_compare_explore")
 })
 
-# Test BF_cut parameter
-test_that("ggm_compare_explore accepts BF_cut parameter", {
-  # Use correlated data with larger sample size to ensure positive definite covariance
+# Test that select() BF_cut threshold works on ggm_compare_explore results
+test_that("select.ggm_compare_explore respects BF_cut threshold", {
   set.seed(12345)
-  n_large <- 500
-  # Generate correlated multivariate normal data with stronger correlations
-  sigma <- matrix(0.1, p, p)
-  diag(sigma) <- 1
-  sigma[1, 2] <- sigma[2, 1] <- 0.5
-  sigma[3, 4] <- sigma[4, 3] <- 0.4
-  large_group1 <- MASS::mvrnorm(n_large, mu = rep(0, p), Sigma = sigma)
-  large_group2 <- MASS::mvrnorm(n_large, mu = rep(0, p), Sigma = sigma)
-  colnames(large_group1) <- colnames(large_group2) <- paste0("V", 1:p)
+  Y1 <- BGGM::bfi[1:200, 1:4]
+  Y2 <- BGGM::bfi[201:400, 1:4]
 
-  result <- tryCatch({
-    ggm_compare_explore(
-      large_group1, large_group2,
-      BF_cut = 10,
-      progress = FALSE
-    )
-  }, error = function(e) {
-    skip("Skipping due to numerical issues with covariance matrix")
-  })
+  result <- ggm_compare_explore(Y1, Y2, progress = FALSE)
+  sel_3  <- select(result, BF_cut = 3)
+  sel_10 <- select(result, BF_cut = 10)
 
-  if (!is.null(result)) {
-    expect_s3_class(result, "ggm_compare_explore")
-  }
+  # Stricter BF threshold should select fewer or equal edges
+  edges_3  <- sum(sel_3$adj_10[upper.tri(sel_3$adj_10)])
+  edges_10 <- sum(sel_10$adj_10[upper.tri(sel_10$adj_10)])
+  expect_true(edges_10 <= edges_3)
 })

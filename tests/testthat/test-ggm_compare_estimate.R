@@ -58,12 +58,13 @@ test_that("ggm_compare_estimate handles binary data", {
   bin_group2 <- matrix(as.integer(rnorm(n_per_group * p) > 0), ncol = p)
   colnames(bin_group1) <- colnames(bin_group2) <- paste0("V", 1:p)
 
-  result <- ggm_compare_estimate(
+  # binary/ordinal types always emit an imputation-not-supported warning
+  result <- suppressWarnings(ggm_compare_estimate(
     bin_group1, bin_group2,
     type = "binary",
     iter = 50,
     progress = FALSE
-  )
+  ))
 
   expect_s3_class(result, "ggm_compare_estimate")
 })
@@ -74,12 +75,12 @@ test_that("ggm_compare_estimate handles ordinal data", {
   ord_group2 <- matrix(sample(1:4, n_per_group * p, replace = TRUE), ncol = p)
   colnames(ord_group1) <- colnames(ord_group2) <- paste0("V", 1:p)
 
-  result <- ggm_compare_estimate(
+  result <- suppressWarnings(ggm_compare_estimate(
     ord_group1, ord_group2,
     type = "ordinal",
     iter = 50,
     progress = FALSE
-  )
+  ))
 
   expect_s3_class(result, "ggm_compare_estimate")
 })
@@ -340,8 +341,12 @@ test_that("ggm_compare_estimate analytic warns for non-continuous", {
   Y1 <- subset(Y, BGGM::bfi$gender == 1)[1:50, ]
   Y2 <- subset(Y, BGGM::bfi$gender == 2)[1:50, ]
 
-  expect_warning(
-    ggm_compare_estimate(Y1, Y2, type = "ordinal", analytic = TRUE),
-    "analytic solution only available"
+  # The call emits both an imputation warning and an analytic warning;
+  # suppressWarnings wraps expect_warning so only the analytic one is tested.
+  suppressWarnings(
+    expect_warning(
+      ggm_compare_estimate(Y1, Y2, type = "ordinal", analytic = TRUE),
+      "analytic solution only available"
+    )
   )
 })

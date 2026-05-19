@@ -22,17 +22,14 @@ test_that("predictability works with estimate object", {
 test_that("predictability returns correct structure", {
   result <- predictability(fit, progress = FALSE)
 
-  # Should be a list containing predictability results
-  expect_true(is.list(result))
+  expect_true(all(c("scores", "type", "metric") %in% names(result)))
 })
 
 test_that("predictability returns node-wise R2 values", {
   result <- predictability(fit, progress = FALSE)
 
-  # R2 should be available for each node
-  if ("summary" %in% names(result)) {
-    expect_true(nrow(result$summary) == p || length(result$R2) == p)
-  }
+  expect_true("scores" %in% names(result))
+  expect_equal(length(result$scores), p)
 })
 
 # Test iter parameter
@@ -61,18 +58,10 @@ test_that("summary.predictability works", {
 })
 
 # Test plot method
-test_that("plot.predictability works without error", {
+test_that("plot.predictability returns a ggplot", {
   pred <- predictability(fit, progress = FALSE)
-
-  result <- tryCatch(
-    {
-      plot(pred)
-      TRUE
-    },
-    error = function(e) FALSE
-  )
-
-  expect_true(is.logical(result))
+  plt  <- plot(pred)
+  expect_true(inherits(plt, "ggplot"))
 })
 
 # Test with different data types
@@ -101,21 +90,9 @@ test_that("predictability works with ordinal data estimate", {
 # Test R2 values are in valid range
 test_that("predictability R2 values are between 0 and 1", {
   result <- predictability(fit, progress = FALSE)
+  summ   <- summary(result)$summary
 
-  # Extract R2 values
-  if ("R2" %in% names(result)) {
-    r2_vals <- result$R2
-    if (is.numeric(r2_vals)) {
-      expect_true(all(r2_vals >= 0 & r2_vals <= 1, na.rm = TRUE))
-    }
-  }
-
-  if ("summary" %in% names(result) && is.data.frame(result$summary)) {
-    if ("Mean" %in% names(result$summary)) {
-      means <- result$summary$Mean
-      expect_true(all(means >= 0 & means <= 1, na.rm = TRUE))
-    }
-  }
+  expect_true(all(summ$Post.mean >= 0 & summ$Post.mean <= 1))
 })
 
 # Test with explore object
@@ -131,12 +108,9 @@ test_that("predictability works with explore object", {
 # Test preserves node names
 test_that("predictability preserves node names", {
   result <- predictability(fit, progress = FALSE)
+  summ   <- summary(result)$summary
 
-  if ("summary" %in% names(result) && is.data.frame(result$summary)) {
-    if ("Node" %in% names(result$summary)) {
-      expect_true(all(result$summary$Node %in% paste0("V", 1:p)))
-    }
-  }
+  expect_equal(summ$Node, paste0("V", 1:p))
 })
 
 # Test with different sample sizes

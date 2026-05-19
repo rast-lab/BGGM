@@ -18,47 +18,40 @@ fit <- estimate(test_data, iter = 100, progress = FALSE)
 test_that("coef.estimate works with estimate object", {
   result <- coef(fit)
 
-  expect_true(is.list(result) || is.matrix(result) || is.data.frame(result))
+  expect_true(inherits(result, "BGGM") && inherits(result, "coef"))
+  expect_true("betas" %in% names(result))
 })
 
-test_that("coef.estimate returns regression coefficients", {
+test_that("coef.estimate betas is a list with one entry per node", {
   result <- coef(fit)
 
-  # Should have coefficient information
-  if (is.list(result)) {
-    expect_true(length(result) > 0)
-  }
-
-  if (is.matrix(result) || is.data.frame(result)) {
-    expect_true(nrow(result) > 0)
-  }
+  expect_true(is.list(result$betas))
+  expect_equal(length(result$betas), p)
 })
 
-test_that("coef.estimate works with node parameter", {
-  # Get coefficients for a specific node
-  result <- coef(fit, node = 1)
-
-  expect_true(is.list(result) || is.numeric(result) || is.data.frame(result))
-})
-
-test_that("coef.estimate works with different nodes", {
-  result1 <- coef(fit, node = 1)
-  result2 <- coef(fit, node = 2)
-
-  expect_true(!is.null(result1))
-  expect_true(!is.null(result2))
-})
-
-# Test summary of coef
-test_that("coef.estimate summary provides credible intervals", {
+test_that("coef.estimate beta matrices have correct dimensions", {
   result <- coef(fit)
 
-  # Result should contain interval information
-  if (is.data.frame(result)) {
-    # Check for common CI column names
-    ci_cols <- c("Post.mean", "Cred", "mean", "sd", "lower", "upper")
-    expect_true(any(ci_cols %in% names(result)) || ncol(result) >= 2)
-  }
+  # Each beta matrix: iter rows, (p-1) columns (one predictor per other node)
+  expect_true(is.matrix(result$betas[[1]]))
+  expect_equal(ncol(result$betas[[1]]), p - 1)
+  expect_equal(nrow(result$betas[[1]]), fit$iter)
+})
+
+test_that("coef.estimate betas differ across nodes", {
+  result <- coef(fit)
+
+  # Different nodes should have different posterior samples
+  expect_false(isTRUE(all.equal(result$betas[[1]], result$betas[[2]])))
+})
+
+# Test that print produces non-empty output with expected headers
+test_that("coef.estimate print produces coefficient output", {
+  result <- coef(fit)
+
+  output <- capture.output(print(result))
+  expect_true(any(grepl("Coefficients", output)))
+  expect_true(any(grepl("BGGM", output)))
 })
 
 # ============================================
@@ -117,52 +110,49 @@ test_that("predict.estimate contains correct dimnames", {
 test_that("posterior_samples works with estimate object", {
   result <- posterior_samples(fit)
 
-  expect_true(is.matrix(result) || is.data.frame(result))
+  expect_true(is.matrix(result))
+  expect_equal(nrow(result), fit$iter)
 })
 
-test_that("posterior_samples returns correct number of samples", {
+test_that("posterior_samples returns one column per unique edge", {
   result <- posterior_samples(fit)
 
-  if (is.matrix(result) || is.data.frame(result)) {
-    # Should have rows related to iterations
-    expect_true(nrow(result) > 0)
-  }
+  n_edges <- p * (p - 1) / 2
+  expect_equal(ncol(result), n_edges)
 })
 
 test_that("posterior_samples works with explore object", {
   fit_explore <- explore(test_data, progress = FALSE)
   result <- posterior_samples(fit_explore)
 
-  expect_true(is.matrix(result) || is.data.frame(result))
+  expect_true(is.matrix(result))
+  expect_equal(ncol(result), p * (p - 1) / 2)
 })
 
-test_that("posterior_samples includes partial correlations", {
+test_that("posterior_samples values are in [-1, 1]", {
   result <- posterior_samples(fit)
 
-  # Samples should represent posterior distribution of partial correlations
-  if (is.matrix(result) || is.data.frame(result)) {
-    # Number of columns should relate to unique edges: p*(p-1)/2
-    n_edges <- p * (p - 1) / 2
-    # Or could be full matrix representation
-    expect_true(ncol(result) >= n_edges || ncol(result) == p * p)
-  }
+  expect_true(all(result >= -1 & result <= 1))
 })
 
 # ============================================
-# Tests for regression_summary (if exported)
+# Tests for regression_summary
 # ============================================
 
-test_that("regression_summary works", {
-  result <- tryCatch(
-    {
-      regression_summary(fit)
-    },
-    error = function(e) NULL
-  )
+test_that("regression_summary errors without a formula-based estimate", {
+  expect_error(regression_summary(fit))
+})
 
-  if (!is.null(result)) {
-    expect_true(is.list(result) || is.data.frame(result))
-  }
+test_that("regression_summary works with formula-based estimate", {
+  Y <- as.data.frame(BGGM::bfi[1:50, c("A1", "A2", "A3", "gender")])
+  fit_f <- estimate(Y, formula = ~gender, type = "continuous",
+                    iter = 50, progress = FALSE)
+  rs <- regression_summary(fit_f)
+
+  expect_s3_class(rs, "regression_summary")
+  expect_true("reg_summary" %in% names(rs))
+  expect_true("resid_cor"   %in% names(rs))
+  expect_equal(length(rs$reg_summary), 3)  # 3 outcome variables (A1, A2, A3)
 })
 
 # ============================================
@@ -175,9 +165,10 @@ test_that("coef works with binary data estimate", {
   colnames(binary_data) <- paste0("V", 1:4)
 
   fit_bin <- estimate(binary_data, type = "binary", iter = 50, progress = FALSE)
-  result <- coef(fit_bin)
+  result  <- coef(fit_bin)
 
-  expect_true(!is.null(result))
+  expect_true(inherits(result, "BGGM") && inherits(result, "coef"))
+  expect_equal(length(result$betas), 4)
 })
 
 test_that("coef works with ordinal data estimate", {
@@ -186,51 +177,49 @@ test_that("coef works with ordinal data estimate", {
   colnames(ordinal_data) <- paste0("V", 1:4)
 
   fit_ord <- estimate(ordinal_data, type = "ordinal", iter = 50, progress = FALSE)
-  result <- coef(fit_ord)
+  result  <- coef(fit_ord)
 
-  expect_true(!is.null(result))
+  expect_true(inherits(result, "BGGM") && inherits(result, "coef"))
+  expect_equal(length(result$betas), 4)
 })
 
-test_that("posterior_samples works with different iterations", {
-  fit_50 <- estimate(test_data, iter = 50, progress = FALSE)
+test_that("posterior_samples row count matches iterations", {
+  fit_50  <- estimate(test_data, iter = 50,  progress = FALSE)
   fit_100 <- estimate(test_data, iter = 100, progress = FALSE)
 
-  result_50 <- posterior_samples(fit_50)
-  result_100 <- posterior_samples(fit_100)
-
-  if (is.matrix(result_50) && is.matrix(result_100)) {
-    expect_true(nrow(result_50) <= 50)
-    expect_true(nrow(result_100) <= 100)
-  }
+  expect_equal(nrow(posterior_samples(fit_50)),  50)
+  expect_equal(nrow(posterior_samples(fit_100)), 100)
 })
 
 # ============================================
-# Tests for posterior_predict (if different from predict)
+# Tests for posterior_predict
 # ============================================
 
-test_that("posterior_predict works", {
-  result <- tryCatch(
-    {
-      posterior_predict(fit)
-    },
-    error = function(e) NULL
-  )
-
-  if (!is.null(result)) {
-    expect_true(is.matrix(result) || is.array(result) || is.list(result))
-  }
+test_that("posterior_predict errors on continuous estimate", {
+  # posterior_predict only supports binary/ordinal/mixed types
+  expect_error(posterior_predict(fit), "type must be")
 })
 
-test_that("posterior_predict generates predictive samples", {
-  result <- tryCatch(
-    {
-      posterior_predict(fit, iter = 50)
-    },
-    error = function(e) NULL
-  )
+test_that("posterior_predict works with binary estimate", {
+  set.seed(777)
+  binary_data <- matrix(as.integer(rnorm(60 * 4) > 0), ncol = 4)
+  colnames(binary_data) <- paste0("V", 1:4)
 
-  if (!is.null(result)) {
-    # Should generate multiple predictive samples
-    expect_true(!is.null(result))
-  }
+  fit_bin <- estimate(binary_data, type = "binary", iter = 100, progress = FALSE)
+  result  <- posterior_predict(fit_bin, iter = 20, progress = FALSE)
+
+  expect_true(is.array(result))
+  expect_equal(dim(result)[1], 60)  # observations
+  expect_equal(dim(result)[3], 20)  # predictive draws
+})
+
+test_that("posterior_predict returns binary values for binary model", {
+  set.seed(888)
+  binary_data <- matrix(as.integer(rnorm(60 * 4) > 0), ncol = 4)
+  colnames(binary_data) <- paste0("V", 1:4)
+
+  fit_bin <- estimate(binary_data, type = "binary", iter = 100, progress = FALSE)
+  result  <- posterior_predict(fit_bin, iter = 10, progress = FALSE)
+
+  expect_true(all(result %in% c(0, 1)))
 })

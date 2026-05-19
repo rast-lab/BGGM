@@ -94,13 +94,14 @@ test_that("ggm_compare_confirm handles binary data", {
 
   hypothesis <- "g1_V1--V2 = g2_V1--V2"
 
-  result <- ggm_compare_confirm(
+  # binary/ordinal types always emit an imputation-not-supported warning
+  result <- suppressWarnings(ggm_compare_confirm(
     bin_group1, bin_group2,
     hypothesis = hypothesis,
     type = "binary",
     iter = 50,
     progress = FALSE
-  )
+  ))
 
   expect_s3_class(result, "ggm_compare_confirm")
 })
@@ -113,13 +114,13 @@ test_that("ggm_compare_confirm handles ordinal data", {
 
   hypothesis <- "g1_V1--V2 = g2_V1--V2"
 
-  result <- ggm_compare_confirm(
+  result <- suppressWarnings(ggm_compare_confirm(
     ord_group1, ord_group2,
     hypothesis = hypothesis,
     type = "ordinal",
     iter = 50,
     progress = FALSE
-  )
+  ))
 
   expect_s3_class(result, "ggm_compare_confirm")
 })
