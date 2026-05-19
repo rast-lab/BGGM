@@ -37,7 +37,7 @@ A list of `ggplot` objects.
 ## Note
 
 An overview of MCMC diagnostics can be found
-[here](https://sbfnk.github.io/mfiidd/mcmc_diagnostics.html).
+[here](https://sbfnk.github.io/mfiidd/sessions/mcmc_diagnostics.html).
 
 ## Examples
 
