@@ -24,7 +24,9 @@ jobs:
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           needs: coverage
-          extra-packages: any::covr
+          extra-packages: |
+            any::covr
+            any::xml2
 
       - name: Test coverage
         env:
