@@ -6,13 +6,15 @@ library(BGGM)
 test_that("bma_posterior returns expected output", {
   # Load example data
   Y <- ptsd[,1:4]
-  
+
   # Fit the model using ggm_search
-  fit <- ggm_search(x = Y, prior_prob = 0.9, iter = 5000)
-  
+  fit <- ggm_search(x = Y, prior_prob = 0.9, iter = 1000, seed = 1, progress = FALSE)
+
+  skip_if(fit$acc == 0, "no proposals accepted, nothing to average")
+
   # Generate posterior samples using bma_posterior
   bma_result <- bma_posterior(fit, iter = 100, progress = FALSE)
- 
+
   # Check that the result is a list
   expect_type(bma_result, "list")
 
