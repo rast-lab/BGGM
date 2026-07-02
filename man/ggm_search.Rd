@@ -29,7 +29,7 @@ ggm_search(
 \item{iter}{Number of iterations
 #@param burn_in Burn in. Defaults to iter/2}
 
-\item{stop_early}{Default to 1000. Stop MH algorithm if proposals keep being rejected (stopping by default after 1000 rejections).}
+\item{stop_early}{Default to 1000. Stop the search early if proposals keep being rejected (stopping by default after 1000 consecutive rejections).}
 
 \item{bma_mean}{Compute Bayesian Model Averaged solution}
 
@@ -41,20 +41,34 @@ ggm_search(
 }
 \value{
 A list containing the MAP graph structure, BMA solution (if specified),
-        and posterior probabilities of the sampled graphs.
+        and BIC-approximated posterior probabilities of the graphs visited
+        during the search.
 }
 \description{
-The `ggm_search` function performs a Bayesian graph search to identify the 
-most probable graph structure (MAP solution) using the Metropolis-Hastings 
-algorithm. It also computes an optional Bayesian Model Averaged (BMA) solution 
-across the graph structures sampled during the search.
+The `ggm_search` function performs a greedy graph search to identify a
+high-probability graph structure (MAP solution). At each step, one edge
+is randomly proposed to flip (add or remove), and the proposal is
+accepted only if it improves the BIC-approximated model fit — the search
+is a deterministic hill-climb, not a stochastic Metropolis-Hastings
+sampler. It also computes an optional Bayesian Model Averaged (BMA)
+solution: the distinct graphs visited along the search path are
+reweighted by their BIC-approximated posterior model probabilities.
 }
 \details{
-This function is ideal for exploring the graph space and obtaining an initial 
-estimate of the graph structure or adjacency matrix. 
+Because proposals flip one edge at a time and are only ever accepted
+when they improve fit, the search does not fully explore graph space —
+for larger networks (more variables) the reachable neighborhood shrinks
+relative to the size of the graph space, so the visited-graph set (and
+therefore the BMA uncertainty estimate) may under-represent true model
+uncertainty. Treat the BMA output as an approximate summary conditioned
+on the greedy search path, not as posterior samples from a proper
+stochastic sampler.
 
-To refine the results or compute posterior distributions of graph parameters 
-(e.g., partial correlations), use the \code{\link{bma_posterior}} function, 
+This function is ideal for exploring the graph space and obtaining an initial
+estimate of the graph structure or adjacency matrix.
+
+To refine the results or compute posterior distributions of graph parameters
+(e.g., partial correlations), use the \code{\link{bma_posterior}} function,
 which builds on the output of `ggm_search` to account for parameter uncertainty.
 }
 \seealso{
