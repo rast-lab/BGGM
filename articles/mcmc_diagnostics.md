@@ -8,8 +8,8 @@ models, this allows for efficiently sampling the posterior distribution.
 Furthermore, in all samplers the empirical covariance matrix is used as
 the starting value which reduces the length of the burn-in (or warm-up).
 Still yet it is important to monitor convergence. See
-[here](https://sbfnk.github.io/mfiidd/mcmc_diagnostics.html) for an
-introduction to MCMC diagnostics.
+[here](https://sbfnk.github.io/mfiidd/sessions/mcmc_diagnostics.html)
+for an introduction to MCMC diagnostics.
 
 #### R packages
 
@@ -33,7 +33,7 @@ strongly correlated or related to the previous samples (or lags $`k`$).
 I am not sure there are general guidelines, but typically we do not want
 “auto correlation…for higher values of k, \[because\] this indicates a
 high degree of correlation between our samples and slow mixing”
-[source](https://sbfnk.github.io/mfiidd/mcmc_diagnostics.html)
+[source](https://sbfnk.github.io/mfiidd/sessions/mcmc_diagnostics.html)
 
 Here is an example for ordinal data.
 
