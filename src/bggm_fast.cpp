@@ -143,6 +143,15 @@ void init_Z_from_trunc_means(const arma::mat& Y,
   }
 }
 
+// Normalizes a covariance/precision matrix by its own diagonal, i.e.
+// diagmat(1/sqrt(diag(M))) * M * diagmat(1/sqrt(diag(M))). Used both to turn
+// a covariance matrix into a correlation matrix and a precision matrix into
+// (unsigned) partial correlations.
+arma::mat cov_to_cor(const arma::mat& M) {
+  arma::vec inv_sd = 1.0 / arma::sqrt(M.diag());
+  return arma::diagmat(inv_sd) * M * arma::diagmat(inv_sd);
+}
+
 }  // namespace
 
 // mean of 3d array
@@ -505,9 +514,7 @@ Rcpp::List Theta_continuous(arma::mat Y,
     }
 
     // partial correlations
-    pcors = diagmat(1 / sqrt(Theta.slice(0).diag())) *
-      Theta.slice(0) *
-      diagmat(1 / sqrt(Theta.slice(0).diag()));
+    pcors = cov_to_cor(Theta.slice(0));
 
     // store posterior samples
     pcors_mcmc.slice(s) =  -(pcors - I_k);
@@ -659,9 +666,7 @@ Rcpp::List sample_prior(arma::mat Y,
     }
 
     // partial correlations
-    pcors = diagmat(1 / sqrt(Theta.slice(0).diag())) *
-      Theta.slice(0) *
-      diagmat(1 / sqrt(Theta.slice(0).diag()));
+    pcors = cov_to_cor(Theta.slice(0));
 
     // store posterior samples
     pcors_mcmc.slice(s) =  -(pcors - I_k);
@@ -779,14 +784,10 @@ Rcpp::List mv_continuous(arma::mat Y,
     Sigma.slice(0) = inv(Theta.slice(0));
 
     // correlation
-    cors =  diagmat(1 / sqrt(Sigma.slice(0).diag())) *
-      Sigma.slice(0) *
-      diagmat(1 / sqrt(Sigma.slice(0).diag()));
+    cors = cov_to_cor(Sigma.slice(0));
 
     // partial correlations
-    pcors = diagmat(1 / sqrt(Theta.slice(0).diag())) *
-      Theta.slice(0) *
-      diagmat(1 / sqrt(Theta.slice(0).diag()));
+    pcors = cov_to_cor(Theta.slice(0));
 
 
     beta_mcmc.slice(s) = beta;
@@ -1132,14 +1133,10 @@ Rcpp::List mv_binary(arma::mat Y,
     Sigma.slice(0) = inv(Theta.slice(0));
 
     // correlation
-    cors =  diagmat(1 / sqrt(Sigma.slice(0).diag())) *
-      Sigma.slice(0) *
-      diagmat(1 / sqrt(Sigma.slice(0).diag()));
+    cors = cov_to_cor(Sigma.slice(0));
 
     // partial correlations
-    pcors = diagmat(1 / sqrt(Theta.slice(0).diag())) *
-      Theta.slice(0) *
-      diagmat(1 / sqrt(Theta.slice(0).diag()));
+    pcors = cov_to_cor(Theta.slice(0));
 
 
     Dinv.slice(0)  = inv(diagmat(sqrt(Sigma.slice(0).diag())));
@@ -1403,14 +1400,10 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
     Sigma.slice(0) = inv(Theta.slice(0));
 
     // correlation
-    cors =  diagmat(1 / sqrt(Sigma.slice(0).diag())) *
-      Sigma.slice(0) *
-      diagmat(1 / sqrt(Sigma.slice(0).diag()));
+    cors = cov_to_cor(Sigma.slice(0));
 
     // partial correlations
-    pcors = diagmat(1 / sqrt(Theta.slice(0).diag())) *
-      Theta.slice(0) *
-      diagmat(1 / sqrt(Theta.slice(0).diag()));
+    pcors = cov_to_cor(Theta.slice(0));
 
     // update Dinv
     Dinv.slice(0)  = inv(diagmat(sqrt(Sigma.slice(0).diag())));
@@ -1597,9 +1590,7 @@ Rcpp::List  copula(arma::mat z0_start,
     Sigma.slice(0) = inv(Theta.slice(0));
 
     // partial correlations
-    pcors = diagmat(1 / sqrt(Theta.slice(0).diag())) *
-      Theta.slice(0) *
-      diagmat(1 / sqrt(Theta.slice(0).diag()));
+    pcors = cov_to_cor(Theta.slice(0));
 
     pcors_mcmc.slice(s) =  -(pcors - I_k);
   }
@@ -1643,7 +1634,7 @@ Rcpp::List pcor_to_cor_internal(arma::cube x, int p) {
 
     arma::mat Sigma_s = inv(Theta_s);
 
-    R.slice(s) =  diagmat(1 / sqrt(Sigma_s.diag())) * Sigma_s * diagmat(1 / sqrt(Sigma_s.diag()));
+    R.slice(s) = cov_to_cor(Sigma_s);
 
   }
 
@@ -1788,7 +1779,7 @@ Rcpp::List ppc_helper_nodewise_fast(arma::cube Theta,
 
     arma::mat Sigma = inv(Theta.slice(s));
 
-    arma::mat R =  diagmat(1 / sqrt(Sigma.diag())) * Sigma * diagmat(1 / sqrt(Sigma.diag()));
+    arma::mat R = cov_to_cor(Sigma);
 
     arma::mat Yrep_1  = mvnrnd(mu, R, n1).t();
     arma::mat Yrep_2  = mvnrnd(mu, R, n2).t();
@@ -1993,7 +1984,7 @@ Rcpp::List ppc_helper_fast(arma::cube Theta,
 
     arma::mat Sigma = inv(Theta.slice(s));
 
-    arma::mat R =  diagmat(1 / sqrt(Sigma.diag())) * Sigma * diagmat(1 / sqrt(Sigma.diag()));
+    arma::mat R = cov_to_cor(Sigma);
 
     arma::mat Yrep_1  = mvnrnd(mu, R, n1).t();
     arma::mat Yrep_2  = mvnrnd(mu, R, n2).t();
@@ -2001,13 +1992,9 @@ Rcpp::List ppc_helper_fast(arma::cube Theta,
     arma::mat Yrep_Theta_1 = inv(cov(Yrep_1));
     arma::mat Yrep_Theta_2 = inv(cov(Yrep_2));
 
-    arma::mat Yrep_Rinv_1 = diagmat(1 / sqrt(Yrep_Theta_1.diag())) *
-      Yrep_Theta_1 *
-      diagmat(1 / sqrt(Yrep_Theta_1.diag()));
+    arma::mat Yrep_Rinv_1 = cov_to_cor(Yrep_Theta_1);
 
-    arma::mat Yrep_Rinv_2 = diagmat(1 / sqrt(Yrep_Theta_2.diag())) *
-      Yrep_Theta_2 *
-      diagmat(1 / sqrt(Yrep_Theta_2.diag()));
+    arma::mat Yrep_Rinv_2 = cov_to_cor(Yrep_Theta_2);
 
     kl(s) = 0.5 * (KL_divergnece_mvn(Yrep_Rinv_1, Yrep_Rinv_2) +
       KL_divergnece_mvn(Yrep_Rinv_2, Yrep_Rinv_1));
@@ -2157,14 +2144,10 @@ Rcpp::List var(arma::mat Y,
     Sigma.slice(0) = inv(Theta.slice(0));
 
     // correlation
-    cors =  diagmat(1 / sqrt(Sigma.slice(0).diag())) *
-      Sigma.slice(0) *
-      diagmat(1 / sqrt(Sigma.slice(0).diag()));
+    cors = cov_to_cor(Sigma.slice(0));
 
     // partial correlations
-    pcors = diagmat(1 / sqrt(Theta.slice(0).diag())) *
-      Theta.slice(0) *
-      diagmat(1 / sqrt(Theta.slice(0).diag()));
+    pcors = cov_to_cor(Theta.slice(0));
 
 
     beta_mcmc.slice(s) = beta;
@@ -2722,9 +2705,7 @@ Rcpp::List missing_copula(arma::mat Y,
     Sigma.slice(0) = inv(Theta.slice(0));
 
     // partial correlations
-    pcors = diagmat(1 / sqrt(Theta.slice(0).diag())) *
-      Theta.slice(0) *
-      diagmat(1 / sqrt(Theta.slice(0).diag()));
+    pcors = cov_to_cor(Theta.slice(0));
 
     // store posterior samples
     pcors_mcmc.slice(s) =  -(pcors - I_p);
