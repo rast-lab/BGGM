@@ -39,12 +39,55 @@
   [`geom_density()`](https://ggplot2.tidyverse.org/reference/geom_density.html)
   in
   [`plot_prior()`](https://rast-lab.github.io/BGGM/reference/plot_prior.md).
+- **Fixed
+  [`ggm_search()`](https://rast-lab.github.io/BGGM/reference/ggm_search.md)
+  proposal-set shadowing bug and BIC creep**: The C++
+  [`search()`](https://rdrr.io/r/base/search.html) function had a
+  variable-shadowing bug where `zeros` and `nonzeros` (pools of
+  candidate edges) were re-declared instead of re-assigned after
+  accepting a move, freezing them at the starting graph’s configuration
+  for the entire run. This caused systematic BIC drift under
+  probabilistic acceptance and made reversing bad moves impossible.
+  [`ggm_search()`](https://rast-lab.github.io/BGGM/reference/ggm_search.md)
+  now implements a proper Metropolis-Hastings sampler with a birth-death
+  Hastings correction as the default (`probabilistic = TRUE`); the
+  greedy deterministic hill-climb is still available via
+  `probabilistic = FALSE`. The `burn_in` parameter is restored and now
+  actually applied to discard pre-burn-in samples before computing the
+  Bayesian Model Averaging (BMA) solution (probabilistic search only).
+  Note: the greedy hill-climb was found to be nearly non-functional on
+  realistic test cases, typically accepting only a single edge flip out
+  of thousands of attempts.
 
 #### Maintenance
 
 - Added `rlang` to Imports for proper use of `.data` pronoun in ggplot2
   aesthetics.
 - Added unit tests for multiple functions.
+- **Refactored `bggm_fast.cpp` for clarity and efficiency**: Removed two
+  functions unreachable from R (`mv_ordinal_cowles`, `trunc_mvn`; ~390
+  lines). Extracted `cov_to_cor()` and `conditional_normal_params()`
+  helper functions, eliminating 17 duplicated blocks and a matrix
+  inversion that was being computed twice per variable per MCMC
+  iteration across 9 sampler functions. Removed dead commented-out debug
+  code. No behavior change; file reduced from 3199 to ~2850 lines.
+- **Fixed the
+  [`ggm_search()`](https://rast-lab.github.io/BGGM/reference/ggm_search.md)
+  test suite and added regression tests**: Corrected tests that were
+  silently exercising non-existent parameters (`bma = TRUE` instead of
+  `bma_mean`, a `start =` argument that doesn’t exist, `gamma =` instead
+  of `prior_prob`, `prior_sd =` which isn’t a parameter at all) and a
+  `plot.ggm_search()` test that could never fail since no such method
+  exists. Rewrote with correct parameter names and assertions on the
+  returned object’s fields, and added regression tests tied directly to
+  the bugs above (probabilistic search must accept a healthy fraction of
+  proposals;
+  [`bma_posterior()`](https://rast-lab.github.io/BGGM/reference/bma_posterior.md)
+  must not error on the new default’s output). Added
+  `tests/testthat/test-search_cpp.R` exercising the C++
+  [`search()`](https://rdrr.io/r/base/search.html)/`bic_fast()`/`hft_algorithm()`
+  functions directly, including a check for systematic BIC drift across
+  a long run.
 
 ## BGGM 2.1.6
 

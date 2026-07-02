@@ -63,27 +63,27 @@ param = "pcor",
 #> Partial Correlations: 
 #> 
 #>                   Relation Post.mean Post.sd Cred.lb Cred.ub
-#>  interested--disinterested    -0.177   0.104  -0.377   0.033
-#>        interested--excited     0.378   0.091   0.192   0.554
-#>     disinterested--excited    -0.181   0.111  -0.399   0.039
-#>          interested--upset    -0.211   0.096  -0.388  -0.017
-#>       disinterested--upset    -0.045   0.108  -0.241   0.176
-#>             excited--upset    -0.136   0.101  -0.335   0.068
-#>         interested--strong     0.329   0.092   0.149   0.508
-#>      disinterested--strong     0.110   0.103  -0.085   0.306
-#>            excited--strong     0.491   0.076   0.338   0.628
-#>              upset--strong     0.119   0.100  -0.076   0.323
-#>       interested--stressed     0.269   0.095   0.083   0.450
-#>    disinterested--stressed     0.160   0.097  -0.031   0.340
-#>          excited--stressed    -0.161   0.107  -0.373   0.062
-#>            upset--stressed     0.365   0.085   0.197   0.530
-#>           strong--stressed    -0.015   0.105  -0.220   0.190
-#>          interested--steps     0.072   0.103  -0.131   0.271
-#>       disinterested--steps    -0.093   0.104  -0.295   0.114
-#>             excited--steps    -0.015   0.106  -0.217   0.187
-#>               upset--steps    -0.044   0.107  -0.236   0.179
-#>              strong--steps     0.185   0.098  -0.011   0.367
-#>            stressed--steps    -0.010   0.099  -0.207   0.183
+#>  interested--disinterested    -0.170   0.105  -0.361   0.062
+#>        interested--excited     0.381   0.092   0.190   0.548
+#>     disinterested--excited    -0.183   0.098  -0.369   0.017
+#>          interested--upset    -0.211   0.096  -0.400  -0.025
+#>       disinterested--upset    -0.040   0.104  -0.246   0.158
+#>             excited--upset    -0.135   0.102  -0.341   0.059
+#>         interested--strong     0.324   0.090   0.142   0.484
+#>      disinterested--strong     0.103   0.107  -0.106   0.323
+#>            excited--strong     0.492   0.081   0.326   0.638
+#>              upset--strong     0.118   0.102  -0.082   0.318
+#>       interested--stressed     0.283   0.091   0.102   0.455
+#>    disinterested--stressed     0.155   0.105  -0.063   0.357
+#>          excited--stressed    -0.169   0.103  -0.363   0.028
+#>            upset--stressed     0.352   0.089   0.177   0.521
+#>           strong--stressed    -0.013   0.102  -0.222   0.184
+#>          interested--steps     0.067   0.105  -0.155   0.255
+#>       disinterested--steps    -0.082   0.108  -0.293   0.130
+#>             excited--steps    -0.014   0.101  -0.204   0.195
+#>               upset--steps    -0.050   0.102  -0.249   0.152
+#>              strong--steps     0.190   0.098  -0.012   0.375
+#>            stressed--steps    -0.032   0.100  -0.234   0.172
 #> --- 
 #> 
 
@@ -102,79 +102,79 @@ param = "beta",
 #> interested 
 #> 
 #>          Relation Post.mean Post.sd Cred.lb Cred.ub
-#>     interested.l1     0.225   0.179  -0.129   0.577
-#>  disinterested.l1    -0.048   0.120  -0.284   0.194
-#>        excited.l1    -0.084   0.192  -0.465   0.296
-#>          upset.l1    -0.154   0.130  -0.411   0.101
-#>         strong.l1     0.031   0.172  -0.308   0.373
-#>       stressed.l1    -0.017   0.122  -0.256   0.224
-#>          steps.l1    -0.155   0.114  -0.378   0.073
+#>     interested.l1     0.223   0.176  -0.117   0.566
+#>  disinterested.l1    -0.051   0.120  -0.284   0.190
+#>        excited.l1    -0.085   0.193  -0.465   0.293
+#>          upset.l1    -0.153   0.125  -0.398   0.089
+#>         strong.l1     0.025   0.174  -0.314   0.364
+#>       stressed.l1    -0.019   0.122  -0.258   0.219
+#>          steps.l1    -0.152   0.113  -0.370   0.074
 #> ---
 #> disinterested 
 #> 
 #>          Relation Post.mean Post.sd Cred.lb Cred.ub
-#>     interested.l1    -0.017   0.183  -0.382   0.351
-#>  disinterested.l1    -0.006   0.122  -0.240   0.233
-#>        excited.l1    -0.182   0.194  -0.566   0.193
-#>          upset.l1     0.257   0.130   0.008   0.515
-#>         strong.l1     0.174   0.174  -0.167   0.519
-#>       stressed.l1    -0.012   0.123  -0.252   0.228
-#>          steps.l1     0.181   0.115  -0.038   0.405
+#>     interested.l1    -0.011   0.180  -0.374   0.332
+#>  disinterested.l1    -0.004   0.121  -0.249   0.229
+#>        excited.l1    -0.186   0.195  -0.565   0.206
+#>          upset.l1     0.258   0.128   0.012   0.509
+#>         strong.l1     0.176   0.176  -0.168   0.522
+#>       stressed.l1    -0.010   0.122  -0.246   0.230
+#>          steps.l1     0.179   0.114  -0.044   0.407
 #> ---
 #> excited 
 #> 
 #>          Relation Post.mean Post.sd Cred.lb Cred.ub
-#>     interested.l1     0.180   0.181  -0.179   0.530
-#>  disinterested.l1     0.057   0.122  -0.176   0.296
-#>        excited.l1     0.003   0.196  -0.381   0.389
-#>          upset.l1    -0.096   0.131  -0.355   0.164
-#>         strong.l1     0.029   0.176  -0.319   0.367
-#>       stressed.l1    -0.029   0.124  -0.271   0.215
-#>          steps.l1    -0.209   0.118  -0.442   0.023
+#>     interested.l1     0.181   0.177  -0.171   0.528
+#>  disinterested.l1     0.055   0.123  -0.186   0.294
+#>        excited.l1     0.003   0.199  -0.390   0.387
+#>          upset.l1    -0.096   0.128  -0.343   0.156
+#>         strong.l1     0.023   0.175  -0.324   0.365
+#>       stressed.l1    -0.032   0.124  -0.273   0.209
+#>          steps.l1    -0.205   0.114  -0.425   0.019
 #> ---
 #> upset 
 #> 
 #>          Relation Post.mean Post.sd Cred.lb Cred.ub
-#>     interested.l1    -0.100   0.172  -0.438   0.241
-#>  disinterested.l1    -0.018   0.118  -0.248   0.211
-#>        excited.l1     0.052   0.191  -0.316   0.423
-#>          upset.l1     0.432   0.123   0.196   0.675
-#>         strong.l1     0.048   0.171  -0.288   0.385
-#>       stressed.l1    -0.047   0.116  -0.274   0.182
-#>          steps.l1     0.152   0.110  -0.065   0.367
+#>     interested.l1    -0.097   0.170  -0.429   0.237
+#>  disinterested.l1    -0.018   0.115  -0.241   0.208
+#>        excited.l1     0.052   0.189  -0.318   0.420
+#>          upset.l1     0.428   0.125   0.184   0.666
+#>         strong.l1     0.046   0.167  -0.287   0.373
+#>       stressed.l1    -0.045   0.114  -0.270   0.180
+#>          steps.l1     0.151   0.107  -0.057   0.360
 #> ---
 #> strong 
 #> 
 #>          Relation Post.mean Post.sd Cred.lb Cred.ub
-#>     interested.l1     0.177   0.181  -0.179   0.523
-#>  disinterested.l1     0.052   0.122  -0.194   0.289
-#>        excited.l1    -0.083   0.196  -0.466   0.314
-#>          upset.l1     0.056   0.132  -0.200   0.313
-#>         strong.l1     0.185   0.177  -0.163   0.535
-#>       stressed.l1    -0.072   0.124  -0.312   0.173
-#>          steps.l1    -0.091   0.118  -0.326   0.145
+#>     interested.l1     0.176   0.180  -0.172   0.527
+#>  disinterested.l1     0.046   0.123  -0.191   0.289
+#>        excited.l1    -0.084   0.199  -0.484   0.294
+#>          upset.l1     0.055   0.129  -0.195   0.308
+#>         strong.l1     0.180   0.179  -0.173   0.533
+#>       stressed.l1    -0.072   0.124  -0.315   0.172
+#>          steps.l1    -0.091   0.116  -0.308   0.144
 #> ---
 #> stressed 
 #> 
 #>          Relation Post.mean Post.sd Cred.lb Cred.ub
-#>     interested.l1     0.014   0.175  -0.331   0.353
-#>  disinterested.l1     0.089   0.118  -0.142   0.317
-#>        excited.l1     0.083   0.189  -0.293   0.453
-#>          upset.l1     0.319   0.125   0.078   0.572
-#>         strong.l1    -0.063   0.171  -0.397   0.270
-#>       stressed.l1     0.149   0.116  -0.075   0.377
-#>          steps.l1     0.204   0.109  -0.010   0.415
+#>     interested.l1     0.011   0.169  -0.315   0.348
+#>  disinterested.l1     0.088   0.117  -0.147   0.314
+#>        excited.l1     0.083   0.190  -0.291   0.454
+#>          upset.l1     0.315   0.124   0.069   0.560
+#>         strong.l1    -0.062   0.166  -0.389   0.278
+#>       stressed.l1     0.154   0.116  -0.072   0.383
+#>          steps.l1     0.207   0.108  -0.005   0.418
 #> ---
 #> steps 
 #> 
 #>          Relation Post.mean Post.sd Cred.lb Cred.ub
-#>     interested.l1     0.107   0.182  -0.240   0.467
-#>  disinterested.l1    -0.021   0.126  -0.268   0.226
-#>        excited.l1     0.098   0.198  -0.290   0.487
-#>          upset.l1    -0.093   0.132  -0.351   0.169
-#>         strong.l1    -0.180   0.180  -0.538   0.174
-#>       stressed.l1     0.131   0.125  -0.110   0.377
-#>          steps.l1     0.041   0.117  -0.190   0.265
+#>     interested.l1     0.111   0.181  -0.246   0.462
+#>  disinterested.l1    -0.023   0.123  -0.266   0.222
+#>        excited.l1     0.100   0.199  -0.288   0.489
+#>          upset.l1    -0.093   0.131  -0.347   0.161
+#>         strong.l1    -0.186   0.180  -0.541   0.172
+#>       stressed.l1     0.132   0.125  -0.108   0.375
+#>          steps.l1     0.041   0.115  -0.190   0.266
 #> ---
 
 # }

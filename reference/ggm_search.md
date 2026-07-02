@@ -1,10 +1,15 @@
 # Perform Bayesian Graph Search and Optional Model Averaging
 
-The \`ggm_search\` function performs a Bayesian graph search to identify
-the most probable graph structure (MAP solution) using the
-Metropolis-Hastings algorithm. It also computes an optional Bayesian
-Model Averaged (BMA) solution across the graph structures sampled during
-the search.
+The \`ggm_search\` function performs a Metropolis-Hastings graph search
+to identify high-probability graph structures. At each iteration, one
+edge is randomly proposed to flip (add or remove, chosen by an
+independent coin flip), and the proposal is accepted or rejected using a
+proper MH acceptance ratio (including a birth-death Hastings correction
+for the proposal-size asymmetry between the add and remove moves), so
+the walk can move to a worse-BIC graph and is not just a hill-climb. It
+also computes an optional Bayesian Model Averaged (BMA) solution: the
+distinct graphs visited after burn-in are reweighted by their
+BIC-approximated posterior model probabilities.
 
 ## Usage
 
@@ -15,10 +20,12 @@ ggm_search(
   method = "mc3",
   prior_prob = 0.3,
   iter = 5000,
+  burn_in = NULL,
   stop_early = 1000,
   bma_mean = TRUE,
   seed = NULL,
   progress = TRUE,
+  probabilistic = TRUE,
   ...
 )
 ```
@@ -43,12 +50,22 @@ ggm_search(
 
 - iter:
 
-  Number of iterations \#@param burn_in Burn in. Defaults to iter/2
+  Number of iterations
+
+- burn_in:
+
+  Number of initial iterations discarded before computing the BMA
+  solution. Defaults to `iter / 2`. Only meaningful when
+  `probabilistic = TRUE` (a greedy hill-climb has no transient to burn
+  in — its BIC trajectory is monotone non-increasing).
 
 - stop_early:
 
-  Default to 1000. Stop MH algorithm if proposals keep being rejected
-  (stopping by default after 1000 rejections).
+  Default to 1000. Only used when `probabilistic = FALSE`: stop the
+  greedy search early if proposals keep being rejected (stopping by
+  default after 1000 consecutive rejections). Ignored under
+  probabilistic search, which always runs the full `iter` iterations
+  since rejections are an expected, normal part of MH sampling.
 
 - bma_mean:
 
@@ -62,6 +79,12 @@ ggm_search(
 
   Show progress bar, defaults to TRUE
 
+- probabilistic:
+
+  Defaults to TRUE: a genuine Metropolis-Hastings sampler over graph
+  structures (see Details). Set to FALSE for the deterministic greedy
+  hill-climb instead.
+
 - ...:
 
   Not currently in use
@@ -69,9 +92,17 @@ ggm_search(
 ## Value
 
 A list containing the MAP graph structure, BMA solution (if specified),
-and posterior probabilities of the sampled graphs.
+and BIC-approximated posterior probabilities of the graphs visited
+during the search.
 
 ## Details
+
+Set `probabilistic = FALSE` to instead run a deterministic greedy
+hill-climb (accept a proposed edge flip only if it improves BIC). This
+is much faster per iteration but explores far less of graph space in
+practice — in testing it can get stuck after accepting only a handful of
+moves, well before `iter` is reached, and `stop_early` exists to end the
+search once that happens.
 
 This function is ideal for exploring the graph space and obtaining an
 initial estimate of the graph structure or adjacency matrix.
