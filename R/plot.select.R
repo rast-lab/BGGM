@@ -97,6 +97,23 @@
 #'
 #' @export
 
+# ggnet2() errors ("incorrect `edge.color` value") when a network has zero
+# edges: edge.color/edge.alpha/edge.size reference an edge attribute or a
+# per-edge vector, and there's nothing for it to resolve. This is a real
+# case (e.g. no edges survive selection), not just a hypothetical one, so
+# drop those arguments when the network is empty -- ggnet2() handles that
+# fine on its own (it's the pattern already used for the null/ambiguous
+# networks elsewhere in this file).
+safe_ggnet2 <- function(net, ...) {
+  args <- list(...)
+  if (network::network.edgecount(net) == 0) {
+    args$edge.alpha <- NULL
+    args$edge.size <- NULL
+    args$edge.color <- NULL
+  }
+  do.call(GGally::ggnet2, c(list(net), args))
+}
+
 plot.select <- function(x,
                         layout = "circle",
                         pos_col = "#009E73",
@@ -141,7 +158,7 @@ plot.select <- function(x,
 
     if(is.null(groups)){
 
-      plt <- ggnet2(net, edge.alpha = e[e != 0] / max(e),
+      plt <- safe_ggnet2(net, edge.alpha = e[e != 0] / max(e),
                     edge.size = "abs_weights",
                     edge.color = "edge_color",
                     node.size = 1,
@@ -158,7 +175,7 @@ plot.select <- function(x,
       net %v% "group" <- groups
 
       suppressMessages(
-      plt <-  ggnet2(net, edge.alpha = e[e != 0] / max(e),
+      plt <-  safe_ggnet2(net, edge.alpha = e[e != 0] / max(e),
                      edge.size = "abs_weights",
                      edge.color = "edge_color",
                      node.color = "group",
@@ -249,7 +266,7 @@ plot.select <- function(x,
 
       if(is.null(groups)){
 
-        plt_alt <- ggnet2(
+        plt_alt <- safe_ggnet2(
           net_alt,
           edge.alpha = e[e != 0] / max(e),
           edge.size = "abs_weights",
@@ -264,7 +281,7 @@ plot.select <- function(x,
           geom_text(label = cn)
 
 
-        plt_null <- ggnet2(net_null,
+        plt_null <- safe_ggnet2(net_null,
                            node.size = 1,
                            mode = layout) +
           geom_point(color = "black",
@@ -275,7 +292,7 @@ plot.select <- function(x,
 
 
 
-        plt_ambiguous <- ggnet2(net_ambigous,
+        plt_ambiguous <- safe_ggnet2(net_ambigous,
                                 node.size = 1,
                                 mode = layout) +
           geom_point(color = "black",
@@ -295,7 +312,7 @@ plot.select <- function(x,
         net_ambigous %v% "group" <- groups
 
        suppressMessages(
-        plt_alt <- ggnet2(net_alt, edge.alpha = e[e != 0] / max(e),
+        plt_alt <- safe_ggnet2(net_alt, edge.alpha = e[e != 0] / max(e),
                edge.size = "abs_weights",
                edge.color = "edge_color",
                node.color = "group",
@@ -315,7 +332,7 @@ plot.select <- function(x,
 
        suppressMessages(
 
-        plt_null <- ggnet2(net_null,
+        plt_null <- safe_ggnet2(net_null,
                            node.size = 1,
                            node.color = "group",
                            mode = layout) +
@@ -333,7 +350,7 @@ plot.select <- function(x,
 
 
        suppressMessages(
-       plt_ambiguous <-  ggnet2(net_ambigous,
+       plt_ambiguous <-  safe_ggnet2(net_ambigous,
                                  node.size = 1,
                                  node.color = "group",
                                  mode = layout) +
@@ -411,7 +428,7 @@ plot.select <- function(x,
 
         e <- abs(as.numeric( x$pcor_mat * x$pos_mat))
 
-        plt_pos <- ggnet2(
+        plt_pos <- safe_ggnet2(
           net_pos,
           edge.alpha = e[e != 0] / max(e),
           edge.size = "abs_weights",
@@ -428,7 +445,7 @@ plot.select <- function(x,
 
         e <- abs(as.numeric( x$pcor_mat * x$neg_mat))
 
-        plt_neg <- ggnet2(net_neg,
+        plt_neg <- safe_ggnet2(net_neg,
                           node.size = 1,
                           edge.alpha = e[e != 0] / max(e),
                           edge.size = "abs_weights",
@@ -442,7 +459,7 @@ plot.select <- function(x,
 
 
 
-        plt_null <- ggnet2(net_null,
+        plt_null <- safe_ggnet2(net_null,
                            node.size = 1,
                            mode = layout) +
           geom_point(color = "black",
@@ -451,7 +468,7 @@ plot.select <- function(x,
           guides(color = "none") +
           geom_text(label = cn)
 
-        plt_ambiguous <- ggnet2(net_ambigous,
+        plt_ambiguous <- safe_ggnet2(net_ambigous,
                                 node.size = 1,
                                 mode = layout) +
           geom_point(color = "black",
@@ -476,7 +493,7 @@ plot.select <- function(x,
         e <- abs(as.numeric( x$pcor_mat * x$pos_mat))
 
         suppressMessages(
-        plt_pos <- ggnet2(
+        plt_pos <- safe_ggnet2(
           net_pos,
           edge.alpha = e[e != 0] / max(e),
           edge.size = "abs_weights",
@@ -502,7 +519,7 @@ plot.select <- function(x,
 
 
         suppressMessages(
-        plt_neg <- ggnet2(net_neg,
+        plt_neg <- safe_ggnet2(net_neg,
                           node.size = 1,
                           edge.alpha = e[e != 0] / max(e),
                           edge.size = "abs_weights",
@@ -523,7 +540,7 @@ plot.select <- function(x,
 
 
        suppressMessages(
-        plt_null <- ggnet2(net_null,
+        plt_null <- safe_ggnet2(net_null,
                            node.size = 1,
                            mode = layout,
                            node.color = "group") +
@@ -540,7 +557,7 @@ plot.select <- function(x,
 )
 
        suppressMessages(
-       plt_ambiguous <- ggnet2(net_ambigous,
+       plt_ambiguous <- safe_ggnet2(net_ambigous,
                                 node.size = 1,
                                 mode = layout,
                                 node.color =  "group") +
@@ -599,7 +616,7 @@ plot.select <- function(x,
 
             if(is.null(groups)){
 
-              ggnet2(net, edge.alpha = e[e != 0] / max(e),
+              safe_ggnet2(net, edge.alpha = e[e != 0] / max(e),
                             edge.size = "abs_weights",
                             edge.color = "edge_color",
                             node.size = 1,
@@ -617,7 +634,7 @@ plot.select <- function(x,
               net %v% "group" <- groups
 
               suppressMessages(
-                 ggnet2(net, edge.alpha = e[e != 0] / max(e),
+                 safe_ggnet2(net, edge.alpha = e[e != 0] / max(e),
                                edge.size = "abs_weights",
                                edge.color = "edge_color",
                                node.color = "group",
@@ -681,7 +698,7 @@ plot.select <- function(x,
 
           e <- abs(as.numeric( x$pcor_mat * x$adj_10))
 
-          plt_alt <- ggnet2(
+          plt_alt <- safe_ggnet2(
             net_alt,
             edge.alpha = e[e != 0] / max(e),
             edge.size = "abs_weights",
@@ -695,7 +712,7 @@ plot.select <- function(x,
             guides(color = "none") +
             geom_text(label = cn)
 
-          plt_null <- ggnet2(net_null,
+          plt_null <- safe_ggnet2(net_null,
                              node.size = 1,
                              mode = layout) +
             geom_point(color = "black",
@@ -718,7 +735,7 @@ plot.select <- function(x,
           e <- abs(as.numeric( x$pcor_mat * x$adj_10))
 
           suppressMessages(
-          plt_alt <- ggnet2(
+          plt_alt <- safe_ggnet2(
             net_alt,
             edge.alpha = e[e != 0] / max(e),
             edge.size = "abs_weights",
@@ -740,7 +757,7 @@ plot.select <- function(x,
           )
 
         suppressMessages(
-          plt_null <- ggnet2(net_null,
+          plt_null <- safe_ggnet2(net_null,
                              node.size = 1,
                              mode = layout,
                              node.color = "group") +
@@ -774,7 +791,7 @@ plot.select <- function(x,
 
           if(is.null(groups)){
 
-            plt_alt <- ggnet2(net_alt,
+            plt_alt <- safe_ggnet2(net_alt,
                              node.size = 1,
                              mode = layout) +
             geom_point(color = "black",
@@ -783,7 +800,7 @@ plot.select <- function(x,
             guides(color = "none") +
             geom_text(label = cn)
 
-            plt_null <- ggnet2(net_null,
+            plt_null <- safe_ggnet2(net_null,
                              node.size = 1,
                              mode = layout) +
             geom_point(color = "black",
@@ -805,7 +822,7 @@ plot.select <- function(x,
 
 
           suppressMessages(
-            plt_alt <- ggnet2(net_alt,
+            plt_alt <- safe_ggnet2(net_alt,
                                node.size = 1,
                                mode = layout,
                                node.color = "group") +
@@ -827,7 +844,7 @@ plot.select <- function(x,
           )
 
           suppressMessages(
-            plt_null <- ggnet2(net_null,
+            plt_null <- safe_ggnet2(net_null,
                                node.size = 1,
                                mode = layout,
                                node.color = "group") +
@@ -903,7 +920,7 @@ plot.select <- function(x,
 
       if(is.null(groups)){
 
-        plt_alt <- ggnet2(
+        plt_alt <- safe_ggnet2(
           net_alt,
           edge.alpha = e[e != 0] / max(e),
           edge.size = "abs_weights",
@@ -918,7 +935,7 @@ plot.select <- function(x,
           geom_text(label = cn)
 
 
-        plt_null <- ggnet2(net_null,
+        plt_null <- safe_ggnet2(net_null,
                            node.size = 1,
                            mode = layout) +
           geom_point(color = "black",
@@ -929,7 +946,7 @@ plot.select <- function(x,
 
 
 
-        plt_ambiguous <- ggnet2(net_ambigous,
+        plt_ambiguous <- safe_ggnet2(net_ambigous,
                                 node.size = 1,
                                 mode = layout) +
           geom_point(color = "black",
@@ -949,7 +966,7 @@ plot.select <- function(x,
         net_ambigous %v% "group" <- groups
 
         suppressMessages(
-          plt_alt <- ggnet2(net_alt, edge.alpha = e[e != 0] / max(e),
+          plt_alt <- safe_ggnet2(net_alt, edge.alpha = e[e != 0] / max(e),
                             edge.size = "abs_weights",
                             edge.color = "edge_color",
                             node.color = "group",
@@ -969,7 +986,7 @@ plot.select <- function(x,
 
         suppressMessages(
 
-          plt_null <- ggnet2(net_null,
+          plt_null <- safe_ggnet2(net_null,
                              node.size = 1,
                              node.color = "group",
                              mode = layout) +
@@ -987,7 +1004,7 @@ plot.select <- function(x,
 
 
         suppressMessages(
-          plt_ambiguous <-  ggnet2(net_ambigous,
+          plt_ambiguous <-  safe_ggnet2(net_ambigous,
                                    node.size = 1,
                                    node.color = "group",
                                    mode = layout) +
@@ -1024,7 +1041,7 @@ plot.select <- function(x,
 
       if(is.null(groups)){
 
-        plt_alt <- ggnet2(net_alt,
+        plt_alt <- safe_ggnet2(net_alt,
                            node.size = 1,
                            mode = layout) +
           geom_point(color = "black",
@@ -1034,7 +1051,7 @@ plot.select <- function(x,
           geom_text(label = cn)
 
 
-        plt_null <- ggnet2(net_null,
+        plt_null <- safe_ggnet2(net_null,
                            node.size = 1,
                            mode = layout) +
           geom_point(color = "black",
@@ -1043,7 +1060,7 @@ plot.select <- function(x,
           guides(color = "none") +
           geom_text(label = cn)
 
-        plt_ambiguous <-  ggnet2(net_ambigous,
+        plt_ambiguous <-  safe_ggnet2(net_ambigous,
                                  node.size = 1,
                                  mode = layout) +
           geom_point(color = "black",
@@ -1064,7 +1081,7 @@ plot.select <- function(x,
         net_ambigous %v% "group" <- groups
 
         suppressMessages(
-          plt_alt <- ggnet2(net_alt,
+          plt_alt <- safe_ggnet2(net_alt,
                             node.size = 1,
                             node.color = "group",
                             mode = layout) +
@@ -1082,7 +1099,7 @@ plot.select <- function(x,
 
         suppressMessages(
 
-          plt_null <- ggnet2(net_null,
+          plt_null <- safe_ggnet2(net_null,
                              node.size = 1,
                              node.color = "group",
                              mode = layout) +
@@ -1100,7 +1117,7 @@ plot.select <- function(x,
 
         suppressMessages(
 
-          plt_ambiguous <-  ggnet2(net_ambigous,
+          plt_ambiguous <-  safe_ggnet2(net_ambigous,
                                    node.size = 1,
                                    node.color = "group",
                                    mode = layout) +
