@@ -213,22 +213,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// mv_ordinal_cowles
-Rcpp::List mv_ordinal_cowles(arma::mat Y, arma::mat X, float delta, float epsilon, int iter, float MH);
-RcppExport SEXP _BGGM_mv_ordinal_cowles(SEXP YSEXP, SEXP XSEXP, SEXP deltaSEXP, SEXP epsilonSEXP, SEXP iterSEXP, SEXP MHSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat >::type Y(YSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
-    Rcpp::traits::input_parameter< float >::type delta(deltaSEXP);
-    Rcpp::traits::input_parameter< float >::type epsilon(epsilonSEXP);
-    Rcpp::traits::input_parameter< int >::type iter(iterSEXP);
-    Rcpp::traits::input_parameter< float >::type MH(MHSEXP);
-    rcpp_result_gen = Rcpp::wrap(mv_ordinal_cowles(Y, X, delta, epsilon, iter, MH));
-    return rcpp_result_gen;
-END_RCPP
-}
 // mv_ordinal_albert
 Rcpp::List mv_ordinal_albert(arma::mat Y, arma::mat X, int iter, float delta, float epsilon, int K, arma::mat start, bool progress);
 RcppExport SEXP _BGGM_mv_ordinal_albert(SEXP YSEXP, SEXP XSEXP, SEXP iterSEXP, SEXP deltaSEXP, SEXP epsilonSEXP, SEXP KSEXP, SEXP startSEXP, SEXP progressSEXP) {
@@ -614,7 +598,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_BGGM_mv_continuous", (DL_FUNC) &_BGGM_mv_continuous, 7},
     {"_BGGM_trunc_mvn", (DL_FUNC) &_BGGM_trunc_mvn, 5},
     {"_BGGM_mv_binary", (DL_FUNC) &_BGGM_mv_binary, 9},
-    {"_BGGM_mv_ordinal_cowles", (DL_FUNC) &_BGGM_mv_ordinal_cowles, 6},
     {"_BGGM_mv_ordinal_albert", (DL_FUNC) &_BGGM_mv_ordinal_albert, 8},
     {"_BGGM_copula", (DL_FUNC) &_BGGM_copula, 9},
     {"_BGGM_pcor_to_cor_internal", (DL_FUNC) &_BGGM_pcor_to_cor_internal, 2},

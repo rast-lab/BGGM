@@ -57,10 +57,6 @@ mv_binary <- function(Y, X, delta, epsilon, iter, beta_prior, cutpoints, start, 
     .Call(`_BGGM_mv_binary`, Y, X, delta, epsilon, iter, beta_prior, cutpoints, start, progress)
 }
 
-mv_ordinal_cowles <- function(Y, X, delta, epsilon, iter, MH) {
-    .Call(`_BGGM_mv_ordinal_cowles`, Y, X, delta, epsilon, iter, MH)
-}
-
 mv_ordinal_albert <- function(Y, X, iter, delta, epsilon, K, start, progress) {
     .Call(`_BGGM_mv_ordinal_albert`, Y, X, iter, delta, epsilon, K, start, progress)
 }
