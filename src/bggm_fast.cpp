@@ -243,6 +243,26 @@ arma::mat remove_col(arma::mat x, int index){
   return(x);
 }
 
+namespace {
+
+// Conditional-normal regression coefficients and variance for variable `i`
+// given all other variables in covariance/correlation matrix M:
+//   cond_mean = offset + coef_row * (other_vars - other_offset)
+//   cond_var  = M(i,i) - coef_row * cross_i'
+// where cross_i = M(i, -i). Computes the (k-1)x(k-1) inverse once instead of
+// the two (or three) times the call sites used to recompute it.
+void conditional_normal_params(const arma::mat& M,
+                               int i,
+                               arma::mat& coef_row,
+                               double& cond_var) {
+  arma::mat cross = Sigma_i_not_i(M, i);
+  arma::mat inv_rest = inv(remove_row(remove_col(M, i), i));
+  coef_row = cross * inv_rest;
+  cond_var = arma::as_scalar(select_row(M, i).col(i) - coef_row * cross.t());
+}
+
+}  // namespace
+
 
 // Hoff, P. D. (2009). A first course in Bayesian statistical
 // methods (Vol. 580). New York: Springer.
@@ -280,14 +300,15 @@ Rcpp::List internal_missing_gaussian(arma::mat Y,
       arma::uvec  index_j = find(Y_missing.col(j) == 1);
       int  n_missing = index_j.n_elem;
 
-      arma::mat beta_j = Sigma_i_not_i(Sigma, j) * inv(remove_row(remove_col(Sigma, j), j));
-      arma::mat  sd_j = sqrt(select_row(Sigma, j).col(j) - Sigma_i_not_i(Sigma, j) *
-      inv(remove_row(remove_col(Sigma, j), j)) * Sigma_i_not_i(Sigma, j).t());
+      arma::mat beta_j;
+      double cond_var_j;
+      conditional_normal_params(Sigma, j, beta_j, cond_var_j);
+      double sd_j = std::sqrt(cond_var_j);
       arma::vec pred = remove_col(Y,j) * beta_j.t();
       arma::vec pred_miss = pred(index_j);
 
       for(int i = 0; i < n_missing; ++i){
-        arma::vec ppc_i = Rcpp::rnorm(1,  pred(index_j[i]), arma::as_scalar(sd_j));
+        arma::vec ppc_i = Rcpp::rnorm(1,  pred(index_j[i]), sd_j);
         Y.col(j).row(index_j[i]) = arma::as_scalar(ppc_i);
       }
     }
@@ -359,10 +380,10 @@ Rcpp::List missing_gaussian(arma::mat Y,
 
       int n_missing = index_j.n_elem;
 
-      arma::mat beta_j = Sigma_i_not_i(Sigma, j) * inv(remove_row(remove_col(Sigma, j), j));
-
-      arma::mat  sd_j = sqrt(select_row(Sigma, j).col(j) - Sigma_i_not_i(Sigma, j) *
-        inv(remove_row(remove_col(Sigma, j), j)) * Sigma_i_not_i(Sigma, j).t());
+      arma::mat beta_j;
+      double cond_var_j;
+      conditional_normal_params(Sigma, j, beta_j, cond_var_j);
+      double sd_j = std::sqrt(cond_var_j);
 
       arma::vec pred = remove_col(Y,j) * beta_j.t();
 
@@ -371,7 +392,7 @@ Rcpp::List missing_gaussian(arma::mat Y,
       for(int i = 0; i < n_missing; ++i){
 
         arma::vec ppd_i = Rcpp::rnorm(1,  pred(index_j[i]),
-                                      arma::as_scalar(sd_j));
+                                      sd_j);
 
         Y.col(j).row(index_j[i]) = arma::as_scalar(ppd_i);
 
@@ -1039,15 +1060,14 @@ Rcpp::List mv_binary(arma::mat Y,
 
     for(int i = 0; i < k; ++i){
 
-      mm = Xbhat.slice(0).col(i).t() +
-        Sigma_i_not_i(R.slice(0), i) *
-        inv(remove_row(remove_col(R.slice(0), i), i)) *
-        (remove_col(z0.slice(0), i).t() - remove_col(Xbhat.slice(0), i).t());
+      arma::mat coef_row_i;
+      double cond_var_i;
+      conditional_normal_params(R.slice(0), i, coef_row_i, cond_var_i);
 
-      ss = select_row(R.slice(0), i).col(i) -
-        Sigma_i_not_i(R.slice(0), i) *
-        inv(remove_row(remove_col(R.slice(0), i), i)) *
-        Sigma_i_not_i(R.slice(0), i).t();
+      mm = Xbhat.slice(0).col(i).t() +
+        coef_row_i * (remove_col(z0.slice(0), i).t() - remove_col(Xbhat.slice(0), i).t());
+
+      ss(0, 0) = cond_var_i;
 
 
       for(int j = 0 ; j < n; ++j){
@@ -1307,15 +1327,14 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
 
     for(int i = 0; i < k; ++i){
 
-      mm = Xbhat.slice(0).col(i).t() +
-        Sigma_i_not_i(R.slice(0), i) *
-        inv(remove_row(remove_col(R.slice(0), i), i)) *
-        (remove_col(z0.slice(0), i).t() - remove_col(Xbhat.slice(0), i).t());
+      arma::mat coef_row_i;
+      double cond_var_i;
+      conditional_normal_params(R.slice(0), i, coef_row_i, cond_var_i);
 
-      ss = select_row(R.slice(0), i).col(i) -
-        Sigma_i_not_i(R.slice(0), i) *
-        inv(remove_row(remove_col(R.slice(0), i), i)) *
-        Sigma_i_not_i(R.slice(0), i).t();
+      mm = Xbhat.slice(0).col(i).t() +
+        coef_row_i * (remove_col(z0.slice(0), i).t() - remove_col(Xbhat.slice(0), i).t());
+
+      ss(0, 0) = cond_var_i;
 
       double sd = std::sqrt(ss(0));
 
@@ -1530,14 +1549,13 @@ Rcpp::List  copula(arma::mat z0_start,
 
     for(int i = 0; i < k; ++i){
 
-      mm = Sigma_i_not_i(Sigma.slice(0), i) *
-        inv(remove_row(remove_col(Sigma.slice(0), i), i)) *
-        remove_col(z0.slice(0), i).t();
+      arma::mat coef_row_i;
+      double cond_var_i;
+      conditional_normal_params(Sigma.slice(0), i, coef_row_i, cond_var_i);
 
-      ss = select_row(Sigma.slice(0), i).col(i) -
-        Sigma_i_not_i(Sigma.slice(0), i) *
-        inv(remove_row(remove_col(Sigma.slice(0), i), i)) *
-        Sigma_i_not_i(Sigma.slice(0), i).t();
+      mm = coef_row_i * remove_col(z0.slice(0), i).t();
+
+      ss(0, 0) = cond_var_i;
 
       // sample latent data (0  = assumed continuous)
       if(idx(i) == 1){
@@ -2622,16 +2640,13 @@ Rcpp::List missing_copula(arma::mat Y,
 
     for(int i = 0; i < p; ++i){
 
-      mm = Sigma_i_not_i(Sigma.slice(0), i) *
+      arma::mat coef_row_i;
+      double cond_var_i;
+      conditional_normal_params(Sigma.slice(0), i, coef_row_i, cond_var_i);
 
-        inv(remove_row(remove_col(Sigma.slice(0), i), i)) *
+      mm = coef_row_i * remove_col(z0.slice(0), i).t();
 
-        remove_col(z0.slice(0), i).t();
-
-      ss = select_row(Sigma.slice(0), i).col(i) -
-        Sigma_i_not_i(Sigma.slice(0), i) *
-        inv(remove_row(remove_col(Sigma.slice(0), i), i)) *
-        Sigma_i_not_i(Sigma.slice(0), i).t();
+      ss(0, 0) = cond_var_i;
 
       // sample latent data (0  = assumed continuous)
       if(idx(i) == 1){
@@ -2774,14 +2789,13 @@ Rcpp::List missing_copula_data(arma::mat Y,
 
     for(int i = 0; i < p; ++i){
 
-      mm = Sigma_i_not_i(Sigma.slice(0), i) *
-        inv(remove_row(remove_col(Sigma.slice(0), i), i)) *
-        remove_col(z0.slice(0), i).t();
+      arma::mat coef_row_i;
+      double cond_var_i;
+      conditional_normal_params(Sigma.slice(0), i, coef_row_i, cond_var_i);
 
-      ss = select_row(Sigma.slice(0), i).col(i) -
-        Sigma_i_not_i(Sigma.slice(0), i) *
-        inv(remove_row(remove_col(Sigma.slice(0), i), i)) *
-        Sigma_i_not_i(Sigma.slice(0), i).t();
+      mm = coef_row_i * remove_col(z0.slice(0), i).t();
+
+      ss(0, 0) = cond_var_i;
 
       if(idx(i) == 1){
 
