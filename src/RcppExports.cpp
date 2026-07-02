@@ -179,21 +179,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// trunc_mvn
-Rcpp::List trunc_mvn(arma::mat mu, arma::mat rinv, arma::mat z, arma::mat y, arma::rowvec cutpoints);
-RcppExport SEXP _BGGM_trunc_mvn(SEXP muSEXP, SEXP rinvSEXP, SEXP zSEXP, SEXP ySEXP, SEXP cutpointsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat >::type mu(muSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type rinv(rinvSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type z(zSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type y(ySEXP);
-    Rcpp::traits::input_parameter< arma::rowvec >::type cutpoints(cutpointsSEXP);
-    rcpp_result_gen = Rcpp::wrap(trunc_mvn(mu, rinv, z, y, cutpoints));
-    return rcpp_result_gen;
-END_RCPP
-}
 // mv_binary
 Rcpp::List mv_binary(arma::mat Y, arma::mat X, float delta, float epsilon, int iter, float beta_prior, arma::rowvec cutpoints, arma::mat start, bool progress);
 RcppExport SEXP _BGGM_mv_binary(SEXP YSEXP, SEXP XSEXP, SEXP deltaSEXP, SEXP epsilonSEXP, SEXP iterSEXP, SEXP beta_priorSEXP, SEXP cutpointsSEXP, SEXP startSEXP, SEXP progressSEXP) {
@@ -596,7 +581,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_BGGM_Theta_continuous", (DL_FUNC) &_BGGM_Theta_continuous, 10},
     {"_BGGM_sample_prior", (DL_FUNC) &_BGGM_sample_prior, 7},
     {"_BGGM_mv_continuous", (DL_FUNC) &_BGGM_mv_continuous, 7},
-    {"_BGGM_trunc_mvn", (DL_FUNC) &_BGGM_trunc_mvn, 5},
     {"_BGGM_mv_binary", (DL_FUNC) &_BGGM_mv_binary, 9},
     {"_BGGM_mv_ordinal_albert", (DL_FUNC) &_BGGM_mv_ordinal_albert, 8},
     {"_BGGM_copula", (DL_FUNC) &_BGGM_copula, 9},

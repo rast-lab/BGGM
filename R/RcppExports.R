@@ -49,10 +49,6 @@ mv_continuous <- function(Y, X, delta, epsilon, iter, start, progress) {
     .Call(`_BGGM_mv_continuous`, Y, X, delta, epsilon, iter, start, progress)
 }
 
-trunc_mvn <- function(mu, rinv, z, y, cutpoints) {
-    .Call(`_BGGM_trunc_mvn`, mu, rinv, z, y, cutpoints)
-}
-
 mv_binary <- function(Y, X, delta, epsilon, iter, beta_prior, cutpoints, start, progress) {
     .Call(`_BGGM_mv_binary`, Y, X, delta, epsilon, iter, beta_prior, cutpoints, start, progress)
 }
