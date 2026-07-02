@@ -1,22 +1,22 @@
 ##' Perform Bayesian Graph Search and Optional Model Averaging
 ##'
-##' The `ggm_search` function performs a greedy graph search to identify a
-##' high-probability graph structure (MAP solution). At each step, one edge
-##' is randomly proposed to flip (add or remove), and the proposal is
-##' accepted only if it improves the BIC-approximated model fit — the search
-##' is a deterministic hill-climb, not a stochastic Metropolis-Hastings
-##' sampler. It also computes an optional Bayesian Model Averaged (BMA)
-##' solution: the distinct graphs visited along the search path are
-##' reweighted by their BIC-approximated posterior model probabilities.
+##' The `ggm_search` function performs a Metropolis-Hastings graph search to
+##' identify high-probability graph structures. At each iteration, one edge
+##' is randomly proposed to flip (add or remove, chosen by an independent
+##' coin flip), and the proposal is accepted or rejected using a proper MH
+##' acceptance ratio (including a birth-death Hastings correction for the
+##' proposal-size asymmetry between the add and remove moves), so the walk
+##' can move to a worse-BIC graph and is not just a hill-climb. It also
+##' computes an optional Bayesian Model Averaged (BMA) solution: the
+##' distinct graphs visited after burn-in are reweighted by their
+##' BIC-approximated posterior model probabilities.
 ##'
-##' Because proposals flip one edge at a time and are only ever accepted
-##' when they improve fit, the search does not fully explore graph space —
-##' for larger networks (more variables) the reachable neighborhood shrinks
-##' relative to the size of the graph space, so the visited-graph set (and
-##' therefore the BMA uncertainty estimate) may under-represent true model
-##' uncertainty. Treat the BMA output as an approximate summary conditioned
-##' on the greedy search path, not as posterior samples from a proper
-##' stochastic sampler.
+##' Set \code{probabilistic = FALSE} to instead run a deterministic greedy
+##' hill-climb (accept a proposed edge flip only if it improves BIC). This
+##' is much faster per iteration but explores far less of graph space in
+##' practice — in testing it can get stuck after accepting only a handful
+##' of moves, well before \code{iter} is reached, and \code{stop_early}
+##' exists to end the search once that happens.
 ##'
 ##' This function is ideal for exploring the graph space and obtaining an initial
 ##' estimate of the graph structure or adjacency matrix.
@@ -31,27 +31,38 @@
 ##'
 ##' @seealso \code{\link{bma_posterior}}
 ##'
-##' @param x Data, either raw data or covariance matrix 
+##' @param x Data, either raw data or covariance matrix
 ##' @param n For x = covariance matrix, provide number of observations
 ##' @param method mc3 defaults to MH sampling
-##' @param prior_prob Prior prbability of sparseness. 
+##' @param prior_prob Prior prbability of sparseness.
 ##' @param iter Number of iterations
-##' #@param burn_in Burn in. Defaults to iter/2
-##' @param stop_early Default to 1000. Stop the search early if proposals keep being rejected (stopping by default after 1000 consecutive rejections).
+##' @param burn_in Number of initial iterations discarded before computing
+##'   the BMA solution. Defaults to \code{iter / 2}. Only meaningful when
+##'   \code{probabilistic = TRUE} (a greedy hill-climb has no transient to
+##'   burn in — its BIC trajectory is monotone non-increasing).
+##' @param stop_early Default to 1000. Only used when \code{probabilistic =
+##'   FALSE}: stop the greedy search early if proposals keep being rejected
+##'   (stopping by default after 1000 consecutive rejections). Ignored under
+##'   probabilistic search, which always runs the full \code{iter} iterations
+##'   since rejections are an expected, normal part of MH sampling.
 ##' @param bma_mean Compute Bayesian Model Averaged solution
 ##' @param seed Set seed. Current default is to set R's random seed.
 ##' @param progress Show progress bar, defaults to TRUE
+##' @param probabilistic Defaults to TRUE: a genuine Metropolis-Hastings
+##'   sampler over graph structures (see Details). Set to FALSE for the
+##'   deterministic greedy hill-climb instead.
 ##' @param ... Not currently in use
 ##' @author Donny Williams and Philippe Rast
 ggm_search <- function(x, n = NULL,
                        method = "mc3",
                        prior_prob = 0.3,
                        iter = 5000,
-                       #burn_in = NULL, 
+                       burn_in = NULL,
                        stop_early = 1000,
                        bma_mean = TRUE,
                        seed = NULL,
-                       progress = TRUE, ...){
+                       progress = TRUE,
+                       probabilistic = TRUE, ...){
 
   set.seed(seed)
   ## Random seed unless user provided
@@ -109,7 +120,8 @@ ggm_search <- function(x, n = NULL,
                   n = n,
                   gamma = prior_prob,
                   stop_early = stop_early,
-                  progress = progress)
+                  progress = progress,
+                  probabilistic = probabilistic)
 
     if(isTRUE(progress)){
       message("BGGM: Finished")
@@ -122,11 +134,10 @@ ggm_search <- function(x, n = NULL,
     fit$adj[,,1] <- adj_start
 
     ## Add a burnin unless defined by user
-    burn_in = 0 # Drop this line once we found solution to creeping BIC in ggm_search MH algo
     if(is.null(burn_in)) {
-      burn_in <- round(iter/2) 
+      burn_in <- round(iter/2)
     }
-   
+
     # approximate marginal likelihood
     approx_marg_ll <- fit$bics
 
@@ -168,15 +179,23 @@ ggm_search <- function(x, n = NULL,
     ## Partial Correlation for the MPM model
     pcor_adj <- -cov2cor(Theta_map$Theta) + diag(2, p)
 
+    ## Discard the pre-burn-in transient. Only meaningful for the
+    ## probabilistic sampler -- a greedy hill-climb's BIC trajectory is
+    ## monotone non-increasing and typically gets stuck after very few
+    ## accepted moves, so discarding its early samples would throw away the
+    ## only useful ones. MAP selection above intentionally used the full
+    ## trajectory (a good graph found early shouldn't be discarded); this
+    ## trims what's used for BMA below *and* what's returned/stored, so
+    ## bma_posterior() (which re-derives graph counts from the returned
+    ## approx_marg_ll/adj_path) stays consistent with probs computed here.
+    if (probabilistic && burn_in > 0 && burn_in < length(approx_marg_ll)) {
+      bma_range <- (burn_in + 1):length(approx_marg_ll)
+      approx_marg_ll <- approx_marg_ll[bma_range]
+      adj_path <- adj_path[,, bma_range]
+    }
+
   }
 
-    ## ## Keep samples after burn-in
-    ## valid_indices <- (burn_in + 1):length(approx_marg_ll)  
-    ## ## Filter BICs and adjacency matrices
-    ## approx_marg_ll <- approx_marg_ll[valid_indices]
-    ## adj_path <- adj_path[,, valid_indices]
-
-  
   if(bma_mean & acc > 0){
 
     graph_ids <-  which(duplicated(approx_marg_ll) == 0)[-1]

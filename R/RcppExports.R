@@ -129,8 +129,8 @@ find_ids <- function(x) {
     .Call(`_BGGM_find_ids`, x)
 }
 
-search <- function(S, iter, old_bic, start_adj, n, gamma, stop_early, progress) {
-    .Call(`_BGGM_search`, S, iter, old_bic, start_adj, n, gamma, stop_early, progress)
+search <- function(S, iter, old_bic, start_adj, n, gamma, stop_early, progress, probabilistic = TRUE) {
+    .Call(`_BGGM_search`, S, iter, old_bic, start_adj, n, gamma, stop_early, progress, probabilistic)
 }
 
 fast_g_matrix_F <- function(Y, adj, mu_samples, cov_samples, iter, p, N, prior_sd, kappa1, progress) {

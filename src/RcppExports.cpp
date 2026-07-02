@@ -475,8 +475,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // search
-Rcpp::List search(arma::mat S, float iter, double old_bic, arma::mat start_adj, float n, float gamma, int stop_early, bool progress);
-RcppExport SEXP _BGGM_search(SEXP SSEXP, SEXP iterSEXP, SEXP old_bicSEXP, SEXP start_adjSEXP, SEXP nSEXP, SEXP gammaSEXP, SEXP stop_earlySEXP, SEXP progressSEXP) {
+Rcpp::List search(arma::mat S, float iter, double old_bic, arma::mat start_adj, float n, float gamma, int stop_early, bool progress, bool probabilistic);
+RcppExport SEXP _BGGM_search(SEXP SSEXP, SEXP iterSEXP, SEXP old_bicSEXP, SEXP start_adjSEXP, SEXP nSEXP, SEXP gammaSEXP, SEXP stop_earlySEXP, SEXP progressSEXP, SEXP probabilisticSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -488,7 +488,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< float >::type gamma(gammaSEXP);
     Rcpp::traits::input_parameter< int >::type stop_early(stop_earlySEXP);
     Rcpp::traits::input_parameter< bool >::type progress(progressSEXP);
-    rcpp_result_gen = Rcpp::wrap(search(S, iter, old_bic, start_adj, n, gamma, stop_early, progress));
+    Rcpp::traits::input_parameter< bool >::type probabilistic(probabilisticSEXP);
+    rcpp_result_gen = Rcpp::wrap(search(S, iter, old_bic, start_adj, n, gamma, stop_early, progress, probabilistic));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -601,7 +602,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_BGGM_hft_algorithm", (DL_FUNC) &_BGGM_hft_algorithm, 4},
     {"_BGGM_bic_fast", (DL_FUNC) &_BGGM_bic_fast, 4},
     {"_BGGM_find_ids", (DL_FUNC) &_BGGM_find_ids, 1},
-    {"_BGGM_search", (DL_FUNC) &_BGGM_search, 8},
+    {"_BGGM_search", (DL_FUNC) &_BGGM_search, 9},
     {"_BGGM_fast_g_matrix_F", (DL_FUNC) &_BGGM_fast_g_matrix_F, 10},
     {"_BGGM_contrained_helper", (DL_FUNC) &_BGGM_contrained_helper, 4},
     {"_BGGM_missing_copula", (DL_FUNC) &_BGGM_missing_copula, 11},

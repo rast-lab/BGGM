@@ -2118,9 +2118,26 @@ Rcpp::List find_ids(arma::mat x){
   return ret;
 }
 
-// Search for possible graphs, accepting if BIC_new is better than BIC_old
-// MH algo does not work probabilistically - accept only better, never worse.
-// Revisit this function 
+// Search for possible graphs.
+//
+// probabilistic = false (default): greedy hill-climb, accepting a proposed
+// edge flip only if it improves (lowers) BIC. Deterministic, order of moves
+// alternates add/remove by iteration parity.
+//
+// probabilistic = true: genuine Metropolis-Hastings sampler over graph
+// structures. Move type (add/remove) is chosen by an independent coin flip
+// each iteration (required for the alternating add/remove kernels to each
+// be pi-invariant; deterministic parity-based alternation does not satisfy
+// detailed balance). The acceptance ratio includes a birth-death Hastings
+// correction for the proposal-size asymmetry between the add move (drawn
+// uniformly from the current zero set) and its reverse remove move (drawn
+// uniformly from the *resulting* nonzero set, one larger) - and vice versa
+// for a remove move. Without this correction, edges added/removed early in
+// the chain become steadily harder to reverse as the zero/nonzero sets
+// drift apart in size, biasing the walk (this - compounded by a variable-
+// shadowing bug that used to leave the proposal sets frozen at their
+// starting values entirely - is the most likely explanation for the
+// "creeping BIC" observed when probabilistic acceptance was last tried).
 // [[Rcpp::export]]
 Rcpp::List search(arma::mat S,
                   float iter,
@@ -2129,33 +2146,34 @@ Rcpp::List search(arma::mat S,
                   float n,
                   float gamma,
                   int stop_early,
-                  bool progress){
+                  bool progress,
+                  bool probabilistic = true){
 
   Progress  pr(iter, progress);
 
   int p = S.n_cols;
 
   arma::cube adj(p, p, iter);
-  
+
   // Copy start_adj to adj_s
-  arma::mat adj_s = start_adj; 
+  arma::mat adj_s = start_adj;
 
   // Create start object containing position of zero and nonzeros
   Rcpp::List start = find_ids(start_adj);
-  
+
   arma::uvec zeros = start["zero"];
   arma::uvec nonzeros = start["nonzero"];
 
   // Use adj_start from R
   arma::mat mat_old = start_adj;
   // Initialize adj_mat to match mat_old
-  arma::mat adj_mat = mat_old;    
-  
+  arma::mat adj_mat = mat_old;
+
   // initialize vectors
   arma::vec bics(iter, arma::fill::zeros);
   arma::vec acc(1, arma::fill::zeros);
   arma::vec repeats(1, arma::fill::zeros);
- 
+
   // Loop through iterations
   for(int s = 0; s < iter; ++s){
 
@@ -2166,12 +2184,12 @@ Rcpp::List search(arma::mat S,
     if (s % 250 == 0){
       Rcpp::checkUserInterrupt();
     }
-    
+
     adj_s = mat_old;
 
     // Flip one edge at a time
     // Handle edge cases where zeros or nonzeros might be empty
-    bool try_add = (s % 2 == 0);
+    bool try_add = probabilistic ? (R::unif_rand() < 0.5) : (s % 2 == 0);
 
     // If we want to add but zeros is empty, try to remove instead
     if (try_add && zeros.n_elem == 0) {
@@ -2188,6 +2206,10 @@ Rcpp::List search(arma::mat S,
       continue;
     }
 
+    // proposal-set sizes before the flip, needed for the Hastings ratio
+    double n_zeros_old = static_cast<double>(zeros.n_elem);
+    double n_nonzeros_old = static_cast<double>(nonzeros.n_elem);
+
     if (try_add) {
       arma::vec id_add = Rcpp::RcppArmadillo::sample(arma::conv_to<arma::vec>::from(zeros), 1, false);
       adj_s.elem(arma::conv_to<arma::uvec>::from(id_add)).fill(1);
@@ -2199,41 +2221,53 @@ Rcpp::List search(arma::mat S,
     // Ensure that adj_mat is symmetric
     adj_mat = symmatu(adj_s);
     adj_mat.diag().fill(1);
-    
+
     // Run the hft_algorithm and compute the BIC
     Rcpp::List fit1 = hft_algorithm(S, adj_mat, 0.00001, 10);
     arma::mat  Theta = fit1["Theta"];
     double new_bic = bic_fast(Theta, S, n, gamma);
-    
+
     // Specifically compute delta to facilitate debugging
     double delta =  new_bic - old_bic;
 
-    // Generate a random uniform number for probabilistic acceptance
-    // double random_uniform = arma::randu();
+    bool accept;
+    if (probabilistic) {
+      // birth-death Hastings correction: reverse move draws uniformly from
+      // the *other* set after this flip (one larger than it was before)
+      double log_hastings = try_add
+        ? std::log(n_zeros_old) - std::log(n_nonzeros_old + 1.0)
+        : std::log(n_nonzeros_old) - std::log(n_zeros_old + 1.0);
+      double log_accept = -0.5 * delta + log_hastings;
+      accept = log_accept >= std::log(R::unif_rand());
+    } else {
+      // greedy hill-climb: accept only if BIC improves
+      accept = exp(-0.5 * delta) >= 1;
+    }
 
-    // Metropolis-Hastings acceptance criterion
-    if(exp(-0.5 *  delta ) >= 1) { //random_uniform ){
-      // go back to >=1, as accepting probabilistically has BIC creep up for unknown reason
+    if (accept) {
       mat_old = adj_mat;
       adj.slice(s) = adj_mat;
       old_bic = new_bic;
       acc(0)++;
       repeats(0) = 0;
-      Rcpp::List start =  find_ids(adj_mat);
-      arma::uvec zeros = start["zero"];
-      arma::uvec nonzeros = start["nonzero"];
+      start = find_ids(adj_mat);
+      zeros = Rcpp::as<arma::uvec>(start["zero"]);
+      nonzeros = Rcpp::as<arma::uvec>(start["nonzero"]);
     } else {
       adj.slice(s) = mat_old;
       repeats(0)++;
     }
-    
+
     bics(s) = old_bic;
 
-    if(repeats(0) > stop_early){
+    // stop_early is a "stuck" heuristic for the greedy hill-climb; a
+    // probabilistic chain is expected to reject often as a normal part of
+    // exploring, so it always runs the full requested number of iterations
+    if (!probabilistic && repeats(0) > stop_early) {
       Rcpp::Rcout << "Stopping early at iteration " << s << std::endl;
       break;
-    } 
-    
+    }
+
   }
 
   Rcpp::List ret;
