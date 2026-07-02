@@ -58,10 +58,13 @@ test_that("var_estimate handles different number of variables", {
 })
 
 # Test prior specification
-test_that("var_estimate accepts prior_sd parameter", {
+test_that("var_estimate accepts rho_sd parameter", {
+  # real parameter name for the correlation prior; a nonexistent
+  # `prior_sd` was silently swallowed by `...` here previously, so this
+  # test always ran with default priors regardless of what it passed
   result <- var_estimate(
     test_ts_data,
-    prior_sd = 0.5,
+    rho_sd = 0.5,
     iter = 50,
     progress = FALSE
   )
@@ -121,22 +124,10 @@ test_that("var_estimate handles minimum viable time series", {
   expect_s3_class(result, "var_estimate")
 })
 
-# Test plot method (if exists)
-test_that("plot.var_estimate works without error", {
-  fit <- var_estimate(test_ts_data, iter = 50, progress = FALSE)
-
-  # This may or may not have a plot method
-  # Using tryCatch to handle case where no plot method exists
-  result <- tryCatch(
-    {
-      plot(fit)
-      TRUE
-    },
-    error = function(e) FALSE
-  )
-
-  expect_true(is.logical(result))
-})
+# Note: there is no plot.var_estimate method (confirmed against NAMESPACE's
+# registered S3 methods), only plot.summary.var_estimate -- plot(fit)
+# directly dispatches to plot.default and errors. See "plot.summary.var_estimate
+# works" below for real coverage of the correct usage (plot(summary(fit))).
 
 # ============================================
 # Additional tests for coverage

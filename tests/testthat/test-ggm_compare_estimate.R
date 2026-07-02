@@ -127,22 +127,20 @@ test_that("select works with ggm_compare_estimate", {
 })
 
 # Test plot method
-test_that("plot.ggm_compare_estimate works without error", {
+test_that("plot.summary.ggm_compare_estimate works", {
+  # no plot.ggm_compare_estimate method exists (confirmed against
+  # NAMESPACE's registered S3 methods) -- summary() first, matching the
+  # registered plot.summary.ggm_compare_estimate method. plot(fit) directly
+  # dispatches to plot.default and errors.
   fit <- ggm_compare_estimate(
     group1, group2,
     iter = 50,
     progress = FALSE
   )
 
-  result <- tryCatch(
-    {
-      plot(fit)
-      TRUE
-    },
-    error = function(e) FALSE
-  )
+  result <- plot(summary(fit))
 
-  expect_true(is.logical(result))
+  expect_true(is.list(result))
 })
 
 # Test with formula (control variables)

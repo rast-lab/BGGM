@@ -34,7 +34,7 @@ test_that("ggm_compare_ppc returns correct structure", {
   )
 
   # Should contain ppc-related elements
-  expect_true(any(c("ppp_jsd", "ppp_sse", "predictive_jsd") %in% names(result)))
+  expect_true(all(c("ppp_jsd", "ppp_sse", "predictive_jsd") %in% names(result)))
 })
 
 test_that("ggm_compare_ppc works with three groups", {
@@ -87,22 +87,16 @@ test_that("print.ggm_compare_ppc works", {
 })
 
 # Test plot method
-test_that("plot.ggm_compare_ppc works without error", {
+test_that("plot.ggm_compare_ppc works", {
   fit <- ggm_compare_ppc(
     group1, group2,
     iter = 50,
     progress = FALSE
   )
 
-  result <- tryCatch(
-    {
-      plot(fit)
-      TRUE
-    },
-    error = function(e) FALSE
-  )
+  result <- plot(fit)
 
-  expect_true(is.logical(result))
+  expect_true(is.list(result))
 })
 
 # Test with unequal group sizes
@@ -130,7 +124,7 @@ test_that("ggm_compare_ppc returns p-values", {
   )
 
   # Should have p-value information
-  expect_true("ppp_jsd" %in% names(result) || "ppp_sse" %in% names(result))
+  expect_true(all(c("ppp_jsd", "ppp_sse") %in% names(result)))
 })
 
 # Test p-values are in valid range
@@ -141,8 +135,6 @@ test_that("ggm_compare_ppc p-values are between 0 and 1", {
     progress = FALSE
   )
 
-  if ("ppp_jsd" %in% names(result)) {
-    pvals <- unlist(result$ppp_jsd)
-    expect_true(all(pvals >= 0 & pvals <= 1, na.rm = TRUE))
-  }
+  pvals <- unlist(result$ppp_jsd)
+  expect_true(all(pvals >= 0 & pvals <= 1, na.rm = TRUE))
 })

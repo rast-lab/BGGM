@@ -35,8 +35,9 @@ test_that("ggm_compare_explore returns correct structure", {
     progress = FALSE
   )
 
-  # Should contain Bayes factors or posterior probabilities
-  expect_true(any(c("BF", "post_prob", "BF_10", "info") %in% names(result)))
+  # Should contain the Bayes factor and pairwise partial-correlation
+  # difference fields
+  expect_true(all(c("BF_01", "pcor_diff", "info") %in% names(result)))
 })
 
 test_that("ggm_compare_explore works with three groups", {
@@ -120,21 +121,19 @@ test_that("select works with ggm_compare_explore", {
 })
 
 # Test plot method
-test_that("plot.ggm_compare_explore works without error", {
+test_that("plot.summary.ggm_compare_explore works", {
+  # no plot.ggm_compare_explore method exists (confirmed against
+  # NAMESPACE's registered S3 methods) -- summary() first, matching the
+  # registered plot.summary.ggm_compare_explore method. plot(fit) directly
+  # dispatches to plot.default and errors.
   fit <- ggm_compare_explore(
     group1, group2,
     progress = FALSE
   )
 
-  result <- tryCatch(
-    {
-      plot(fit)
-      TRUE
-    },
-    error = function(e) FALSE
-  )
+  result <- plot(summary(fit))
 
-  expect_true(is.logical(result))
+  expect_s3_class(result, "ggplot")
 })
 
 # Test with formula (control variables)

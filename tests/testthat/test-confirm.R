@@ -205,8 +205,8 @@ test_that("confirm returns Bayes factors", {
     progress = FALSE
   )
 
-  # Should have BF information
-  expect_true(any(c("BF", "BF_01", "BF_10", "info") %in% names(result)))
+  # Should have Bayes factor matrix and posterior hypothesis probabilities
+  expect_true(all(c("BF_matrix", "out_hyp_prob", "info") %in% names(result)))
 })
 
 # Test hypothesis with zero comparison
