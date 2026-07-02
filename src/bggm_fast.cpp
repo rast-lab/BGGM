@@ -61,15 +61,6 @@ double etruncnorm(double mu, double sigma, double lower, double upper) {
   return mean;
 }
 
-double truncated_cdf_diff(double mu, double sigma, double lower, double upper) {
-  double clipped_lower = clamp_probit_bound(lower);
-  double clipped_upper = clamp_probit_bound(upper);
-  double lower_cdf = Phi((clipped_lower - mu) / sigma);
-  double upper_cdf = Phi((clipped_upper - mu) / sigma);
-  double diff = upper_cdf - lower_cdf;
-  return std::max(diff, 1e-12);
-}
-
 double rtnorm(double mu, double sigma, double lower, double upper) {
   double clipped_lower = clamp_probit_bound(lower);
   double clipped_upper = clamp_probit_bound(upper);
@@ -172,19 +163,7 @@ double quantile_type_1(arma::vec x, double prob){
 
   float j = floor(nppm);
 
-  //float h = 0;
-
   float qs = 0;
-
-  // if(nppm > j){
-  //
-  //   float h = 1;
-  //
-  // } else {
-  //
-  //   float h = 0;
-  //
-  // }
 
   arma::mat x_1(2, 1);
   arma::mat x_n(2, 1);
@@ -1116,37 +1095,9 @@ Rcpp::List mv_binary(arma::mat Y,
     S_Y =   w.t() * w + I_k - M.t() * S_X * M;
 
     // sample Psi
-    // Debugging:
-    // Declare the bmpinv variable
-    // arma::mat bmpinv;
-    // bmpinv = inv(BMPinv + Theta.slice(0));
-    // if (!bmpinv.is_sympd()) {
-    //   // Print the bmpinv matrix for debugging
-    //   bmpinv.print("bmpinv matrix:");
-    //   Rcpp::stop("bmpinv matrix is not symmetric positive definite.");
-    // }
-    // END Debug
-
     Psi.slice(0) = wishrnd(inv(BMPinv + Theta.slice(0)), nuMP + deltaMP + k - 1);
 
     // sample Theta
-    // Debugging:
-    // Declare the psisl variable
-    // arma::mat psisl;
-    // psisl = inv(Psi.slice(0) + S_Y);
-    // if (!psisl.is_sympd()) {
-    //   // Print the matrix for debugging
-    //   Psi.slice(0).print("Psi.slice(0):" );
-    //   S_Y.print("S_Y:");
-    //   w.print("w:" );
-    //   I_k.print("I_k:");
-    //   M.print("M:");
-    //   S_X.print("S_X:");
-    //   psisl.print("psisl matrix:");
-    //   Rcpp::stop("psisl matrix is not symmetric positive definite.");
-    // }
-    // END Debug
-
     Theta.slice(0) =   wishrnd(inv(Psi.slice(0) + S_Y),  (deltaMP + k - 1) + (n - 1));
 
     // Sigma
