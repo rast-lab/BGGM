@@ -96,24 +96,6 @@
 #'}
 #'
 #' @export
-
-# ggnet2() errors ("incorrect `edge.color` value") when a network has zero
-# edges: edge.color/edge.alpha/edge.size reference an edge attribute or a
-# per-edge vector, and there's nothing for it to resolve. This is a real
-# case (e.g. no edges survive selection), not just a hypothetical one, so
-# drop those arguments when the network is empty -- ggnet2() handles that
-# fine on its own (it's the pattern already used for the null/ambiguous
-# networks elsewhere in this file).
-safe_ggnet2 <- function(net, ...) {
-  args <- list(...)
-  if (network::network.edgecount(net) == 0) {
-    args$edge.alpha <- NULL
-    args$edge.size <- NULL
-    args$edge.color <- NULL
-  }
-  do.call(GGally::ggnet2, c(list(net), args))
-}
-
 plot.select <- function(x,
                         layout = "circle",
                         pos_col = "#009E73",
@@ -1151,5 +1133,22 @@ plot.select <- function(x,
    stop("object class not currently supported")
  }
 
+}
+
+# Internal helper (not exported): ggnet2() errors ("incorrect `edge.color`
+# value") when a network has zero edges, because edge.color/edge.alpha/edge.size
+# reference an edge attribute or a per-edge vector and there's nothing for it to
+# resolve. This is a real case (e.g. no edges survive selection), not just a
+# hypothetical one, so drop those arguments when the network is empty -- ggnet2()
+# handles that fine on its own (it's the pattern already used for the
+# null/ambiguous networks elsewhere in this file).
+safe_ggnet2 <- function(net, ...) {
+  args <- list(...)
+  if (network::network.edgecount(net) == 0) {
+    args$edge.alpha <- NULL
+    args$edge.size <- NULL
+    args$edge.color <- NULL
+  }
+  do.call(GGally::ggnet2, c(list(net), args))
 }
 
