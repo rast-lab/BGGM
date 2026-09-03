@@ -23,7 +23,13 @@
 #'        }
 #'
 #' @param BF_cut Numeric. Bayes factor threshold for including an edge when
-#'        \code{method = "BF_cut"} (defaults to 3).
+#'        \code{method = "BF_cut"} (defaults to 3). For
+#'        \code{alternative = "exhaustive"} the threshold is applied to the Bayes
+#'        factor of each hypothesis (null, positive, negative) against its
+#'        complement, under equal prior hypothesis probabilities of \code{1/3};
+#'        because the prior odds against the complement are then \code{1:2}, a
+#'        cutoff of \code{BF_cut = 3} corresponds to a posterior hypothesis
+#'        probability of \code{0.6} (not \code{0.75}).
 #'
 #' @param prior.prob.H0 Numeric between 0 and 1. Prior probability assigned
 #'        to the null hypothesis for each edge when
@@ -308,9 +314,20 @@ select.explore <- function(object,
       )
       row.names(prob_dat) <- c()
 
-      null_mat <- ifelse(prob_null    > hyp_prob, 1, 0)
-      pos_mat  <- ifelse(prob_greater > hyp_prob, 1, 0)
-      neg_mat  <- ifelse(prob_less    > hyp_prob, 1, 0)
+      # Selection thresholds the Bayes factor of each hypothesis against its
+      # COMPLEMENT against BF_cut, so BF_cut literally means "Bayes factor >
+      # BF_cut" (as the argument name implies). Under the exhaustive test's
+      # equal 1/3 priors, the prior odds of H_k versus its complement are 1:2,
+      # so BF_{k,!k} = 2 * P(H_k|Y) / (1 - P(H_k|Y)). Note this is NOT the
+      # posterior-probability threshold BF_cut/(BF_cut+1): e.g. BF_cut = 3
+      # corresponds to P(H_k|Y) > 0.6, not 0.75.
+      BF_null_comp <- 2 * prob_null    / (1 - prob_null)
+      BF_pos_comp  <- 2 * prob_greater / (1 - prob_greater)
+      BF_neg_comp  <- 2 * prob_less    / (1 - prob_less)
+
+      null_mat <- ifelse(BF_null_comp > BF_cut, 1, 0)
+      pos_mat  <- ifelse(BF_pos_comp  > BF_cut, 1, 0)
+      neg_mat  <- ifelse(BF_neg_comp  > BF_cut, 1, 0)
 
       returned_object <- list(
         post_prob      = prob_dat,

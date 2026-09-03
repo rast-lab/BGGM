@@ -24,6 +24,18 @@
   in one-sided BMA alternatives.
 
 ### Bug fixes
+- **`select.explore()` exhaustive `method = "BF_cut"` now applies `BF_cut` as a
+  Bayes factor threshold** (behavior change): edge state selection
+  (`null_mat`/`pos_mat`/`neg_mat`) previously thresholded the posterior hypothesis
+  probability at `BF_cut/(BF_cut + 1)` (0.75 for the default `BF_cut = 3`). Under
+  the exhaustive test's equal `1/3` hypothesis priors, the prior odds of a
+  hypothesis against its complement are `1:2`, so that 0.75 cut actually
+  corresponds to a Bayes factor of 6 against the complement, not 3. Selection now
+  thresholds the Bayes factor of each hypothesis against its complement,
+  `2 * P(H_k|Y) / (1 - P(H_k|Y))`, directly against `BF_cut` — so `BF_cut = 3`
+  means "Bayes factor > 3" (posterior probability > 0.6), matching the argument's
+  documented meaning. The reported posterior probabilities in `post_prob` are
+  unchanged, as is `method = "BMA"` (which uses `prior.prob.H0`).
 - **Corrected the `select.explore()` exhaustive posterior probabilities**: for
   `alternative = "exhaustive"`, the three-way posterior hypothesis probabilities
   (`post_prob`, and the derived `null_mat`/`pos_mat`/`neg_mat`) were computed with

@@ -32,7 +32,13 @@
        }}
 
 \item{BF_cut}{Numeric. Bayes factor threshold for including an edge when
-\code{method = "BF_cut"} (defaults to 3).}
+\code{method = "BF_cut"} (defaults to 3). For
+\code{alternative = "exhaustive"} the threshold is applied to the Bayes
+factor of each hypothesis (null, positive, negative) against its
+complement, under equal prior hypothesis probabilities of \code{1/3};
+because the prior odds against the complement are then \code{1:2}, a
+cutoff of \code{BF_cut = 3} corresponds to a posterior hypothesis
+probability of \code{0.6} (not \code{0.75}).}
 
 \item{prior.prob.H0}{Numeric between 0 and 1. Prior probability assigned
 to the null hypothesis for each edge when
@@ -40,9 +46,7 @@ to the null hypothesis for each edge when
 
 \item{alternative}{A character string specifying the alternative hypothesis. It
 must be one of "two.sided" (default), "greater", "less",
-or "exhaustive". See note for further details.
-Note that \code{alternative = "exhaustive"} is not supported
-for \code{method = "BMA"}.}
+or "exhaustive". See note for further details.}
 
 \item{...}{Currently ignored.}
 }
@@ -138,8 +142,13 @@ Y <- bfi[,1:10]
 # fit model
 fit <- explore(Y, progress = FALSE)
 
-# edge set
+# edge set (Bayes factor threshold)
 E <- select(fit,
+            alternative = "exhaustive")
+
+# edge set (Bayesian model averaging), with prior P(H0) = 0.5
+E <- select(fit,
+            method = "BMA",
             alternative = "exhaustive")
 
 }
