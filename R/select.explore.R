@@ -23,13 +23,7 @@
 #'        }
 #'
 #' @param BF_cut Numeric. Bayes factor threshold for including an edge when
-#'        \code{method = "BF_cut"} (defaults to 3). For
-#'        \code{alternative = "exhaustive"} the threshold is applied to the Bayes
-#'        factor of each hypothesis (null, positive, negative) against its
-#'        complement, under equal prior hypothesis probabilities of \code{1/3};
-#'        because the prior odds against the complement are then \code{1:2}, a
-#'        cutoff of \code{BF_cut = 3} corresponds to a posterior hypothesis
-#'        probability of \code{0.6} (not \code{0.75}).
+#'        \code{method = "BF_cut"} (defaults to 3). 
 #'
 #' @param prior.prob.H0 Numeric between 0 and 1. Prior probability assigned
 #'        to the null hypothesis for each edge when
@@ -48,7 +42,11 @@
 #' a positive, negative, or null relation \insertCite{@see Table 3 in @Williams2019_bf}{BGGM}.
 #'
 #' \code{method = "BF_cut"} performs edge selection using Bayes factor
-#' thresholding.
+#' thresholding. For \code{alternative = "exhaustive"} the threshold is
+#' applied to the Bayes factor of each hypothesis (null, positive, negative)
+#' against its complement, under equal prior hypothesis probabilities of \code{1/3};
+#' because the prior odds against the complement are then \code{1:2}, a cutoff
+#' of \code{BF_cut = 3} corresponds to a posterior hypothesis probability of \code{0.6}.
 #'
 #' \code{method = "BMA"} performs Bayesian model averaging by generating
 #' posterior draws from a spike-and-slab style mixture distribution for each
