@@ -56,26 +56,26 @@ regression_summary(fit_mv_ordinal)
 #>  
 #> A1 
 #>                       Post.mean Post.sd Cred.lb Cred.ub
-#> (Intercept)               1.057   0.121   0.824   1.290
-#> gender                   -0.512   0.059  -0.614  -0.401
-#> as.factor(education)2     0.133   0.123  -0.102   0.374
-#> as.factor(education)3    -0.124   0.095  -0.311   0.049
-#> as.factor(education)4    -0.415   0.107  -0.627  -0.200
-#> as.factor(education)5    -0.543   0.117  -0.758  -0.324
+#> (Intercept)               1.068   0.119   0.829   1.296
+#> gender                   -0.513   0.054  -0.618  -0.412
+#> as.factor(education)2     0.130   0.113  -0.101   0.333
+#> as.factor(education)3    -0.139   0.092  -0.320   0.020
+#> as.factor(education)4    -0.437   0.107  -0.654  -0.247
+#> as.factor(education)5    -0.556   0.103  -0.750  -0.363
 #> --- 
 #> A2 
 #>                       Post.mean Post.sd Cred.lb Cred.ub
-#> (Intercept)              -0.866   0.110  -1.094  -0.650
-#> gender                    0.480   0.049   0.387   0.576
-#> as.factor(education)2    -0.029   0.106  -0.247   0.164
-#> as.factor(education)3     0.118   0.085  -0.049   0.281
-#> as.factor(education)4    -0.032   0.096  -0.220   0.154
-#> as.factor(education)5     0.088   0.098  -0.100   0.266
+#> (Intercept)              -0.860   0.105  -1.053  -0.656
+#> gender                    0.478   0.047   0.393   0.561
+#> as.factor(education)2    -0.041   0.097  -0.212   0.127
+#> as.factor(education)3     0.120   0.079  -0.025   0.269
+#> as.factor(education)4    -0.041   0.091  -0.209   0.134
+#> as.factor(education)5     0.079   0.094  -0.095   0.247
 #> --- 
 #> Residual Correlation Matrix: 
 #>        A1     A2
-#> A1  1.000 -0.315
-#> A2 -0.315  1.000
+#> A1  1.000 -0.313
+#> A2 -0.313  1.000
 #> --- 
 # }
 ```

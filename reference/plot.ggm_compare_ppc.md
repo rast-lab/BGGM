@@ -91,11 +91,11 @@ plot(global_test)
 #> ℹ Please use `after_stat(quantile)` instead.
 #> ℹ The deprecated feature was likely used in the BGGM package.
 #>   Please report the issue at <https://github.com/rast-lab/BGGM/issues>.
-#> Picking joint bandwidth of 0.0153
+#> Picking joint bandwidth of 0.0148
 
 #> 
 #> $plot_jsd
-#> Picking joint bandwidth of 0.00804
+#> Picking joint bandwidth of 0.00724
 
 #> 
 # }

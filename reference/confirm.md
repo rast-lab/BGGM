@@ -287,9 +287,9 @@ test_cheat
 #> p(H2|data) = 0.005
 #> --- 
 #> Bayes factor matrix: 
-#>       H1     H2
-#> H1 1.000 209.69
-#> H2 0.005   1.00
+#>       H1      H2
+#> H1 1.000 219.207
+#> H2 0.005   1.000
 #> --- 
 #> note: equal hypothesis prior probabilities
 # }

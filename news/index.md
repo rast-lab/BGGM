@@ -13,14 +13,55 @@
   P(H0\|data) \> 0.5. The new `prior.prob.H0` argument (default 0.5)
   controls the prior probability assigned to the null (zero-edge)
   hypothesis; setting `prior.prob.H0 = 0.75` approximately recovers the
-  selection threshold of `BF_cut = 3`. One-sided alternatives
-  (`"greater"`, `"less"`) are supported; `"exhaustive"` is not (stops
-  with an informative error).
+  selection threshold of `BF_cut = 3`. All alternatives are supported,
+  including `"exhaustive"` (see below).
+- **`method = "BMA"` now supports `alternative = "exhaustive"`**: the
+  three-way test (null / positive / negative) is available under
+  Bayesian model averaging, matching the object structure of
+  `method = "BF_cut"` (`post_prob`, `null_mat`, `pos_mat`, `neg_mat`).
+  Two differences from `BF_cut`: (i) the prior hypothesis probabilities
+  are `prior.prob.H0` for the null and `(1 - prior.prob.H0)/2` for each
+  direction (so the default 0.5/0.25/0.25 matches the two-sided default,
+  rather than the fixed 1/3-1/3-1/3 of `BF_cut`); and (ii) each edge is
+  assigned to its most probable state, so every edge belongs to exactly
+  one of null, positive, or negative — whereas `BF_cut` can leave an
+  edge in none. Thanks to Joris Mulder for the suggestion.
 - **`truncnorm` added to `Imports`**: required for the truncated-normal
   draws used in one-sided BMA alternatives.
 
 #### Bug fixes
 
+- **Corrected the
+  [`select.explore()`](https://rast-lab.github.io/BGGM/reference/select.explore.md)
+  exhaustive posterior probabilities**: for
+  `alternative = "exhaustive"`, the three-way posterior hypothesis
+  probabilities (`post_prob`, and the derived
+  `null_mat`/`pos_mat`/`neg_mat`) were computed with the
+  positive/negative Bayes factors referenced to the null model `H0`
+  instead of the unrestricted model `Hu`, i.e. each carried an extra
+  factor of the two-sided Bayes factor. This double-counted the
+  two-sided evidence and yielded `P(H0) = 1/(1 + 2*BF10^2)` rather than
+  the correct `1/(1 + 2*BF10)` from Eq. 9 of Williams & Mulder (2019);
+  it inflated the null probability for weak edges and deflated it for
+  strong ones (the two agreed only at `BF10 = 1`). All three Bayes
+  factors are now referenced to `Hu` per Williams and Mulder (2019).
+  Affects both `method = "BF_cut"` and `method = "BMA"`.
+- **Fixed the prior density in the `"greater"` and
+  `"less"`/`"exhaustive"` selection branches of
+  [`select.explore()`](https://rast-lab.github.io/BGGM/reference/select.explore.md)**:
+  the `"greater"` branches averaged a hardcoded 3x3 prior mask
+  (`upper.tri(diag(3))`), giving wrong Bayes factors whenever the number
+  of variables was not 3; the `"less"` and `"exhaustive"` branches
+  averaged the (near-zero) matrix diagonal into the prior standard
+  deviation. All branches now average only the off-diagonal (edge) prior
+  SDs, matching the `"two.sided"` branch.
+- **Fixed a crash in [`summary()`](https://rdrr.io/r/base/summary.html)
+  for
+  [`select.explore()`](https://rast-lab.github.io/BGGM/reference/select.explore.md)
+  with `alternative = "less"`**: the `"less"` summary branch produced an
+  empty `Relation` column (`mat_names[upper.tri(mat_names)]` on an
+  already-flattened vector), causing a “differing number of rows” error.
+  The greater/less summaries now share one correct branch.
 - **Fixed `rref_ei` not found error**: Added `simple_rref()` function in
   `helpers.R` to replace commented-out
   [`pracma::rref()`](https://rdrr.io/pkg/pracma/man/rref.html) call.
