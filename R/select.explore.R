@@ -32,8 +32,6 @@
 #' @param alternative A character string specifying the alternative hypothesis. It
 #'                    must be one of "two.sided" (default), "greater", "less",
 #'                    or "exhaustive". See note for further details.
-#'                    Note that \code{alternative = "exhaustive"} is not supported
-#'                    for \code{method = "BMA"}.
 #'
 #' @param ... Currently ignored.
 #'
@@ -130,8 +128,13 @@
 #' # fit model
 #' fit <- explore(Y, progress = FALSE)
 #'
-#' # edge set
+#' # edge set (Bayes factor threshold)
 #' E <- select(fit,
+#'             alternative = "exhaustive")
+#'
+#' # edge set (Bayesian model averaging), with prior P(H0) = 0.5
+#' E <- select(fit,
+#'             method = "BMA",
 #'             alternative = "exhaustive")
 #'
 #' }
@@ -158,7 +161,7 @@ select.explore <- function(object,
       post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
       post_dens  <- dnorm(0, post_mean, post_sd)
       prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(diag(nrow(prior_sd)))]))
+      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
 
       BF_10_mat <- prior_dens / post_dens
       BF_01_mat <- 1 / BF_10_mat
@@ -194,7 +197,7 @@ select.explore <- function(object,
       post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
       post_dens  <- dnorm(0, post_mean, post_sd)
       prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(diag(3))]))
+      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
 
       BF_10_mat <- prior_dens / post_dens
       BF_20_mat <- BF_10_mat * ((1 - pnorm(0, post_mean, post_sd)) * 2)
@@ -231,7 +234,7 @@ select.explore <- function(object,
       post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
       post_dens  <- dnorm(0, post_mean, post_sd)
       prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-      prior_dens <- dnorm(0, 0, mean(prior_sd))
+      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
 
       BF_10_mat <- prior_dens / post_dens
       BF_20_mat <- BF_10_mat * (pnorm(0, post_mean, post_sd) * 2)
@@ -278,16 +281,24 @@ select.explore <- function(object,
       post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
       post_dens  <- dnorm(0, post_mean, post_sd)
       prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-      prior_dens <- dnorm(0, 0, mean(prior_sd))
+      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
 
-      BF_10_mat  <- prior_dens / post_dens
-      BF_less    <- BF_10_mat * (pnorm(0, post_mean, post_sd) * 2)
-      BF_greater <- BF_10_mat * ((1 - pnorm(0, post_mean, post_sd)) * 2)
-      BF_null    <- 1 / BF_10_mat
+      # Posterior hypothesis probabilities via Eq. 9 of Williams & Mulder
+      # (2019). All three Bayes factors are referenced to the unrestricted
+      # model H_u: BF_0u is the Savage-Dickey null-vs-unrestricted ratio
+      # (Eq. 6), while BF_1u / BF_2u are the one-sided-vs-unrestricted ratios
+      # (Eq. 8) -- these must NOT be multiplied by the two-sided BF_10, which
+      # would put them on the vs-H0 baseline and double-count the two-sided
+      # evidence. method = "BF_cut" assigns equal prior probabilities (1/3)
+      # to each hypothesis, which cancel in the normalisation below.
+      BF_0u <- post_dens / prior_dens
+      BF_1u <- (1 - pnorm(0, post_mean, post_sd)) * 2
+      BF_2u <- pnorm(0, post_mean, post_sd) * 2
 
-      prob_null    <- BF_null    / (BF_null + BF_greater + BF_less)
-      prob_greater <- BF_greater / (BF_null + BF_greater + BF_less)
-      prob_less    <- BF_less    / (BF_null + BF_greater + BF_less)
+      denom        <- BF_0u + BF_1u + BF_2u
+      prob_null    <- BF_0u / denom
+      prob_greater <- BF_1u / denom
+      prob_less    <- BF_2u / denom
 
       prob_dat <- data.frame(
         edge         = mat_names,
@@ -324,9 +335,6 @@ select.explore <- function(object,
 
   } else {
     # BMA
-    if (alternative == "exhaustive") {
-      stop("method = 'BMA' is not supported for alternative = 'exhaustive'")
-    }
 
     P        <- object$p
     indices  <- which(lower.tri(diag(P), diag = FALSE), arr.ind = TRUE)
@@ -356,7 +364,7 @@ select.explore <- function(object,
 
     if (alternative == "two.sided") {
 
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(diag(nrow(prior_sd)))]))
+      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
       BF_10_mat  <- prior_dens / post_dens
       BF_01_mat  <- 1 / BF_10_mat
       diag(BF_01_mat) <- 0
@@ -400,7 +408,7 @@ select.explore <- function(object,
 
     } else if (alternative == "greater") {
 
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(diag(3))]))
+      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
       BF_10_mat  <- prior_dens / post_dens
       BF_20_mat  <- BF_10_mat * ((1 - pnorm(0, post_mean, post_sd)) * 2)
       BF_02_mat  <- 1 / BF_20_mat
@@ -453,7 +461,7 @@ select.explore <- function(object,
 
     } else if (alternative == "less") {
 
-      prior_dens <- dnorm(0, 0, mean(prior_sd))
+      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
       BF_10_mat  <- prior_dens / post_dens
       BF_20_mat  <- BF_10_mat * (pnorm(0, post_mean, post_sd) * 2)
       BF_02_mat  <- 1 / BF_20_mat
@@ -498,6 +506,76 @@ select.explore <- function(object,
         method         = method,
         alternative    = alternative,
         call           = match.call(),
+        type           = x$type,
+        formula        = x$formula,
+        analytic       = x$analytic,
+        object         = object
+      )
+
+    } else if (alternative == "exhaustive") {
+
+      cn  <- colnames(x$Y)
+      p   <- ncol(x$pcor_mat)
+      I_p <- diag(p)
+
+      if (is.null(cn)) {
+        mat_names <- sapply(1:p, function(z) paste(1:p, z, sep = "--"))[upper.tri(I_p)]
+      } else {
+        mat_names <- sapply(cn, function(z) paste(cn, z, sep = "--"))[upper.tri(I_p)]
+      }
+
+      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
+
+      # Posterior hypothesis probabilities via Eq. 9 of Williams & Mulder
+      # (2019), with the three Bayes factors referenced to the unrestricted
+      # model H_u (see the method = "BF_cut" branch above for the baseline
+      # rationale). Unlike "BF_cut" (equal 1/3 priors), the null hypothesis
+      # is given prior probability prior.prob.H0 and the two directional
+      # hypotheses split the remainder equally.
+      BF_0u <- post_dens / prior_dens
+      BF_1u <- (1 - pnorm(0, post_mean, post_sd)) * 2
+      BF_2u <- pnorm(0, post_mean, post_sd) * 2
+
+      prior_H0 <- prior.prob.H0
+      prior_H1 <- prior_H2 <- (1 - prior.prob.H0) / 2
+
+      denom        <- prior_H0 * BF_0u + prior_H1 * BF_1u + prior_H2 * BF_2u
+      prob_null    <- prior_H0 * BF_0u / denom
+      prob_greater <- prior_H1 * BF_1u / denom
+      prob_less    <- prior_H2 * BF_2u / denom
+
+      prob_dat <- data.frame(
+        edge         = mat_names,
+        prob_zero    = prob_null[upper.tri(prob_null)],
+        prob_greater = prob_greater[upper.tri(prob_greater)],
+        prob_less    = prob_less[upper.tri(prob_less)]
+      )
+      row.names(prob_dat) <- c()
+
+      # Hard assignment: each edge is placed in the state (null, positive, or
+      # negative) with the largest posterior probability, so every edge
+      # belongs to exactly one state -- unlike "BF_cut", where an edge may
+      # belong to none when no probability exceeds the threshold.
+      largest        <- pmax(prob_null, prob_greater, prob_less)
+      null_mat       <- 1 * (prob_null    == largest)
+      pos_mat        <- 1 * (prob_greater == largest)
+      neg_mat        <- 1 * (prob_less    == largest)
+      diag(null_mat) <- 0
+      diag(pos_mat)  <- 0
+      diag(neg_mat)  <- 0
+
+      returned_object <- list(
+        post_prob      = prob_dat,
+        neg_mat        = neg_mat,
+        pos_mat        = pos_mat,
+        null_mat       = null_mat,
+        alternative    = alternative,
+        pcor_mat       = round(tanh(post_mean), 3),
+        pcor_sd_fisher = round(post_sd, 3),
+        call           = match.call(),
+        prob           = NA,
+        prior.prob.H0  = prior.prob.H0,
+        method         = method,
         type           = x$type,
         formula        = x$formula,
         analytic       = x$analytic,
@@ -670,7 +748,7 @@ summary.select.explore <- function(object,
       Pr.H1 = round(prob_H1, 3)
     )
 
-  } else if (x$alternative == "greater"){
+  } else if (x$alternative == "greater" | x$alternative == "less"){
 
     post_mean <- x$pcor_mat[upper.tri(x$pcor_mat)]
     post_sd <-  x$pcor_sd_fisher[upper.tri(x$pcor_sd_fisher)]
@@ -683,24 +761,6 @@ summary.select.explore <- function(object,
       Pr.H0 = round(prob_H0, 3),
       Pr.H1 = round(prob_H1, 3)
     )
-
-
-
-  } else if (x$alternative == "less" | x$alternative == "greater"){
-
-    post_mean <- x$pcor_mat[upper.tri(x$pcor_mat)]
-    post_sd <-  x$pcor_sd_fisher[upper.tri(x$pcor_sd_fisher)]
-    prob_H1 <- x$BF_20[upper.tri(x$BF_20)] / (x$BF_20[upper.tri(x$BF_20)] + 1)
-    prob_H0 <- 1 - prob_H1
-    summ <-  data.frame(
-      Relation = mat_names[upper.tri(mat_names)],
-      Post.mean = post_mean,
-      Post.sd.fisher = post_sd,
-      Pr.H0 = round(prob_H0, 3),
-      Pr.H1 = round(prob_H1, 3)
-    )
-
-
 
   } else {
 
