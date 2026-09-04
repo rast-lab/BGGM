@@ -410,9 +410,16 @@ test_that("exhaustive BF_cut ignores prior.prob.H0 (equal 1/3 priors)", {
   set.seed(123)
   Y <- BGGM::bfi[1:100, 1:5]
   fit <- explore(Y, iter = 100, progress = FALSE)
-  # prior.prob.H0 is a BMA argument; it must not affect the BF_cut result
-  a <- select(fit, BF_cut = 3, alternative = "exhaustive", prior.prob.H0 = 0.5)
-  b <- select(fit, BF_cut = 3, alternative = "exhaustive", prior.prob.H0 = 0.9)
+  # prior.prob.H0 is a BMA argument; under BF_cut it must not affect the
+  # result and it must warn the user that it is being ignored.
+  expect_warning(
+    select(fit, BF_cut = 3, alternative = "exhaustive", prior.prob.H0 = 0.9),
+    "ignored when method = \"BF_cut\""
+  )
+  a <- suppressWarnings(
+    select(fit, BF_cut = 3, alternative = "exhaustive", prior.prob.H0 = 0.5))
+  b <- suppressWarnings(
+    select(fit, BF_cut = 3, alternative = "exhaustive", prior.prob.H0 = 0.9))
   expect_equal(a$post_prob, b$post_prob)
   expect_equal(a$null_mat, b$null_mat)
 })

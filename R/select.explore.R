@@ -157,6 +157,21 @@ select.explore <- function(object,
   prior_samp <- x$prior_samp
   samp_idx   <- 51:x$iter
 
+  # prior.prob.H0 only affects method = "BMA". If the user explicitly set it
+  # while using method = "BF_cut", it has no effect on the result -- selection
+  # is driven entirely by the BF_cut threshold -- so remind them rather than
+  # let it pass silently.
+  if (method == "BF_cut" && "prior.prob.H0" %in% names(match.call())) {
+    warning(
+      paste0(
+        "'prior.prob.H0' is ignored when method = \"BF_cut\": edge selection ",
+        "is based on the 'BF_cut' Bayes-factor threshold (BF_cut = ", BF_cut,
+        "). Use method = \"BMA\" for 'prior.prob.H0' to take effect."
+      ),
+      call. = FALSE
+    )
+  }
+
   if (method == "BF_cut") {
 
     if (alternative == "two.sided") {
@@ -377,6 +392,69 @@ select.explore <- function(object,
       m
     }
 
+    # Restricted-posterior slab draws for edge `e`: n draws from the positive
+    # (> 0) or negative (< 0) part of the posterior partial correlation. When
+    # the sampled posterior has no draw on the required side, fall back to a
+    # truncated-normal approximation on the Fisher-z scale. Shared by the
+    # "greater", "less", and "exhaustive" BMA branches so their slab logic
+    # cannot drift apart.
+    .draw_positive_slab <- function(e, n) {
+      pos_idx <- which(object$post_samp$pcors[indices[e, 1], indices[e, 2], samp_idx] > 0)
+      if (length(pos_idx) > 0) {
+        object$post_samp$pcors[
+          indices[e, 1], indices[e, 2],
+          sample(samp_idx[pos_idx], size = n, replace = TRUE)
+        ]
+      } else {
+        tanh(truncnorm::rtruncnorm(n,
+                        mean = post_mean[indices[e, 1], indices[e, 2]],
+                        sd   = post_sd[indices[e, 1], indices[e, 2]],
+                        a    = 0))
+      }
+    }
+
+    .draw_negative_slab <- function(e, n) {
+      neg_idx <- which(object$post_samp$pcors[indices[e, 1], indices[e, 2], samp_idx] < 0)
+      if (length(neg_idx) > 0) {
+        object$post_samp$pcors[
+          indices[e, 1], indices[e, 2],
+          sample(samp_idx[neg_idx], size = n, replace = TRUE)
+        ]
+      } else {
+        tanh(truncnorm::rtruncnorm(n,
+                        mean = post_mean[indices[e, 1], indices[e, 2]],
+                        sd   = post_sd[indices[e, 1], indices[e, 2]],
+                        b    = 0))
+      }
+    }
+
+    # Three-state spike-and-slab BMA: the exhaustive analogue of .bma_matrix.
+    # For each edge, draw a hypothesis state H0 / H+ / H- with probabilities
+    # (p0, pplus, pminus) for each of x$iter draws, then set the draw to an
+    # exact 0 (H0), a positive slab draw (H+), or a negative slab draw (H-).
+    # The per-edge posterior median of this mixture is the model-averaged
+    # estimate -- it integrates over all three hypotheses rather than picking
+    # the single most probable one.
+    .bma_matrix_3state <- function(p0_vec, pplus_vec, pminus_vec) {
+      bma_draws <- do.call(cbind, lapply(seq_len(num_pcor), function(e) {
+        state <- sample(c(0L, 1L, 2L), size = x$iter, replace = TRUE,
+                        prob = c(p0_vec[e], pplus_vec[e], pminus_vec[e]))
+        vals  <- numeric(x$iter)
+        pos   <- which(state == 1L)
+        neg   <- which(state == 2L)
+        if (length(pos) > 0) vals[pos] <- .draw_positive_slab(e, length(pos))
+        if (length(neg) > 0) vals[neg] <- .draw_negative_slab(e, length(neg))
+        vals
+      }))
+      medians <- apply(bma_draws, 2, median)
+      m <- matrix(0, P, P)
+      for (i in seq_len(nrow(indices))) {
+        m[indices[i, 1], indices[i, 2]] <- medians[i]
+        m[indices[i, 2], indices[i, 1]] <- medians[i]
+      }
+      m
+    }
+
     if (alternative == "two.sided") {
 
       prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
@@ -436,18 +514,7 @@ select.explore <- function(object,
       incl_vec  <- 1 - excl_vec
 
       bma_matrix <- .bma_matrix(excl_vec, incl_vec, function(e, incl_pos) {
-        pos_idx <- which(object$post_samp$pcors[indices[e, 1], indices[e, 2], samp_idx] > 0)
-        if (length(pos_idx) > 0) {
-          object$post_samp$pcors[
-            indices[e, 1], indices[e, 2],
-            sample(samp_idx[pos_idx], size = length(incl_pos), replace = TRUE)
-          ]
-        } else {
-          tanh(truncnorm::rtruncnorm(length(incl_pos),
-                          mean = post_mean[indices[e, 1], indices[e, 2]],
-                          sd   = post_sd[indices[e, 1], indices[e, 2]],
-                          a    = 0))
-        }
+        .draw_positive_slab(e, length(incl_pos))
       })
 
       Adj_20 <- ifelse(bma_matrix != 0, 1, 0)
@@ -489,18 +556,7 @@ select.explore <- function(object,
       incl_vec  <- 1 - excl_vec
 
       bma_matrix <- .bma_matrix(excl_vec, incl_vec, function(e, incl_pos) {
-        neg_idx <- which(object$post_samp$pcors[indices[e, 1], indices[e, 2], samp_idx] < 0)
-        if (length(neg_idx) > 0) {
-          object$post_samp$pcors[
-            indices[e, 1], indices[e, 2],
-            sample(samp_idx[neg_idx], size = length(incl_pos), replace = TRUE)
-          ]
-        } else {
-          tanh(truncnorm::rtruncnorm(length(incl_pos),
-                          mean = post_mean[indices[e, 1], indices[e, 2]],
-                          sd   = post_sd[indices[e, 1], indices[e, 2]],
-                          b    = 0))
-        }
+        .draw_negative_slab(e, length(incl_pos))
       })
 
       Adj_20 <- ifelse(bma_matrix != 0, 1, 0)
@@ -567,20 +623,35 @@ select.explore <- function(object,
       )
       row.names(prob_dat) <- c()
 
-      # Hard assignment: each edge is placed in the state (null, positive, or
-      # negative) with the largest posterior probability, so every edge
-      # belongs to exactly one state -- unlike "BF_cut", where an edge may
-      # belong to none when no probability exceeds the threshold.
-      largest        <- pmax(prob_null, prob_greater, prob_less)
-      null_mat       <- 1 * (prob_null    == largest)
-      pos_mat        <- 1 * (prob_greater == largest)
-      neg_mat        <- 1 * (prob_less    == largest)
+      # Genuine three-state Bayesian model averaging: draw a spike-and-slab
+      # mixture with the null spike at 0, a positive slab, and a negative slab,
+      # mixed by the posterior hypothesis probabilities (prob_null,
+      # prob_greater, prob_less). pcor_mat_zero is the per-edge posterior
+      # median of that mixture -- the model-averaged estimate, the exhaustive
+      # analogue of the two-state BMA output.
+      p0_vec     <- prob_null[lower.tri(diag(P))]
+      pplus_vec  <- prob_greater[lower.tri(diag(P))]
+      pminus_vec <- prob_less[lower.tri(diag(P))]
+
+      bma_matrix <- .bma_matrix_3state(p0_vec, pplus_vec, pminus_vec)
+
+      # Classify each edge by the SIGN of the model-averaged median, not by the
+      # single most probable hypothesis. null_mat == 1 therefore means "the
+      # model-averaged median is 0" -- which can happen even when H0 is not the
+      # most probable hypothesis, e.g. when the positive and negative slabs
+      # roughly cancel. The three matrices are mutually exclusive by
+      # construction (a real number is > 0, < 0, or == 0), so this also removes
+      # the tie ambiguity of an argmax over equal probabilities.
+      pos_mat        <- 1 * (bma_matrix > 0)
+      neg_mat        <- 1 * (bma_matrix < 0)
+      null_mat       <- 1 * (bma_matrix == 0)
       diag(null_mat) <- 0
       diag(pos_mat)  <- 0
       diag(neg_mat)  <- 0
 
       returned_object <- list(
         post_prob      = prob_dat,
+        pcor_mat_zero  = bma_matrix,
         neg_mat        = neg_mat,
         pos_mat        = pos_mat,
         null_mat       = null_mat,
