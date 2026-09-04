@@ -283,13 +283,13 @@ test_cheat
 #> --- 
 #> Posterior prob: 
 #> 
-#> p(H1|data) = 0.996
-#> p(H2|data) = 0.004
+#> p(H1|data) = 0.995
+#> p(H2|data) = 0.005
 #> --- 
 #> Bayes factor matrix: 
 #>       H1      H2
-#> H1 1.000 230.917
-#> H2 0.004   1.000
+#> H1 1.000 215.672
+#> H2 0.005   1.000
 #> --- 
 #> note: equal hypothesis prior probabilities
 # }
