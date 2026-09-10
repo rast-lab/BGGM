@@ -427,7 +427,7 @@ test_that("exhaustive BF_cut ignores prior.prob.H0 (equal 1/3 priors)", {
   expect_equal(a$null_mat, b$null_mat)
 })
 
-# ---- BMA tests: will fail until method = "BMA" is implemented ----
+# ---- BMA tests ----
 
 test_that("BMA two.sided returns correct structure", {
   set.seed(123)
