@@ -54,7 +54,13 @@
 #' correlation), whereas the slab corresponds to posterior draws under the
 #' alternative hypothesis. Posterior model probabilities are computed from the
 #' Bayes factors and \code{prior.prob.H0}. The selected network is based on
-#' the posterior median of the resulting draws.
+#' the posterior median of the resulting draws. For
+#' \code{alternative = "exhaustive"} the mixture has three states -- a spike at
+#' zero (\eqn{H_0}), a positive slab (\eqn{H_+}), and a negative slab
+#' (\eqn{H_-}) -- mixed by the posterior hypothesis probabilities. The
+#' model-averaged partial correlations are returned in \code{pcor_mat_zero}, and
+#' \code{pos_mat}/\code{neg_mat}/\code{null_mat} classify each edge by the sign
+#' of that model-averaged median.
 #'
 #' @importFrom stats median
 #' @importFrom truncnorm rtruncnorm
@@ -103,17 +109,27 @@
 #'
 #' \itemize{
 #'
-#' \item \code{post_prob} A data frame that included the posterior hypothesis probabilities.
+#' \item \code{post_prob} A data frame of the posterior hypothesis probabilities
+#'                        \eqn{P(H_0 \mid Y)}, \eqn{P(H_+ \mid Y)}, and
+#'                        \eqn{P(H_- \mid Y)} for each relation (a null, positive,
+#'                        or negative partial correlation).
 #'
-#' \item \code{neg_mat} Adjacency matrix for which there was evidence for negative edges.
+#'  For \code{method = "BF_cut"} the following are hard hypothesis assignments;
+#'  for \code{method = "BMA"} they classify the sign of the model-averaged
+#'  posterior median (\code{pcor_mat_zero}), not the most probable hypothesis:
 #'
-#' \item \code{pos_mat} Adjacency matrix for which there was evidence for positive edges.
+#' \item \code{pos_mat} Adjacency matrix for positive edges.
 #'
-#' \item \code{neg_mat} Adjacency matrix for which there was
-#'                      evidence for the null hypothesis (see note).
+#' \item \code{neg_mat} Adjacency matrix for negative edges.
+#'
+#' \item \code{null_mat} Adjacency matrix for null edges (see note).
 #'
 #'  \item \code{pcor_mat} Partial correlation matrix (posterior mean). The weighted adjacency
 #'  matrices can be computed by multiplying \code{pcor_mat} with an adjacency matrix.
+#'
+#'  \item \code{pcor_mat_zero} (\code{method = "BMA"} only) Model-averaged
+#'  partial-correlation matrix. For each edge this is the posterior median of the
+#'  three-state mixture over the null, positive, and negative hypotheses.
 #'
 #' }
 #'
@@ -152,7 +168,6 @@ select.explore <- function(object,
 
   method     <- match.arg(method)
   x          <- object
-  hyp_prob   <- BF_cut / (BF_cut + 1)
   post_samp  <- x$post_samp
   prior_samp <- x$prior_samp
   samp_idx   <- 51:x$iter
@@ -351,7 +366,10 @@ select.explore <- function(object,
         pcor_mat       = round(tanh(post_mean), 3),
         pcor_sd_fisher = round(post_sd, 3),
         call           = match.call(),
-        prob           = hyp_prob,
+        # Posterior-probability threshold that BF_cut corresponds to under the
+        # exhaustive test's 1:2 prior odds: BF_cut = 3 => P(H_k|Y) > 0.6. This
+        # is BF_cut/(BF_cut+2), NOT the two-sided BF_cut/(BF_cut+1) = 0.75.
+        prob           = BF_cut / (BF_cut + 2),
         method         = method,
         type           = x$type,
         formula        = x$formula,
@@ -636,12 +654,14 @@ select.explore <- function(object,
       bma_matrix <- .bma_matrix_3state(p0_vec, pplus_vec, pminus_vec)
 
       # Classify each edge by the SIGN of the model-averaged median, not by the
-      # single most probable hypothesis. null_mat == 1 therefore means "the
-      # model-averaged median is 0" -- which can happen even when H0 is not the
-      # most probable hypothesis, e.g. when the positive and negative slabs
-      # roughly cancel. The three matrices are mutually exclusive by
-      # construction (a real number is > 0, < 0, or == 0), so this also removes
-      # the tie ambiguity of an argmax over equal probabilities.
+      # single most probable hypothesis. null_mat == 1 means that the
+      # model-averaged posterior median is 0. This can occur even when H0 is not
+      # the most probable hypothesis, because neither the positive nor the
+      # negative side contains more than half of the posterior mixture
+      # probability mass (the median is set by probability mass, not by the
+      # magnitudes of the slab draws). The three matrices are mutually exclusive
+      # by construction (a real number is > 0, < 0, or == 0), so this also
+      # removes the tie ambiguity of an argmax over equal probabilities.
       pos_mat        <- 1 * (bma_matrix > 0)
       neg_mat        <- 1 * (bma_matrix < 0)
       null_mat       <- 1 * (bma_matrix == 0)
