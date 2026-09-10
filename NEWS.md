@@ -14,6 +14,7 @@
   in one-sided BMA alternatives.
 
 ### Bug fixes
+- **Fixed `bggm_missing()` dropping the wrong column with `mice` >= 3.17.0** ([#2](https://github.com/rast-lab/BGGM/issues/2)): `bggm_missing()` removed the `.id` column from `mice::complete(action = "long")` by position (column 2), which was correct only before `mice` 3.17.0. Since `mice` 3.17.0 places `.imp`/`.id` in the last two columns, this stripped a real data column and let `.id` leak into the model, corrupting the data passed to `estimate()`/`explore()`. The column is now removed by name, which is robust to `mice`'s column order. Reported by \@LilyTeesson.
 - **Fixed `rref_ei` not found error**: Added `simple_rref()` function in `helpers.R` to replace commented-out `pracma::rref()` call. This fixes a crash in `create_matrices()` when validating constraint matrices for hypothesis testing with multiple groups.
 - **Fixed `ggm_search()` crash**: The C++ `search` function now handles edge cases where the adjacency matrix becomes all zeros or all ones, preventing "sample more elements than in x" errors.
 - **Fixed `qplot()` deprecation warning**: Replaced deprecated `qplot()` with `ggplot()` + `geom_density()` in `plot_prior()`.
