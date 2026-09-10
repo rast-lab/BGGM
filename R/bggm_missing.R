@@ -96,8 +96,9 @@ bggm_missing <- function(x, iter = 2000,
   # number of data sets
   n_data_sets <- length(unique(data_sets$.imp))
 
-  # remove row id
-  Y <- data_sets[,-c(2)]
+  # Remove .id by name because its position changed in mice >= 3.17.0
+  # (.imp is removed later).
+  Y <- data_sets[, !(names(data_sets) %in% ".id"), drop = FALSE]
 
   if(method == "explore"){
 

@@ -24,6 +24,7 @@
   in one-sided BMA alternatives.
 
 ### Bug fixes
+- **Fixed `bggm_missing()` dropping the wrong column with `mice` >= 3.17.0** ([#2](https://github.com/rast-lab/BGGM/issues/2)): `bggm_missing()` removed the `.id` column from `mice::complete(action = "long")` by position (column 2), which was correct only before `mice` 3.17.0. Since `mice` 3.17.0 places `.imp`/`.id` in the last two columns, this stripped a real data column and let `.id` leak into the model, corrupting the data passed to `estimate()`/`explore()`. The column is now removed by name, which is robust to `mice`'s column order. Reported by \@LilyTeesson.
 - **`select.explore()` exhaustive `method = "BF_cut"` now applies `BF_cut` as a
   Bayes factor threshold** (behavior change): edge state selection
   (`null_mat`/`pos_mat`/`neg_mat`) previously thresholded the posterior hypothesis
