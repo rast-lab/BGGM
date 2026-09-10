@@ -10,16 +10,21 @@
   (zero-edge) hypothesis; setting `prior.prob.H0 = 0.75` approximately recovers the
   selection threshold of `BF_cut = 3`. All alternatives are supported, including
   `"exhaustive"` (see below).
-- **`method = "BMA"` now supports `alternative = "exhaustive"`**: the three-way
-  test (null / positive / negative) is available under Bayesian model averaging,
-  matching the object structure of `method = "BF_cut"` (`post_prob`, `null_mat`,
-  `pos_mat`, `neg_mat`). Two differences from `BF_cut`: (i) the prior hypothesis
+- **`method = "BMA"` now supports `alternative = "exhaustive"`**: genuine
+  three-state Bayesian model averaging for the three-way test (null / positive /
+  negative). For each edge a spike-and-slab mixture is drawn with a spike at zero
+  (H0), a positive slab (H+), and a negative slab (H-), mixed by the posterior
+  hypothesis probabilities; the model-averaged partial correlations (the per-edge
+  posterior median of the mixture) are returned in `pcor_mat_zero`, and
+  `null_mat`/`pos_mat`/`neg_mat` classify each edge by the sign of that median.
+  This differs from `method = "BF_cut"` in two ways: (i) the prior hypothesis
   probabilities are `prior.prob.H0` for the null and `(1 - prior.prob.H0)/2` for
   each direction (so the default 0.5/0.25/0.25 matches the two-sided default,
-  rather than the fixed 1/3-1/3-1/3 of `BF_cut`); and (ii) each edge is assigned
-  to its most probable state, so every edge belongs to exactly one of null,
-  positive, or negative — whereas `BF_cut` can leave an edge in none. Thanks to
-  Joris Mulder for the suggestion.
+  rather than the fixed 1/3-1/3-1/3 of `BF_cut`); and (ii) classification is by
+  the sign of the model-averaged median rather than a hard hypothesis test, so
+  every edge belongs to exactly one of null, positive, or negative — whereas
+  `BF_cut` can leave an edge in none. Note that, like the other BMA alternatives,
+  the result is stochastic. Thanks to Joris Mulder for the suggestion.
 - **`truncnorm` added to `Imports`**: required for the truncated-normal draws used
   in one-sided BMA alternatives.
 

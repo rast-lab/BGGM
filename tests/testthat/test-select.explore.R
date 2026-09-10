@@ -340,14 +340,17 @@ test_that("pcor_mat_zero is nonzero where Adj_10 is 1 for two.sided", {
   }
 })
 
-test_that("exhaustive prob field equals BF_cut / (BF_cut + 1)", {
+test_that("exhaustive prob field equals BF_cut / (BF_cut + 2)", {
+  # Under the exhaustive test's 1:2 prior odds, BF_cut corresponds to a
+  # posterior hypothesis probability of BF_cut/(BF_cut+2) (0.6 for BF_cut = 3),
+  # not the two-sided BF_cut/(BF_cut+1) = 0.75.
   set.seed(123)
   Y <- BGGM::bfi[1:100, 1:5]
   fit <- explore(Y, iter = 100, progress = FALSE)
   BF_cut <- 3
   sel <- select(fit, BF_cut = BF_cut, alternative = "exhaustive")
 
-  expect_equal(sel$prob, BF_cut / (BF_cut + 1))
+  expect_equal(sel$prob, BF_cut / (BF_cut + 2))
 })
 
 test_that("Adj_20 is 1 exactly where BF_20 > BF_cut for greater", {
@@ -583,6 +586,44 @@ test_that("BMA exhaustive assigns every edge to exactly one state", {
   total <- sel$null_mat[od] + sel$pos_mat[od] + sel$neg_mat[od]
   expect_true(all(total == 1))
   expect_true(all(diag(sel$null_mat) == 0))
+})
+
+test_that("BMA exhaustive returns a symmetric model-averaged pcor_mat_zero", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, method = "BMA", alternative = "exhaustive")
+
+  expect_true("pcor_mat_zero" %in% names(sel))
+  expect_true(is.matrix(sel$pcor_mat_zero))
+  expect_true(isSymmetric(sel$pcor_mat_zero))
+})
+
+test_that("BMA exhaustive state matrices are the sign classification of pcor_mat_zero", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, method = "BMA", alternative = "exhaustive")
+
+  od <- upper.tri(sel$pcor_mat_zero)
+  expect_equal(sel$pos_mat[od],  as.numeric(sel$pcor_mat_zero[od] > 0))
+  expect_equal(sel$neg_mat[od],  as.numeric(sel$pcor_mat_zero[od] < 0))
+  expect_equal(sel$null_mat[od], as.numeric(sel$pcor_mat_zero[od] == 0))
+})
+
+test_that("BMA exhaustive with prior.prob.H0 = 1 shrinks every edge to the spike", {
+  # All posterior mixture mass is on H0, so every off-diagonal draw is exactly
+  # zero -- a clean regression test for the spike component of the mixture.
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, method = "BMA", alternative = "exhaustive", prior.prob.H0 = 1)
+
+  od <- upper.tri(sel$pcor_mat_zero)
+  expect_true(all(sel$pcor_mat_zero[od] == 0))
+  expect_true(all(sel$null_mat[od] == 1))
+  expect_true(all(sel$pos_mat[od] == 0))
+  expect_true(all(sel$neg_mat[od] == 0))
 })
 
 test_that("BMA exhaustive follows Eq. 9 with prior.prob.H0 weighting", {
