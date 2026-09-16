@@ -42,11 +42,15 @@
 #' a positive, negative, or null relation \insertCite{@see Table 3 in @Williams2019_bf}{BGGM}.
 #'
 #' \code{method = "BF_cut"} performs edge selection using Bayes factor
-#' thresholding. For \code{alternative = "exhaustive"} the threshold is
-#' applied to the Bayes factor of each hypothesis (null, positive, negative)
-#' against its complement, under equal prior hypothesis probabilities of \code{1/3};
-#' because the prior odds against the complement are then \code{1:2}, a cutoff
-#' of \code{BF_cut = 3} corresponds to a posterior hypothesis probability of \code{0.6}.
+#' thresholding. For \code{alternative = "exhaustive"}, \code{BF_cut} is
+#' translated into a cutoff for the posterior hypothesis probabilities: a
+#' hypothesis (null, positive, negative) is selected when its posterior odds
+#' against the other two hypotheses combined exceed \code{BF_cut}, i.e. when
+#' its posterior probability exceeds \code{BF_cut / (BF_cut + 1)} (0.75 for
+#' \code{BF_cut = 3}). The three hypotheses have equal prior probabilities
+#' (\code{1/3}), so the prior odds against the complement are \code{1:2} and this
+#' cutoff corresponds to a Bayes factor of \code{2 * BF_cut} against the complement.
+#' An edge can be assigned to none of the three hypotheses.
 #'
 #' \code{method = "BMA"} performs Bayesian model averaging by generating
 #' posterior draws from a spike-and-slab style mixture distribution for each
@@ -342,20 +346,17 @@ select.explore <- function(object,
       )
       row.names(prob_dat) <- c()
 
-      # Selection thresholds the Bayes factor of each hypothesis against its
-      # COMPLEMENT against BF_cut, so BF_cut literally means "Bayes factor >
-      # BF_cut" (as the argument name implies). Under the exhaustive test's
-      # equal 1/3 priors, the prior odds of H_k versus its complement are 1:2,
-      # so BF_{k,!k} = 2 * P(H_k|Y) / (1 - P(H_k|Y)). Note this is NOT the
-      # posterior-probability threshold BF_cut/(BF_cut+1): e.g. BF_cut = 3
-      # corresponds to P(H_k|Y) > 0.6, not 0.75.
-      BF_null_comp <- 2 * prob_null    / (1 - prob_null)
-      BF_pos_comp  <- 2 * prob_greater / (1 - prob_greater)
-      BF_neg_comp  <- 2 * prob_less    / (1 - prob_less)
+      # Selection: a hypothesis is selected when its posterior odds against
+      # the other two hypotheses combined exceed BF_cut, i.e. when
+      # P(H_k|Y) > BF_cut / (BF_cut + 1) (0.75 for BF_cut = 3). With equal
+      # prior probabilities (1/3) the prior odds against the complement are
+      # 1:2, so this corresponds to a Bayes factor of 2 * BF_cut against the
+      # complement.
+      hyp_prob <- BF_cut / (BF_cut + 1)
 
-      null_mat <- ifelse(BF_null_comp > BF_cut, 1, 0)
-      pos_mat  <- ifelse(BF_pos_comp  > BF_cut, 1, 0)
-      neg_mat  <- ifelse(BF_neg_comp  > BF_cut, 1, 0)
+      null_mat <- ifelse(prob_null    > hyp_prob, 1, 0)
+      pos_mat  <- ifelse(prob_greater > hyp_prob, 1, 0)
+      neg_mat  <- ifelse(prob_less    > hyp_prob, 1, 0)
 
       returned_object <- list(
         post_prob      = prob_dat,
@@ -366,10 +367,8 @@ select.explore <- function(object,
         pcor_mat       = round(tanh(post_mean), 3),
         pcor_sd_fisher = round(post_sd, 3),
         call           = match.call(),
-        # Posterior-probability threshold that BF_cut corresponds to under the
-        # exhaustive test's 1:2 prior odds: BF_cut = 3 => P(H_k|Y) > 0.6. This
-        # is BF_cut/(BF_cut+2), NOT the two-sided BF_cut/(BF_cut+1) = 0.75.
-        prob           = BF_cut / (BF_cut + 2),
+        # posterior-probability threshold used for selection
+        prob           = hyp_prob,
         method         = method,
         type           = x$type,
         formula        = x$formula,

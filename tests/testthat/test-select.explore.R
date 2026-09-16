@@ -340,17 +340,14 @@ test_that("pcor_mat_zero is nonzero where Adj_10 is 1 for two.sided", {
   }
 })
 
-test_that("exhaustive prob field equals BF_cut / (BF_cut + 2)", {
-  # Under the exhaustive test's 1:2 prior odds, BF_cut corresponds to a
-  # posterior hypothesis probability of BF_cut/(BF_cut+2) (0.6 for BF_cut = 3),
-  # not the two-sided BF_cut/(BF_cut+1) = 0.75.
+test_that("exhaustive prob field equals BF_cut / (BF_cut + 1)", {
   set.seed(123)
   Y <- BGGM::bfi[1:100, 1:5]
   fit <- explore(Y, iter = 100, progress = FALSE)
   BF_cut <- 3
   sel <- select(fit, BF_cut = BF_cut, alternative = "exhaustive")
 
-  expect_equal(sel$prob, BF_cut / (BF_cut + 2))
+  expect_equal(sel$prob, BF_cut / (BF_cut + 1))
 })
 
 test_that("Adj_20 is 1 exactly where BF_20 > BF_cut for greater", {
@@ -364,19 +361,10 @@ test_that("Adj_20 is 1 exactly where BF_20 > BF_cut for greater", {
   expect_equal(sel$Adj_20[off_diag], as.numeric(sel$BF_20[off_diag] > BF_cut))
 })
 
-# ---- Exhaustive BF_cut semantics: BF_cut means a Bayes factor against the
-#      complement, NOT a posterior-probability threshold. Under equal 1/3
-#      priors the prior odds of H_k vs its complement are 1:2, so
-#      BF_{k,!k} = 2 * P(H_k|Y) / (1 - P(H_k|Y)).
+# ---- Exhaustive BF_cut semantics: BF_cut is translated into a cutoff on the
+#      posterior hypothesis probabilities, P(H_k|Y) > BF_cut / (BF_cut + 1).
 
-test_that("prior-odds conversion: BF 3 <-> P 0.60, BF 6 <-> P 0.75 (equal thirds)", {
-  # a posterior probability of 0.60 corresponds to BF = 3 against the complement
-  expect_equal(2 * 0.60 / (1 - 0.60), 3)
-  # 0.75 corresponds to BF = 6, NOT 3 (the old, incorrect BF_cut/(BF_cut+1) rule)
-  expect_equal(2 * 0.75 / (1 - 0.75), 6)
-})
-
-test_that("exhaustive BF_cut selection thresholds the BF against the complement", {
+test_that("exhaustive BF_cut selection thresholds posterior probabilities", {
   set.seed(123)
   Y <- BGGM::bfi[1:100, 1:5]
   fit <- explore(Y, iter = 100, progress = FALSE)
@@ -386,27 +374,11 @@ test_that("exhaustive BF_cut selection thresholds the BF against the complement"
   pn <- sel$post_prob$prob_zero
   pg <- sel$post_prob$prob_greater
   pl <- sel$post_prob$prob_less
+  cut <- BF_cut / (BF_cut + 1)
 
-  # decisions must follow BF-vs-complement > BF_cut, i.e. P > BF_cut/(BF_cut+2)
-  expect_equal(sel$null_mat[upper.tri(sel$null_mat)], as.numeric(2 * pn / (1 - pn) > BF_cut))
-  expect_equal(sel$pos_mat[upper.tri(sel$pos_mat)],   as.numeric(2 * pg / (1 - pg) > BF_cut))
-  expect_equal(sel$neg_mat[upper.tri(sel$neg_mat)],   as.numeric(2 * pl / (1 - pl) > BF_cut))
-
-  # and equivalently the 0.60 posterior-probability boundary (NOT 0.75)
-  expect_equal(sel$null_mat[upper.tri(sel$null_mat)], as.numeric(pn > BF_cut / (BF_cut + 2)))
-})
-
-test_that("exhaustive BF_cut selection is NOT the old 0.75 posterior-prob rule", {
-  set.seed(123)
-  Y <- BGGM::bfi[1:100, 1:5]
-  fit <- explore(Y, iter = 100, progress = FALSE)
-  sel <- select(fit, BF_cut = 3, alternative = "exhaustive")
-
-  pn <- sel$post_prob$prob_zero
-  old_rule <- as.numeric(pn > 3 / (3 + 1))   # the previous hyp_prob = 0.75 threshold
-  new_rule <- sel$null_mat[upper.tri(sel$null_mat)]
-  # the two rules must actually differ on this data (guards the change is real)
-  expect_false(isTRUE(all.equal(new_rule, old_rule)))
+  expect_equal(sel$null_mat[upper.tri(sel$null_mat)], as.numeric(pn > cut))
+  expect_equal(sel$pos_mat[upper.tri(sel$pos_mat)],   as.numeric(pg > cut))
+  expect_equal(sel$neg_mat[upper.tri(sel$neg_mat)],   as.numeric(pl > cut))
 })
 
 test_that("exhaustive BF_cut ignores prior.prob.H0 (equal 1/3 priors)", {

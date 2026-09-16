@@ -30,18 +30,13 @@
 
 ### Bug fixes
 - **Fixed `bggm_missing()` dropping the wrong column with `mice` >= 3.17.0** ([#2](https://github.com/rast-lab/BGGM/issues/2)): `bggm_missing()` removed the `.id` column from `mice::complete(action = "long")` by position (column 2), which was correct only before `mice` 3.17.0. Since `mice` 3.17.0 places `.imp`/`.id` in the last two columns, this stripped a real data column and let `.id` leak into the model, corrupting the data passed to `estimate()`/`explore()`. The column is now removed by name, which is robust to `mice`'s column order. Reported by \@LilyTeesson.
-- **`select.explore()` exhaustive `method = "BF_cut"` now applies `BF_cut` as a
-  Bayes factor threshold** (behavior change): edge state selection
-  (`null_mat`/`pos_mat`/`neg_mat`) previously thresholded the posterior hypothesis
-  probability at `BF_cut/(BF_cut + 1)` (0.75 for the default `BF_cut = 3`). Under
-  the exhaustive test's equal `1/3` hypothesis priors, the prior odds of a
-  hypothesis against its complement are `1:2`, so that 0.75 cut actually
-  corresponds to a Bayes factor of 6 against the complement, not 3. Selection now
-  thresholds the Bayes factor of each hypothesis against its complement,
-  `2 * P(H_k|Y) / (1 - P(H_k|Y))`, directly against `BF_cut` — so `BF_cut = 3`
-  means "Bayes factor > 3" (posterior probability > 0.6), matching the argument's
-  documented meaning. The reported posterior probabilities in `post_prob` are
-  unchanged, as is `method = "BMA"` (which uses `prior.prob.H0`).
+- **Documented how `BF_cut` is used in `select.explore()` with
+  `alternative = "exhaustive"`**: `BF_cut` is translated into a cutoff for the
+  posterior hypothesis probabilities, `BF_cut / (BF_cut + 1)` (0.75 for the
+  default `BF_cut = 3`), i.e. a hypothesis is selected when its posterior odds
+  against the other two hypotheses combined exceed `BF_cut`. With equal prior
+  probabilities (1/3) this corresponds to a Bayes factor of `2 * BF_cut` against
+  the complement. The `prob` field of the returned object reports this cutoff.
 - **Corrected the `select.explore()` exhaustive posterior probabilities**: for
   `alternative = "exhaustive"`, the three-way posterior hypothesis probabilities
   (`post_prob`, and the derived `null_mat`/`pos_mat`/`neg_mat`) were computed with
