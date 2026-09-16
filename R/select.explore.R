@@ -190,8 +190,8 @@ select.explore <- function(object,
   method     <- match.arg(method)
   x          <- object
   post_samp  <- x$post_samp
-  # post_samp arrays have iter + 50 slices; the first 50 are burn-in
-  samp_idx   <- 51:(x$iter + 50)
+  # post-burn-in draws in the post_samp arrays
+  samp_idx   <- post_draw_idx(x)
 
   # Posterior mean/sd of the Fisher-z partial correlations and the prior
   # density at zero (Savage-Dickey). Shared by all branches below.

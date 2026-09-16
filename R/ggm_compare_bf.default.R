@@ -236,11 +236,11 @@ ggm_compare_explore <- function(...,
     rho_ij <- indices[i,]
 
     # start
-    post_group <-  post_samp[[1]]$fisher_z[ rho_ij[1], rho_ij[2], (51:(iter + 50))]
+    post_group <-  post_samp[[1]]$fisher_z[ rho_ij[1], rho_ij[2], post_draw_idx(samp[[1]])]
 
     # combined groups
     for(j in 2:(groups)){
-      post_group <-  cbind(post_group,  post_samp[[j]]$fisher_z[ rho_ij[1], rho_ij[2], (51:(iter + 50))])
+      post_group <-  cbind(post_group,  post_samp[[j]]$fisher_z[ rho_ij[1], rho_ij[2], post_draw_idx(samp[[j]])])
     }
 
     # posterior covariance

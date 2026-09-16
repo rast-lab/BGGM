@@ -63,7 +63,7 @@ posterior_samples <- function(object, ...){
     # pcor samples
     pcor_samples <-
       matrix(
-        object$post_samp$pcors[, , 51:(iter + 50)][upper.tri(I_p)],
+        object$post_samp$pcors[, , post_draw_idx(object)][upper.tri(I_p)],
         nrow =  iter,
         ncol = pcors_total,
         byrow = TRUE
@@ -115,7 +115,7 @@ posterior_samples <- function(object, ...){
 
     }
 
-    beta_start <- matrix(beta_samples[1:n_beta_terms,1, 51:(iter+50)],
+    beta_start <- matrix(beta_samples[1:n_beta_terms,1, post_draw_idx(object)],
                          nrow = iter, n_beta_terms, byrow = TRUE)
 
 
@@ -124,7 +124,7 @@ posterior_samples <- function(object, ...){
     for(i in 2:p){
 
       # beta next
-      beta_i <- matrix(beta_samples[1:n_beta_terms, i, 51:(iter+50)],
+      beta_i <- matrix(beta_samples[1:n_beta_terms, i, post_draw_idx(object)],
                        nrow = iter,
                        n_beta_terms,
                        byrow = TRUE)

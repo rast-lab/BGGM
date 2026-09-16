@@ -181,7 +181,7 @@ test_that("store_prior_draws = TRUE returns joint prior draws", {
 test_that("running summaries match the stored draws", {
   Y <- BGGM::bfi[1:100, 1:5]
   fit <- explore(Y, iter = 200, progress = FALSE, seed = 1)
-  idx <- 51:250
+  idx <- 1:200     # explore() stores only the post-burn-in draws
   expect_equal(fit$post_samp$z_mean,
                apply(fit$post_samp$fisher_z[,, idx], 1:2, mean), tolerance = 1e-8)
   expect_equal(fit$post_samp$z_sd,
@@ -248,4 +248,46 @@ test_that("functions that need draws give a clear error", {
   expect_error(convergence(fit), "store_post_draws = TRUE")
   expect_error(predictability(fit), "store_post_draws = TRUE")
   expect_error(predict(fit), "store_post_draws = TRUE")
+})
+
+test_that("burnin and thin: storage layout and running summaries", {
+  Y <- BGGM::bfi[1:100, 1:5]
+
+  # explore() stores only post-burn-in draws; estimate() keeps its layout
+  fit <- explore(Y, iter = 100, burnin = 30, progress = FALSE, seed = 1)
+  expect_equal(dim(fit$post_samp$pcors)[3], 100)
+  expect_equal(BGGM:::post_draw_idx(fit), 1:100)
+  expect_false(fit$burnin_stored)
+  est <- estimate(Y, iter = 100, progress = FALSE, seed = 1)
+  expect_equal(dim(est$post_samp$pcors)[3], 150)
+  expect_equal(BGGM:::post_draw_idx(est), 51:150)
+
+  # thin = 2 keeps every 2nd draw of the same chain; summaries use all draws
+  f1 <- explore(Y, iter = 200, burnin = 50, thin = 1, progress = FALSE, seed = 1)
+  f2 <- explore(Y, iter = 100, burnin = 50, thin = 2, progress = FALSE, seed = 1)
+  expect_equal(dim(f2$post_samp$pcors)[3], 100)
+  expect_equal(f2$post_samp$pcors, f1$post_samp$pcors[, , seq(1, 200, by = 2)])
+  expect_equal(f2$post_samp$z_mean, f1$post_samp$z_mean)
+  expect_equal(f2$pcor_mat, f1$pcor_mat)
+
+  # burn-in: fit with burnin = 80 equals the last draws of a burnin = 50 fit
+  f3 <- explore(Y, iter = 170, burnin = 80, progress = FALSE, seed = 1)
+  expect_equal(f3$post_samp$pcors, f1$post_samp$pcors[, , 31:200])
+
+  expect_error(explore(Y, burnin = 0, progress = FALSE), "burnin")
+  expect_error(explore(Y, thin = 1.5, progress = FALSE), "thin")
+})
+
+test_that("explore objects that store burn-in draws (earlier versions) still work", {
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE, seed = 1)
+  old <- fit
+  old$burnin_stored <- NULL
+  old$post_samp$pcors    <- abind::abind(array(0, c(5, 5, 50)), fit$post_samp$pcors, along = 3)
+  old$post_samp$fisher_z <- abind::abind(array(0, c(5, 5, 50)), fit$post_samp$fisher_z, along = 3)
+  expect_equal(BGGM:::post_draw_idx(old), 51:150)
+  expect_equal(select(old)$BF_10, select(fit)$BF_10)
+  expect_equal(summary(old)$dat_results, summary(fit)$dat_results)
+  expect_equal(posterior_samples(old), posterior_samples(fit))
+  expect_equal(pcor_to_cor(old)$R, pcor_to_cor(fit)$R)
 })

@@ -40,6 +40,20 @@
   `constrained_posterior()`) stop with an informative error, and
   `bggm_missing()` always stores the draws.
 
+- **`explore()` gains `burnin` (default 50) and `thin` (default 1)**: after
+  `burnin` iterations, `iter * thin` iterations are run and every `thin`-th
+  draw is stored, so `iter` draws are kept; the running posterior summaries use
+  all post-burn-in iterations. `explore()` objects no longer store the burn-in
+  draws: `post_samp$pcors`, `fisher_z`, `beta` and `thresh` now contain only
+  the `iter` kept draws (previously `iter + 50`, including 50 burn-in draws).
+  The functions that use the draws (`select()`, `summary()`,
+  `posterior_samples()`, `pcor_to_cor()`, `coef()`, `predict()`,
+  `predictability()`, `posterior_predict()`, `bggm_missing()`,
+  `ggm_compare_explore()`) locate the post-burn-in draws with an internal
+  helper, so objects created with earlier versions (which store the burn-in
+  draws) keep working. Objects from `estimate()`, `confirm()` and the other
+  functions are unchanged.
+
 ### Bug fixes
 - **`bggm_missing()` now pools the posterior draws of the imputed data sets
   correctly**: it stacked all draws of each fit, including their 50 burn-in

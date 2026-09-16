@@ -43,7 +43,7 @@ regression_summary <- function(object, cred = 0.95, ...){
 
   iter <- object$iter
 
-  beta <- object$post_samp$beta[,,51:(iter + 50)]
+  beta <- object$post_samp$beta[,,post_draw_idx(object)]
 
   dims <- dim(beta)[1:2]
 

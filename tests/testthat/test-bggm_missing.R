@@ -66,11 +66,14 @@ test_that("bggm_missing pools the post-burn-in draws of all imputations", {
     for (method in c("explore", "estimate")) {
         res <- bggm_missing(imp, method = method, iter = 100,
                             progress = FALSE, seed = 1)
+        # explore stores no burn-in draws, estimate stores 50
+        n_burn <- if (method == "explore") 0 else 50
+        idx    <- n_burn + 1:300
 
-        # 50 burn-in slices + 3 x 100 pooled draws
         expect_equal(res$iter, 300)
-        expect_equal(dim(res$post_samp$pcors)[3], 350)
-        expect_equal(dim(res$post_samp$fisher_z)[3], 350)
+        expect_equal(BGGM:::post_draw_idx(res), idx)
+        expect_equal(dim(res$post_samp$pcors)[3], n_burn + 300)
+        expect_equal(dim(res$post_samp$fisher_z)[3], n_burn + 300)
 
         # pooled draws are the post-burn-in draws of the separate fits
         dat <- mice::complete(imp, action = "long")
@@ -79,15 +82,15 @@ test_that("bggm_missing pools the post-burn-in draws of all imputations", {
             if (method == "explore") explore(Yi, iter = 100, progress = FALSE, seed = 1)
             else estimate(Yi, iter = 100, progress = FALSE, seed = 1)
         })
-        expect_equal(res$post_samp$pcors[, , 51:150], fits[[1]]$post_samp$pcors[, , 51:150])
-        expect_equal(res$post_samp$pcors[, , 251:350], fits[[3]]$post_samp$pcors[, , 51:150])
+        first <- BGGM:::post_draw_idx(fits[[1]])
+        expect_equal(res$post_samp$pcors[, , idx[1:100]], fits[[1]]$post_samp$pcors[, , first])
+        expect_equal(res$post_samp$pcors[, , idx[201:300]], fits[[3]]$post_samp$pcors[, , first])
 
         # summaries use all pooled draws
-        expect_equal(res$pcor_mat,
-                     apply(res$post_samp$pcors[, , 51:350], 1:2, mean))
+        expect_equal(res$pcor_mat, apply(res$post_samp$pcors[, , idx], 1:2, mean))
         if (method == "explore") {
             expect_equal(res$post_samp$z_mean,
-                         apply(res$post_samp$fisher_z[, , 51:350], 1:2, mean))
+                         apply(res$post_samp$fisher_z[, , idx], 1:2, mean))
             expect_s3_class(select(res), "select.explore")
         }
     }

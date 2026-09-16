@@ -348,6 +348,16 @@ eps_default <- function(p) {
   min(0.01, 1 / (10 * p))
 }
 
+# Indices of the post-burn-in draws in the stored posterior arrays
+# (post_samp$pcors, $fisher_z, $beta: third dimension; $thresh: first
+# dimension). explore() objects from BGGM >= 2.1.6.9001 store only the
+# post-burn-in draws (burnin_stored = FALSE); all other objects, including
+# explore() objects from earlier versions, store 50 burn-in draws first.
+post_draw_idx <- function(object) {
+  n_burn <- if (isFALSE(object$burnin_stored)) 0 else 50
+  n_burn + seq_len(object$iter)
+}
+
 # Stop with a clear message when a function needs the posterior draws of an
 # explore object that was fitted with store_post_draws = FALSE.
 check_post_draws <- function(object, fun) {

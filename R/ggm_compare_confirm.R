@@ -431,7 +431,10 @@ ggm_compare_confirm <- function(...,
           progress = progress,
           impute = impute,
           Y_miss = Y_miss,
-          store = TRUE
+          store = TRUE,
+          burnin = 50,
+          thin = 1,
+          store_burnin = TRUE
         )
       })
 
@@ -474,7 +477,10 @@ ggm_compare_confirm <- function(...,
           iter = iter + 50,
           start = start,
           progress = progress,
-          store = TRUE
+          store = TRUE,
+          burnin = 50,
+          thin = 1,
+          store_burnin = TRUE
         )
       })
     }
@@ -518,7 +524,10 @@ ggm_compare_confirm <- function(...,
         cutpoints = c(-Inf, 0, Inf),
         start = start,
         progress = progress,
-        store = TRUE
+        store = TRUE,
+        burnin = 50,
+        thin = 1,
+        store_burnin = TRUE
       )
       })
 
@@ -560,7 +569,10 @@ ggm_compare_confirm <- function(...,
           cutpoints = c(-Inf, 0, Inf),
           start = start,
           progress = progress,
-          store = TRUE
+          store = TRUE,
+          burnin = 50,
+          thin = 1,
+          store_burnin = TRUE
         )
       })
     }
@@ -605,7 +617,10 @@ ggm_compare_confirm <- function(...,
           K = K,
           start = start,
           progress = progress,
-          store = TRUE
+          store = TRUE,
+          burnin = 50,
+          thin = 1,
+          store_burnin = TRUE
           )
       })
 
@@ -651,7 +666,10 @@ ggm_compare_confirm <- function(...,
             K = K,
             start = start,
             progress = progress,
-            store = TRUE
+            store = TRUE,
+            burnin = 50,
+            thin = 1,
+            store_burnin = TRUE
             )
         })
   }
@@ -710,7 +728,10 @@ ggm_compare_confirm <- function(...,
           epsilon = 0.01,
           idx = idx,
           progress = progress,
-          store = TRUE
+          store = TRUE,
+          burnin = 50,
+          thin = 1,
+          store_burnin = TRUE
         )
         })
 
@@ -759,7 +780,10 @@ ggm_compare_confirm <- function(...,
           epsilon = 0.01,
           idx = idx,
           progress = progress,
-          store = TRUE
+          store = TRUE,
+          burnin = 50,
+          thin = 1,
+          store_burnin = TRUE
         )
       })
       }

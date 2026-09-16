@@ -297,7 +297,10 @@ estimate  <- function(Y,
           progress =  progress,
           impute = impute,
           Y_miss = Y_miss,
-          store = TRUE
+          store = TRUE,
+          burnin = 50,
+          thin = 1,
+          store_burnin = TRUE
           )
 
         # control for variables
@@ -330,7 +333,10 @@ estimate  <- function(Y,
           iter = iter + 50,
           start = start,
           progress = progress,
-          store = TRUE
+          store = TRUE,
+          burnin = 50,
+          thin = 1,
+          store_burnin = TRUE
         )
       # end control
       }
@@ -388,7 +394,10 @@ estimate  <- function(Y,
         cutpoints = c(-Inf, 0, Inf),
         start = start,
         progress = progress,
-        store = TRUE
+        store = TRUE,
+        burnin = 50,
+        thin = 1,
+        store_burnin = TRUE
       )
 
       # ordinal
@@ -448,7 +457,10 @@ estimate  <- function(Y,
           K = K,
           start = start,
           progress = progress,
-          store = TRUE
+          store = TRUE,
+          burnin = 50,
+          thin = 1,
+          store_burnin = TRUE
         )
 
         } else if(type == "mixed"){
@@ -508,7 +520,10 @@ estimate  <- function(Y,
           idx = idx,
           epsilon = 0.1,
           delta = delta,
-          store = TRUE
+          store = TRUE,
+          burnin = 50,
+          thin = 1,
+          store_burnin = TRUE
         )
 
         } else {
@@ -536,7 +551,10 @@ estimate  <- function(Y,
             epsilon = 0.1,
             idx = idx,
             progress = progress,
-            store = TRUE
+            store = TRUE,
+            burnin = 50,
+            thin = 1,
+            store_burnin = TRUE
           )
     }
 

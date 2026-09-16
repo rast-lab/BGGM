@@ -77,7 +77,7 @@ posterior_predict <- function(object,
 
   } else if(object$type == "binary"){
 
-    betas <- t(object$post_samp$beta[,,-c(1:50)])
+    betas <- t(object$post_samp$beta[,,post_draw_idx(object)])
 
     for(s in 1:iter){
       cors_s <- cors[,,s]
@@ -89,8 +89,8 @@ posterior_predict <- function(object,
       }
     }
   } else if(object$type == "ordinal"){
-    betas <- t(object$post_samp$beta[,,-c(1:50)])
-    thresh <- object$post_samp$thresh[-c(1:50),,]
+    betas <- t(object$post_samp$beta[,,post_draw_idx(object)])
+    thresh <- object$post_samp$thresh[post_draw_idx(object),,]
     K <- ncol(thresh) - 1
     temp <- matrix(0, n, p)
 

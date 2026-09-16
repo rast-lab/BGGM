@@ -138,10 +138,9 @@ bggm_missing <- function(x, iter = 2000,
   fit
   }
 
-# Pool the posterior draws of models fitted to imputed data sets. Each fit
-# has iter + 50 draws, of which the first 50 are burn-in. The pooled object
-# keeps the burn-in draws of the first fit in slices 1:50 (the convention
-# used by the methods that read post_samp), followed by the post-burn-in
+# Pool the posterior draws of models fitted to imputed data sets. The
+# pooled object keeps the stored burn-in draws of the first fit (if the fits
+# store burn-in draws, see post_draw_idx()), followed by the post-burn-in
 # draws of all fits, and has iter = number of pooled post-burn-in draws.
 # Posterior summaries (pcor_mat and, for explore, the running summaries) are
 # recomputed from the pooled draws.
@@ -149,12 +148,14 @@ combine_imputed_fits <- function(fits) {
 
   fit  <- fits[[1]]
   iter <- fit$iter
-  keep <- 51:(iter + 50)
+  keep <- post_draw_idx(fit)
+  burn <- seq_len(min(keep) - 1)          # stored burn-in slices (may be empty)
 
   pool <- function(name) {
-    arrs <- lapply(fits, function(f) f$post_samp[[name]][, , keep, drop = FALSE])
-    abind::abind(c(list(fit$post_samp[[name]][, , 1:50, drop = FALSE]), arrs),
-                 along = 3)
+    arrs <- lapply(fits, function(f) f$post_samp[[name]][, , post_draw_idx(f), drop = FALSE])
+    if (length(burn) > 0)
+      arrs <- c(list(fit$post_samp[[name]][, , burn, drop = FALSE]), arrs)
+    abind::abind(arrs, along = 3)
   }
 
   fit$post_samp$pcors    <- pool("pcors")
@@ -163,15 +164,15 @@ combine_imputed_fits <- function(fits) {
     fit$post_samp$beta <- pool("beta")
   }
   if (!is.null(fit$post_samp$thresh)) {
-    # thresholds: iter + 50 draws in the first dimension
-    fit$post_samp$thresh <- abind::abind(
-      c(list(fit$post_samp$thresh[1:50, , , drop = FALSE]),
-        lapply(fits, function(f) f$post_samp$thresh[keep, , , drop = FALSE])),
-      along = 1)
+    # thresholds: draws in the first dimension
+    arrs <- lapply(fits, function(f) f$post_samp$thresh[post_draw_idx(f), , , drop = FALSE])
+    if (length(burn) > 0)
+      arrs <- c(list(fit$post_samp$thresh[burn, , , drop = FALSE]), arrs)
+    fit$post_samp$thresh <- abind::abind(arrs, along = 1)
   }
 
   fit$iter <- iter * length(fits)
-  idx      <- 51:(fit$iter + 50)
+  idx      <- post_draw_idx(fit)
 
   pcor_mat <- apply(fit$post_samp$pcors[, , idx, drop = FALSE], 1:2, mean)
   fit$pcor_mat <- pcor_mat

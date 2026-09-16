@@ -309,7 +309,10 @@ confirm <- function(Y, hypothesis,
         progress = progress,
         impute = impute,
         Y_miss = Y_miss,
-        store = TRUE
+        store = TRUE,
+        burnin = 50,
+        thin = 1,
+        store_burnin = TRUE
       )
 
       # control for variables
@@ -342,7 +345,10 @@ confirm <- function(Y, hypothesis,
         iter = iter + 50,
         start = start,
         progress = progress,
-        store = TRUE
+        store = TRUE,
+        burnin = 50,
+        thin = 1,
+        store_burnin = TRUE
       )
 
     } # end control
@@ -400,7 +406,10 @@ confirm <- function(Y, hypothesis,
       cutpoints = c(-Inf, 0, Inf),
       start = start,
       progress = progress,
-      store = TRUE
+      store = TRUE,
+      burnin = 50,
+      thin = 1,
+      store_burnin = TRUE
     )
 
     # ordinal
@@ -460,7 +469,10 @@ confirm <- function(Y, hypothesis,
       K = K,
       start = start,
       progress = progress,
-      store = TRUE
+      store = TRUE,
+      burnin = 50,
+      thin = 1,
+      store_burnin = TRUE
     )
 
   } else if(type == "mixed"){
@@ -521,7 +533,10 @@ confirm <- function(Y, hypothesis,
       epsilon = 0.01,
       idx = idx,
       progress = progress,
-      store = TRUE
+      store = TRUE,
+      burnin = 50,
+      thin = 1,
+      store_burnin = TRUE
     )
 
   } else {

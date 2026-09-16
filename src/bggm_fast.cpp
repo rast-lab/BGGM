@@ -179,6 +179,23 @@ private:
   }
 };
 
+// Storage layout of posterior draws. Iterations s < burnin are burn-in;
+// afterwards every thin-th draw is kept. draw_slot() returns the index at
+// which draw s is stored (-1: not stored). With store_burnin the burn-in
+// draws are stored first (layout used by estimate(), confirm(), ...);
+// explore() does not store them.
+inline int draw_slot(int s, int burnin, int thin, bool store_burnin) {
+  if (s < burnin) return store_burnin ? s : -1;
+  if ((s - burnin) % thin != 0) return -1;
+  return (store_burnin ? burnin : 0) + (s - burnin) / thin;
+}
+
+inline int n_draw_slots(int iter, int burnin, int thin, bool store_burnin) {
+  int n_keep = (iter - burnin + thin - 1) / thin;
+  if (n_keep < 0) n_keep = 0;
+  return (store_burnin ? burnin : 0) + n_keep;
+}
+
 }  // namespace
 
 // mean of 3d array
@@ -447,7 +464,10 @@ Rcpp::List Theta_continuous(arma::mat Y,
                             bool progress,
                             bool impute,
                             arma::mat Y_missing,
-                            bool store) {
+                            bool store,
+                            int burnin,
+                            int thin,
+                            bool store_burnin) {
 
 
 
@@ -502,7 +522,8 @@ Rcpp::List Theta_continuous(arma::mat Y,
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, store ? iter : 0, arma::fill::zeros);
+  int n_slot = n_draw_slots(iter, burnin, thin, store_burnin);
+  arma::cube pcors_mcmc(k, k, store ? n_slot : 0, arma::fill::zeros);
   PcorSummary pcor_summary(k);
 
   arma::cube Sigma(k, k, 1, arma::fill::zeros);
@@ -523,6 +544,8 @@ Rcpp::List Theta_continuous(arma::mat Y,
   float iter_missing = 1;
 
   for(int  s = 0; s < iter; ++s){
+
+    int slot = draw_slot(s, burnin, thin, store_burnin);
 
     p.increment();
 
@@ -555,8 +578,8 @@ Rcpp::List Theta_continuous(arma::mat Y,
 
     // store posterior samples
     arma::mat r_s = -(pcors - I_k);
-    if (store) pcors_mcmc.slice(s) = r_s;
-    if (s >= 50) pcor_summary.add(r_s);
+    if (store && slot >= 0) pcors_mcmc.slice(slot) = r_s;
+    if (s >= burnin) pcor_summary.add(r_s);
 
 
     if(impute){
@@ -724,7 +747,10 @@ Rcpp::List mv_continuous(arma::mat Y,
                           int iter,
                           arma::mat start,
                           bool progress,
-                          bool store){
+                          bool store,
+                          int burnin,
+                          int thin,
+                          bool store_burnin){
 
 
   // progress
@@ -773,7 +799,8 @@ Rcpp::List mv_continuous(arma::mat Y,
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, store ? iter : 0, arma::fill::zeros);
+  int n_slot = n_draw_slots(iter, burnin, thin, store_burnin);
+  arma::cube pcors_mcmc(k, k, store ? n_slot : 0, arma::fill::zeros);
   PcorSummary pcor_summary(k);
 
   // correlations
@@ -784,7 +811,7 @@ Rcpp::List mv_continuous(arma::mat Y,
 
   // coefficients
   arma::mat beta(p, k, arma::fill::zeros);
-  arma::cube beta_mcmc(p, k, iter,  arma::fill::zeros);
+  arma::cube beta_mcmc(p, k, n_slot, arma::fill::zeros);
 
   // starting value
   Sigma.slice(0) = inv(start);
@@ -792,6 +819,8 @@ Rcpp::List mv_continuous(arma::mat Y,
   Theta.slice(0) = start;
 
   for(int s = 0; s < iter; ++s){
+
+    int slot = draw_slot(s, burnin, thin, store_burnin);
 
     pr.increment();
 
@@ -823,10 +852,10 @@ Rcpp::List mv_continuous(arma::mat Y,
     pcors = cov_to_cor(Theta.slice(0));
 
 
-    beta_mcmc.slice(s) = beta;
+    if (slot >= 0) beta_mcmc.slice(slot) = beta;
     arma::mat r_s = -(pcors - I_k);
-    if (store) pcors_mcmc.slice(s) = r_s;
-    if (s >= 50) pcor_summary.add(r_s);
+    if (store && slot >= 0) pcors_mcmc.slice(slot) = r_s;
+    if (s >= burnin) pcor_summary.add(r_s);
   }
 
   Rcpp::List ret;
@@ -850,7 +879,10 @@ Rcpp::List mv_binary(arma::mat Y,
 		     arma::rowvec cutpoints,
 		     arma::mat start,
 		     bool progress,
-		     bool store){
+		     bool store,
+		     int burnin,
+		     int thin,
+		     bool store_burnin){
 
   // Y: data matrix (n * k)
   // X: predictors (n * p) (blank for "network")
@@ -907,7 +939,8 @@ Rcpp::List mv_binary(arma::mat Y,
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, store ? iter : 0, arma::fill::zeros);
+  int n_slot = n_draw_slots(iter, burnin, thin, store_burnin);
+  arma::cube pcors_mcmc(k, k, store ? n_slot : 0, arma::fill::zeros);
   PcorSummary pcor_summary(k);
 
   // correlations
@@ -937,7 +970,7 @@ Rcpp::List mv_binary(arma::mat Y,
 
   // expanded coefs
   arma::mat beta(p, k, arma::fill::zeros);
-  arma::cube beta_mcmc(p, k, iter,  arma::fill::zeros);
+  arma::cube beta_mcmc(p, k, n_slot, arma::fill::zeros);
 
   // draw coefs conditional on w
   arma::mat gamma(p, k, arma::fill::zeros);
@@ -958,6 +991,8 @@ Rcpp::List mv_binary(arma::mat Y,
 
   // start sampling
   for(int s = 0; s < iter; ++s){
+
+    int slot = draw_slot(s, burnin, thin, store_burnin);
 
     pr.increment();
 
@@ -1045,10 +1080,10 @@ Rcpp::List mv_binary(arma::mat Y,
 
     R.slice(0) = cors;
 
-    beta_mcmc.slice(s) =reshape(beta, p,k);
+    if (slot >= 0) beta_mcmc.slice(slot) =reshape(beta, p,k);
     arma::mat r_s = -(pcors - I_k);
-    if (store) pcors_mcmc.slice(s) = r_s;
-    if (s >= 50) pcor_summary.add(r_s);
+    if (store && slot >= 0) pcors_mcmc.slice(slot) = r_s;
+    if (s >= burnin) pcor_summary.add(r_s);
 
   }
 
@@ -1073,7 +1108,10 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
                           int K,
                           arma::mat start,
                           bool progress,
-                          bool store
+                          bool store,
+                          int burnin,
+                          int thin,
+                          bool store_burnin
                           ){
 
 
@@ -1125,7 +1163,8 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, store ? iter : 0, arma::fill::zeros);
+  int n_slot = n_draw_slots(iter, burnin, thin, store_burnin);
+  arma::cube pcors_mcmc(k, k, store ? n_slot : 0, arma::fill::zeros);
   PcorSummary pcor_summary(k);
 
   // correlations
@@ -1139,7 +1178,7 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
 
   // coefficients
   arma::mat beta(p, k, arma::fill::zeros);
-  arma::cube beta_mcmc(p, k, iter,  arma::fill::zeros);
+  arma::cube beta_mcmc(p, k, n_slot, arma::fill::zeros);
 
   // latent update
   arma::cube z0(n, k, 1,  arma::fill::zeros);
@@ -1178,7 +1217,7 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
   // draw coefs conditional on w
   arma::mat gamma(p, k, arma::fill::zeros);
 
-  arma::cube thresh(iter, K+1, k, arma::fill::zeros);
+  arma::cube thresh(n_slot, K+1, k, arma::fill::zeros);
   arma::mat current_thresh(k, K+1, arma::fill::zeros);
 
   for (int j = 0; j < k; ++j) {
@@ -1200,6 +1239,8 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
   arma::mat ss(1,1);
 
   for(int s = 1; s < iter; ++s ){
+
+    int slot = draw_slot(s, burnin, thin, store_burnin);
 
     pr.increment();
 
@@ -1261,7 +1302,7 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
     }
 
     for (int j = 0; j < k; ++j) {
-      thresh.slice(j).row(s) = current_thresh.row(j);
+      if (slot >= 0) thresh.slice(j).row(slot) = current_thresh.row(j);
     }
 
     for(int i = 0; i < k; ++i){
@@ -1315,10 +1356,10 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
     // update correlation matrix
     R.slice(0) = cors;
 
-    beta_mcmc.slice(s) =reshape(beta, p,k);
+    if (slot >= 0) beta_mcmc.slice(slot) =reshape(beta, p,k);
     arma::mat r_s = -(pcors - I_k);
-    if (store) pcors_mcmc.slice(s) = r_s;
-    if (s >= 50) pcor_summary.add(r_s);
+    if (store && slot >= 0) pcors_mcmc.slice(slot) = r_s;
+    if (s >= burnin) pcor_summary.add(r_s);
     // cors_mcmc.slice(s) =  cors;
     // Sigma_mcmc.slice(s) = Sigma.slice(0);
     // Theta_mcmc.slice(s) = Theta.slice(0);
@@ -1351,7 +1392,10 @@ Rcpp::List  copula(arma::mat z0_start,
                    float epsilon,
                    arma::vec idx,
                    bool progress,
-                   bool store
+                   bool store,
+                   int burnin,
+                   int thin,
+                   bool store_burnin
                    ) {
 
   // adapted from hoff 2008 for Bayesian hypothesis testing
@@ -1405,7 +1449,8 @@ Rcpp::List  copula(arma::mat z0_start,
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, store ? iter : 0, arma::fill::zeros);
+  int n_slot = n_draw_slots(iter, burnin, thin, store_burnin);
+  arma::cube pcors_mcmc(k, k, store ? n_slot : 0, arma::fill::zeros);
   PcorSummary pcor_summary(k);
 
   // correlations
@@ -1422,6 +1467,8 @@ Rcpp::List  copula(arma::mat z0_start,
   arma::mat ss(1,1);
 
   for(int  s = 1; s < iter; ++s){
+
+    int slot = draw_slot(s, burnin, thin, store_burnin);
 
     pr.increment();
 
@@ -1493,8 +1540,8 @@ Rcpp::List  copula(arma::mat z0_start,
     pcors = cov_to_cor(Theta.slice(0));
 
     arma::mat r_s = -(pcors - I_k);
-    if (store) pcors_mcmc.slice(s) = r_s;
-    if (s >= 50) pcor_summary.add(r_s);
+    if (store && slot >= 0) pcors_mcmc.slice(slot) = r_s;
+    if (s >= burnin) pcor_summary.add(r_s);
   }
 
   Rcpp::List ret;
@@ -2493,7 +2540,10 @@ Rcpp::List missing_copula(arma::mat Y,
                              arma::vec idx,
                              float epsilon,
                              float delta,
-                             bool store) {
+                             bool store,
+                             int burnin,
+                             int thin,
+                             bool store_burnin) {
   // progress
   Progress  pr(iter_missing, progress_impute);
 
@@ -2542,10 +2592,13 @@ Rcpp::List missing_copula(arma::mat Y,
 
   // partial correlations
   arma::mat pcors(p,p);
-  arma::cube pcors_mcmc(p, p, store ? iter_missing : 0, arma::fill::zeros);
+  int n_slot = n_draw_slots(iter_missing, burnin, thin, store_burnin);
+  arma::cube pcors_mcmc(p, p, store ? n_slot : 0, arma::fill::zeros);
   PcorSummary pcor_summary(p);
 
   for(int  s = 0; s < iter_missing; ++s){
+
+    int slot = draw_slot(s, burnin, thin, store_burnin);
 
     pr.increment();
 
@@ -2639,8 +2692,8 @@ Rcpp::List missing_copula(arma::mat Y,
 
     // store posterior samples
     arma::mat r_s = -(pcors - I_p);
-    if (store) pcors_mcmc.slice(s) = r_s;
-    if (s >= 50) pcor_summary.add(r_s);
+    if (store && slot >= 0) pcors_mcmc.slice(slot) = r_s;
+    if (s >= burnin) pcor_summary.add(r_s);
 
   }
 
