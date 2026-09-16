@@ -1948,7 +1948,6 @@ Rcpp::List var(arma::mat Y,
 
   // precison matrix
   arma::cube Theta(k, k, 1, arma::fill::zeros);
-  arma::cube Theta_mcmc(k, k, iter, arma::fill::zeros);
 
   // partial correlations
   arma::mat pcors(k,k);
@@ -1956,11 +1955,9 @@ Rcpp::List var(arma::mat Y,
 
   // correlations
   arma::mat  cors(k,k);
-  arma::cube cors_mcmc(k, k, iter, arma::fill::zeros);
 
   // covariance matrix
   arma::cube Sigma(k, k, 1, arma::fill::zeros);
-  arma::cube Sigma_mcmc(k, k, iter, arma::fill::zeros);
 
   // coefficients
   arma::mat beta(p, k, arma::fill::zeros);

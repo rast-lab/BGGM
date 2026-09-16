@@ -50,11 +50,11 @@
 
 ### Performance
 - **Removed unused posterior arrays from the C++ samplers used by `explore()`**
-  (also used by `estimate()`, `confirm()` and the `ggm_compare_*()` functions):
-  `Theta_mcmc`, `cors_mcmc`
-  and `Sigma_mcmc` (each p x p x iter) were allocated but never filled or
-  returned in `Theta_continuous`, `sample_prior`, `mv_continuous`,
-  `mv_binary`, `mv_ordinal_albert` and `copula`; `copula` also allocated an
+  (also used by `estimate()`, `confirm()` and the `ggm_compare_*()` functions)
+  and by `var_estimate()`: `Theta_mcmc`, `cors_mcmc` and `Sigma_mcmc` (each
+  p x p x iter) were allocated but never filled or returned in
+  `Theta_continuous`, `sample_prior`, `mv_continuous`, `mv_binary`,
+  `mv_ordinal_albert`, `copula` and `var`; `copula` also allocated an
   unused n x p x iter array of latent data. This reduces memory use
   substantially for large networks (e.g. `mv_continuous`, used with
   `formula`, allocated five p x p x iter arrays and now two).
