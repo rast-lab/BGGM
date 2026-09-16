@@ -174,7 +174,16 @@ select.explore <- function(object,
   x          <- object
   post_samp  <- x$post_samp
   prior_samp <- x$prior_samp
-  samp_idx   <- 51:x$iter
+  # post_samp arrays have iter + 50 slices; the first 50 are burn-in
+  samp_idx   <- 51:(x$iter + 50)
+
+  # Posterior mean/sd of the Fisher-z partial correlations and the prior
+  # density at zero (Savage-Dickey). Shared by all branches below.
+  post_sd    <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
+  post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
+  post_dens  <- dnorm(0, post_mean, post_sd)
+  prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
+  prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
 
   # prior.prob.H0 only affects method = "BMA". If the user explicitly set it
   # while using method = "BF_cut", it has no effect on the result -- selection
@@ -194,12 +203,6 @@ select.explore <- function(object,
   if (method == "BF_cut") {
 
     if (alternative == "two.sided") {
-
-      post_sd    <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
-      post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
-      post_dens  <- dnorm(0, post_mean, post_sd)
-      prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
 
       BF_10_mat <- prior_dens / post_dens
       BF_01_mat <- 1 / BF_10_mat
@@ -231,12 +234,6 @@ select.explore <- function(object,
 
     } else if (alternative == "greater") {
 
-      post_sd    <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
-      post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
-      post_dens  <- dnorm(0, post_mean, post_sd)
-      prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
-
       BF_10_mat <- prior_dens / post_dens
       BF_20_mat <- BF_10_mat * ((1 - pnorm(0, post_mean, post_sd)) * 2)
       BF_02_mat <- 1 / BF_20_mat
@@ -267,12 +264,6 @@ select.explore <- function(object,
       )
 
     } else if (alternative == "less") {
-
-      post_sd    <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
-      post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
-      post_dens  <- dnorm(0, post_mean, post_sd)
-      prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
 
       BF_10_mat <- prior_dens / post_dens
       BF_20_mat <- BF_10_mat * (pnorm(0, post_mean, post_sd) * 2)
@@ -315,12 +306,6 @@ select.explore <- function(object,
         mat_names <- sapply(cn, function(z) paste(cn, z, sep = "--"))[upper.tri(I_p)]
       }
 
-      post_sd    <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
-      post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
-      post_dens  <- dnorm(0, post_mean, post_sd)
-      prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
-
       # Posterior hypothesis probabilities via Eq. 9 of Williams & Mulder
       # (2019). All three Bayes factors are referenced to the unrestricted
       # model H_u: BF_0u is the Savage-Dickey null-vs-unrestricted ratio
@@ -337,6 +322,9 @@ select.explore <- function(object,
       prob_null    <- BF_0u / denom
       prob_greater <- BF_1u / denom
       prob_less    <- BF_2u / denom
+
+      # diagonal: post_sd = 0 gives Inf/NaN; not an edge
+      diag(prob_null) <- diag(prob_greater) <- diag(prob_less) <- 0
 
       prob_dat <- data.frame(
         edge         = mat_names,
@@ -386,11 +374,6 @@ select.explore <- function(object,
     P        <- object$p
     indices  <- which(lower.tri(diag(P), diag = FALSE), arr.ind = TRUE)
     num_pcor <- P * (P - 1) / 2
-
-    post_sd   <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
-    post_mean <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
-    post_dens <- dnorm(0, post_mean, post_sd)
-    prior_sd  <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
 
     .bma_matrix <- function(excl_vec, incl_vec, draw_fn) {
       bma_draws <- do.call(cbind, lapply(seq_len(num_pcor), function(e) {
@@ -474,7 +457,6 @@ select.explore <- function(object,
 
     if (alternative == "two.sided") {
 
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
       BF_10_mat  <- prior_dens / post_dens
       BF_01_mat  <- 1 / BF_10_mat
       diag(BF_01_mat) <- 0
@@ -518,7 +500,6 @@ select.explore <- function(object,
 
     } else if (alternative == "greater") {
 
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
       BF_10_mat  <- prior_dens / post_dens
       BF_20_mat  <- BF_10_mat * ((1 - pnorm(0, post_mean, post_sd)) * 2)
       BF_02_mat  <- 1 / BF_20_mat
@@ -560,7 +541,6 @@ select.explore <- function(object,
 
     } else if (alternative == "less") {
 
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
       BF_10_mat  <- prior_dens / post_dens
       BF_20_mat  <- BF_10_mat * (pnorm(0, post_mean, post_sd) * 2)
       BF_02_mat  <- 1 / BF_20_mat
@@ -611,8 +591,6 @@ select.explore <- function(object,
       } else {
         mat_names <- sapply(cn, function(z) paste(cn, z, sep = "--"))[upper.tri(I_p)]
       }
-
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
 
       # Posterior hypothesis probabilities via Eq. 9 of Williams & Mulder
       # (2019), with the three Bayes factors referenced to the unrestricted

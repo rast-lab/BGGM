@@ -4,7 +4,7 @@ library(BGGM)
 # helper: recompute the correct prior/posterior densities the way select() should
 # (defined at the top so every test below can use it).
 .se_dens <- function(fit) {
-  samp_idx  <- 51:fit$iter
+  samp_idx  <- 51:(fit$iter + 50)
   post_sd   <- apply(fit$post_samp$fisher_z[,, samp_idx], 1:2, sd)
   post_mean <- apply(fit$post_samp$fisher_z[,, samp_idx], 1:2, mean)
   post_dens <- dnorm(0, post_mean, post_sd)
