@@ -342,6 +342,12 @@ compare_predict_helper <- function(x, ci_width){
 ##          With SD = sqrt(1/4) = .5, d = 3, seems more reasonable for hypothesis testing
 ## Solution: limit user input to [0,sqrt(1/2)]
 
+# epsilon for the matrix-F prior (B = eps * I, nu = 1 / eps), chosen so
+# that nu is at least 10 times the number of variables p.
+eps_default <- function(p) {
+  min(0.01, 1 / (10 * p))
+}
+
 delta_solve = function(x){
   if(x <= 0 || x > sqrt(1/2) ) stop("Error: \nPrior_sd must be between 0 and sqrt(1/2) approx. 0.7, to ensure that delta is not less than 1.\nFor delta = 1, set prior_sd to sqrt(1/2)\nFor delta = 2, set prior_sd to sqrt(1/3).")
   1/x^2 - 1

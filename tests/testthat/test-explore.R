@@ -134,3 +134,23 @@ test_that("explore handles small datasets", {
   expect_s3_class(result, "explore")
   expect_equal(dim(result$pcor_mat), c(4, 4))
 })
+
+test_that("matrix-F epsilon shrinks with the number of variables", {
+  expect_equal(BGGM:::eps_default(5), 0.01)
+  expect_equal(BGGM:::eps_default(10), 0.01)
+  expect_equal(BGGM:::eps_default(200), 1 / 2000)
+  # nu = 1 / eps must exceed p - 1
+  for (p in c(2, 50, 150, 1000)) expect_gt(1 / BGGM:::eps_default(p), p - 1)
+
+  set.seed(1)
+  Y <- matrix(rnorm(40 * 20), 40, 20)
+  fit <- explore(Y, iter = 50, progress = FALSE)
+  expect_equal(fit$eps, 1 / 200)
+})
+
+test_that("explore runs when n < p", {
+  set.seed(1)
+  Y <- matrix(rnorm(15 * 20), 15, 20)
+  fit <- explore(Y, iter = 50, progress = FALSE)
+  expect_false(any(is.na(fit$pcor_mat)))
+})

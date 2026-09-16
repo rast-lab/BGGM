@@ -36,6 +36,13 @@
   probabilities (and `summary()`) but not the selected graph.
 
 ### Bug fixes
+- **`explore()` for large or n < p networks**: the starting value is
+  regularized (`solve(cov(Y) + 0.1 I)`), and the matrix-F prior now uses
+  `epsilon = min(0.01, 1 / (10 p))` instead of a fixed 0.01, so that
+  `nu = 1 / epsilon` stays well above `p - 1` (required for a proper prior,
+  Williams & Mulder, 2020). Results change slightly for `p > 10`.
+- **C++ samplers no longer truncate the matrix-F degrees of freedom** to
+  integers (non-integer `delta` from `prior_sd`).
 - **Fixed `bggm_missing()` dropping the wrong column with `mice` >= 3.17.0** ([#2](https://github.com/rast-lab/BGGM/issues/2)): `bggm_missing()` removed the `.id` column from `mice::complete(action = "long")` by position (column 2), which was correct only before `mice` 3.17.0. Since `mice` 3.17.0 places `.imp`/`.id` in the last two columns, this stripped a real data column and let `.id` leak into the model, corrupting the data passed to `estimate()`/`explore()`. The column is now removed by name, which is robust to `mice`'s column order. Reported by \@LilyTeesson.
 - **Documented how `BF_cut` is used in `select.explore()` with
   `alternative = "exhaustive"`**: `BF_cut` is translated into a cutoff for the

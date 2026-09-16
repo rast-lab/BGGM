@@ -194,7 +194,10 @@ explore <- function(Y,
   
   dot_dot_dot <- list(...)
 
-  eps <- 0.01
+  # matrix-F prior: B = eps * I and nu = 1 / eps. The approximation
+  # Theta ~ IW(delta + p - 1, I) requires nu >> p (and nu > p - 1 for a
+  # proper prior; Williams & Mulder, 2020), so eps shrinks with p.
+  eps <- eps_default(ncol(Y))
 
   # delta parameter
   delta <- delta_solve(prior_sd)
@@ -352,7 +355,7 @@ explore <- function(Y,
         Y = Y,
         X = X,
         delta = delta,
-        epsilon = 0.01,
+        epsilon = eps,
         iter = iter + 50,
         beta_prior = 0.1,
         cutpoints = c(-Inf, 0, Inf),
@@ -417,7 +420,7 @@ explore <- function(Y,
       X = X,
       iter = iter + 50,
       delta = delta,
-      epsilon = 0.01,
+      epsilon = eps,
       K = K,
       start = start,
       progress = progress
@@ -479,7 +482,7 @@ explore <- function(Y,
         progress_impute = TRUE,
         K = rank_vars$K,
         idx = idx,
-        epsilon = 0.01,
+        epsilon = eps,
         delta = delta
       )
 
@@ -493,7 +496,7 @@ explore <- function(Y,
       Sigma_start = rank_vars$Sigma_start,
       iter = iter + 50,
       delta = delta,
-      epsilon = 0.01,
+      epsilon = eps,
       idx = idx,
       progress = progress
     )
