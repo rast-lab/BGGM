@@ -445,13 +445,13 @@ Rcpp::List Theta_continuous(arma::mat Y,
   // k by k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
 
-  int nu = 1/ epsilon;
+  double nu = 1.0 / epsilon;
 
   // // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1 ;
+  double nuMP = delta + k - 1 ;
 
   // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1 ;
+  double deltaMP = nu - k + 1 ;
 
   // Psi update
   arma::cube Psi(k, k, 1, arma::fill::zeros);
@@ -594,12 +594,12 @@ Rcpp::List sample_prior(arma::mat Y,
   // k by k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
 
-  int nu = 1 / epsilon;
+  double nu = 1.0 / epsilon;
   // // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1 ;
+  double nuMP = delta + k - 1 ;
   //
   // // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1 ;
+  double deltaMP = nu - k + 1 ;
 
   // Psi update
   arma::cube Psi(k, k, 1, arma::fill::zeros);
@@ -704,13 +704,13 @@ Rcpp::List mv_continuous(arma::mat Y,
   // number of predictors
   int p = X.n_cols;
 
-  int nu = 1/ epsilon;
+  double nu = 1.0 / epsilon;
 
   // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1;
+  double nuMP = delta + k - 1;
 
   // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1 ;
+  double deltaMP = nu - k + 1 ;
 
   // k * k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
@@ -840,12 +840,12 @@ Rcpp::List mv_binary(arma::mat Y,
 
   // int epsilon1 = epsilon;
 
-  int nu = 1 / epsilon;
+  double nu = 1.0 / epsilon;
   // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1 ;
+  double nuMP = delta + k - 1 ;
 
   // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1 ;
+  double deltaMP = nu - k + 1 ;
 
   // k * k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
@@ -1056,12 +1056,12 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
   // ordinal levels
   // int K = unique(Y.col(0));
 
-  int nu = 1/ epsilon;
+  double nu = 1.0 / epsilon;
   // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1 ;
+  double nuMP = delta + k - 1 ;
 
   // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1 ;
+  double deltaMP = nu - k + 1 ;
 
   // k by k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
@@ -1335,12 +1335,12 @@ Rcpp::List  copula(arma::mat z0_start,
   // k by k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
 
-  int nu = 1/ epsilon;
+  double nu = 1.0 / epsilon;
   // // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1;
+  double nuMP = delta + k - 1;
   //
   // // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1;
+  double deltaMP = nu - k + 1;
 
   arma::uvec where ;
 
@@ -1928,13 +1928,13 @@ Rcpp::List var(arma::mat Y,
   // number of predictors
   int p = X.n_cols;
 
-  int nu = 1/ epsilon;
+  double nu = 1.0 / epsilon;
 
   // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1;
+  double nuMP = delta + k - 1;
 
   // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1 ;
+  double deltaMP = nu - k + 1 ;
 
   // k * k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
@@ -2482,13 +2482,13 @@ Rcpp::List missing_copula(arma::mat Y,
 
   //No more use:  int n_na = index.n_elem;
 
-  int nu = 1/ epsilon;
+  double nu = 1.0 / epsilon;
 
   // // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + p - 1;
+  double nuMP = delta + p - 1;
 
   // // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - p + 1;
+  double deltaMP = nu - p + 1;
 
   arma::mat B(epsilon * I_p);
   arma::mat BMP(inv(B));
