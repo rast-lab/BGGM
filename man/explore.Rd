@@ -15,6 +15,7 @@ explore(
   progress = TRUE,
   impute = FALSE,
   seed = NULL,
+  store_prior_draws = FALSE,
   ...
 )
 }
@@ -46,6 +47,14 @@ be imputed during model fitting (defaults to \code{TRUE}) ?}
 
 \item{seed}{An integer for the random seed.}
 
+\item{store_prior_draws}{Logical. Should draws from the (joint) prior distribution
+of the partial correlations be returned (default \code{FALSE})? These
+draws are not needed for hypothesis testing, which uses the analytic
+prior standard deviation of the Fisher-z transformed partial
+correlations, but they retain the dependence between the partial
+correlations. Prior draws cost about as much memory as posterior
+draws.}
+
 \item{...}{Currently ignored (leave empty).}
 }
 \value{
@@ -58,6 +67,12 @@ The returned object of class \code{explore} contains a lot of information that
 \item \code{pcor_mat} partial correltion matrix (posterior mean).
 
 \item \code{post_samp} an object containing the posterior samples.
+
+\item \code{prior_samp} an object containing the prior samples
+(only when \code{store_prior_draws = TRUE}; otherwise \code{NULL}).
+
+\item \code{prior_sd_z} prior standard deviation of the Fisher-z
+transformed partial correlations (used for the Bayes factors).
 
 }
 }

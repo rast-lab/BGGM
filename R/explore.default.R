@@ -34,13 +34,13 @@
 #'
 #' @param seed An integer for the random seed.
 #'
-#' @param prior_samples Logical. Should draws from the (joint) prior distribution
+#' @param store_prior_draws Logical. Should draws from the (joint) prior distribution
 #'        of the partial correlations be returned (default \code{FALSE})? These
 #'        draws are not needed for hypothesis testing, which uses the analytic
 #'        prior standard deviation of the Fisher-z transformed partial
 #'        correlations, but they retain the dependence between the partial
-#'        correlations. Sampling them costs about as much time and memory as
-#'        the posterior sampling.
+#'        correlations. Prior draws cost about as much memory as posterior
+#'        draws.
 #'
 #' @param ... Currently ignored (leave empty).
 #'
@@ -58,7 +58,7 @@
 #' \item \code{post_samp} an object containing the posterior samples.
 #'
 #' \item \code{prior_samp} an object containing the prior samples
-#' (only when \code{prior_samples = TRUE}; otherwise \code{NULL}).
+#' (only when \code{store_prior_draws = TRUE}; otherwise \code{NULL}).
 #'
 #' \item \code{prior_sd_z} prior standard deviation of the Fisher-z
 #' transformed partial correlations (used for the Bayes factors).
@@ -186,7 +186,7 @@ explore <- function(Y,
                     progress = TRUE,
                     impute = FALSE,
                     seed = NULL,
-                    prior_samples = FALSE, ...){
+                    store_prior_draws = FALSE, ...){
 
   # Temporarily, if the type is not in an allowed set.
   if (!type %in% c("continuous", "mixed")) {
@@ -206,7 +206,7 @@ explore <- function(Y,
     set.seed(seed)
   }
 
-  
+
   dot_dot_dot <- list(...)
 
   # matrix-F prior: B = eps * I and nu = 1 / eps. The approximation
@@ -530,7 +530,7 @@ explore <- function(Y,
 
     # optional draws from the joint prior (not used for the Bayes factors)
     prior_samp <- NULL
-    if (isTRUE(prior_samples)) {
+    if (isTRUE(store_prior_draws)) {
 
       if(isTRUE(progress)){
         message(paste0("BGGM: Prior Sampling ", ...))

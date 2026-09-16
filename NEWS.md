@@ -12,7 +12,7 @@
   numerical integration from the marginal prior
   `rho ~ 2 * Beta(delta/2, delta/2) - 1` (independent of `p`) and stored as
   `prior_sd_z`. Draws from the joint prior (`prior_samp`) are now only
-  returned with the new argument `prior_samples = TRUE` (default `FALSE`), which
+  returned with the new argument `store_prior_draws = TRUE` (default `FALSE`), which
   halves time and memory use for large networks by default. `select.explore()`, `ggm_compare_explore()` and
   `bggm_missing()` use `prior_sd_z` (older `explore` objects still work in
   `select()`). Bayes factors change slightly, because the sampled prior sd was
