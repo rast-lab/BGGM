@@ -56,3 +56,52 @@ test_that("bggm_missing drops .id by name, not position (mice >= 3.17.0, issue #
     expect_false(".id" %in% colnames(result$Y))
     expect_equal(ncol(result$Y), 5)
 })
+
+test_that("bggm_missing pools the post-burn-in draws of all imputations", {
+    set.seed(123)
+    Y <- matrix(rnorm(200), ncol = 5)
+    Y[sample(length(Y), 30)] <- NA
+    imp <- mice::mice(Y, m = 3, print = FALSE)
+
+    for (method in c("explore", "estimate")) {
+        res <- bggm_missing(imp, method = method, iter = 100,
+                            progress = FALSE, seed = 1)
+
+        # 50 burn-in slices + 3 x 100 pooled draws
+        expect_equal(res$iter, 300)
+        expect_equal(dim(res$post_samp$pcors)[3], 350)
+        expect_equal(dim(res$post_samp$fisher_z)[3], 350)
+
+        # pooled draws are the post-burn-in draws of the separate fits
+        dat <- mice::complete(imp, action = "long")
+        fits <- lapply(1:3, function(i) {
+            Yi <- as.matrix(dat[dat$.imp == i, !(names(dat) %in% c(".imp", ".id"))])
+            if (method == "explore") explore(Yi, iter = 100, progress = FALSE, seed = 1)
+            else estimate(Yi, iter = 100, progress = FALSE, seed = 1)
+        })
+        expect_equal(res$post_samp$pcors[, , 51:150], fits[[1]]$post_samp$pcors[, , 51:150])
+        expect_equal(res$post_samp$pcors[, , 251:350], fits[[3]]$post_samp$pcors[, , 51:150])
+
+        # summaries use all pooled draws
+        expect_equal(res$pcor_mat,
+                     apply(res$post_samp$pcors[, , 51:350], 1:2, mean))
+        if (method == "explore") {
+            expect_equal(res$post_samp$z_mean,
+                         apply(res$post_samp$fisher_z[, , 51:350], 1:2, mean))
+            expect_s3_class(select(res), "select.explore")
+        }
+    }
+})
+
+test_that("bggm_missing explore ignores store_post_draws = FALSE with a warning", {
+    set.seed(123)
+    Y <- matrix(rnorm(100), ncol = 5)
+    Y[sample(length(Y), 20)] <- NA
+    imp <- mice::mice(Y, m = 2, print = FALSE)
+    expect_warning(
+        res <- bggm_missing(imp, method = "explore", iter = 100,
+                            progress = FALSE, store_post_draws = FALSE),
+        "ignored by bggm_missing"
+    )
+    expect_false(is.null(res$post_samp$pcors))
+})

@@ -41,6 +41,16 @@
   `bggm_missing()` always stores the draws.
 
 ### Bug fixes
+- **`bggm_missing()` now pools the posterior draws of the imputed data sets
+  correctly**: it stacked all draws of each fit, including their 50 burn-in
+  draws, and set `iter` to `iter * m + 50`, so the methods that use draws
+  `51:(iter + 50)` included the burn-in draws of imputations 2 to m and
+  indexed beyond the stored draws. The pooled object now contains the 50
+  burn-in draws of the first fit followed by the post-burn-in draws of all
+  fits, with `iter = iter * m`. `beta` and `thresh` are pooled whenever
+  present, and `pcor_mat` (and, for `explore`, the posterior summaries) are
+  recomputed from the pooled draws; previously they came from the first
+  imputation only. Also works for `m = 1`.
 - **`explore()` for large or n < p networks**: the starting value is
   regularized (`solve(cov(Y) + 0.1 I)`), and the matrix-F prior now uses
   `epsilon = min(0.01, 1 / (10 p))` instead of a fixed 0.01, so that
