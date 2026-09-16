@@ -31,6 +31,8 @@ posterior_predict <- function(object,
                               iter = 1000,
                               progress = TRUE){
 
+  check_post_draws(object, "posterior_predict")
+
 
   if(!any(class(object) %in% c("estimate", "explore"))) {
     stop("object must be of class 'estimate' or 'explore'.")

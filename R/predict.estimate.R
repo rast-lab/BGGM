@@ -214,6 +214,8 @@ predict.explore <- function(object,
                              progress = TRUE,
                              ...){
 
+  check_post_draws(object, "predict")
+
   # lower bound
   lb <- (1 - cred) / 2
 

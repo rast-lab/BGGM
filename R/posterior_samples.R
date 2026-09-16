@@ -39,6 +39,8 @@
 #' @export
 posterior_samples <- function(object, ...){
 
+  check_post_draws(object, "posterior_samples")
+
 
   if(is(object, "estimate") | is(object, "explore")) {
 

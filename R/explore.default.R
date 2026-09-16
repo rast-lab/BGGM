@@ -678,7 +678,12 @@ summary.explore <- function(object,
   if(isFALSE(object$analytic)){
 
     post_mean <- round(object$pcor_mat, 3)[upper.tri(I_p)]
-    post_sd  <- round(apply(object$post_samp$pcors[,, 51:(object$iter + 50) ], 1:2, sd), 3)[upper.tri(I_p)]
+    if (!is.null(object$post_samp$pcors)) {
+      post_sd <- apply(object$post_samp$pcors[,, 51:(object$iter + 50) ], 1:2, sd)
+    } else {
+      post_sd <- object$post_samp$pcor_sd
+    }
+    post_sd  <- round(post_sd, 3)[upper.tri(I_p)]
 
     dat_results <-
       data.frame(

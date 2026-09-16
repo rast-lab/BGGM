@@ -81,6 +81,8 @@
 #' @export
 pcor_to_cor <- function(object, iter = NULL){
 
+  check_post_draws(object, "pcor_to_cor")
+
   if(!is(object, "default")){
 
     stop("class not supported. Must but an 'estimate' or 'explore' object.")

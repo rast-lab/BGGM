@@ -348,6 +348,19 @@ eps_default <- function(p) {
   min(0.01, 1 / (10 * p))
 }
 
+# Stop with a clear message when a function needs the posterior draws of an
+# explore object that was fitted with store_post_draws = FALSE.
+check_post_draws <- function(object, fun) {
+  if (inherits(object, "explore") && !is.null(object$post_samp) &&
+      is.null(object$post_samp$pcors)) {
+    stop(paste0("'", fun, "()' requires posterior draws, but the model was ",
+                "fitted with store_post_draws = FALSE.\n",
+                "Refit with explore(..., store_post_draws = TRUE)."),
+         call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
 # Prior standard deviation of z = atanh(rho) under the matrix-F prior.
 # The marginal prior of a partial correlation is rho ~ 2 * Beta(delta/2, delta/2) - 1,
 # independent of p (Williams & Mulder, 2020), so the density of z is

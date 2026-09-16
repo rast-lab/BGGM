@@ -33,6 +33,12 @@
   `p x p x iter` arrays `post_samp$pcors` and `post_samp$fisher_z` are not
   stored, so memory use no longer grows with the number of iterations.
   `post_samp$pcor_mat` is now computed from these running sums.
+  `select()` (all methods and alternatives) and `summary()` work from these
+  summaries when the draws are not stored; functions that need the draws
+  (`posterior_samples()`, `convergence()`, `coef()`, `pcor_to_cor()`,
+  `predict()`, `predictability()`, `posterior_predict()`,
+  `constrained_posterior()`) stop with an informative error, and
+  `bggm_missing()` always stores the draws.
 
 ### Bug fixes
 - **`explore()` for large or n < p networks**: the starting value is

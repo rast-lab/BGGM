@@ -195,8 +195,15 @@ select.explore <- function(object,
 
   # Posterior mean/sd of the Fisher-z partial correlations and the prior
   # density at zero (Savage-Dickey). Shared by all branches below.
-  post_sd    <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
-  post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
+  # from the draws when stored; otherwise from the running summaries
+  # (explore(..., store_post_draws = FALSE))
+  if (!is.null(post_samp$fisher_z)) {
+    post_sd    <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
+    post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
+  } else {
+    post_sd    <- post_samp$z_sd
+    post_mean  <- post_samp$z_mean
+  }
   post_dens  <- dnorm(0, post_mean, post_sd)
   prior_dens <- dnorm(0, 0, .prior_sd_z(x))
 

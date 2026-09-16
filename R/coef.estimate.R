@@ -180,6 +180,8 @@ coef.explore <- function(object,
                          iter = NULL,
                          progress = TRUE, ...) {
 
+  check_post_draws(object, "coef")
+
   # check for object class
   if(is(object, "estimate") | is(object, "explore")){
 

@@ -177,3 +177,75 @@ test_that("store_prior_draws = TRUE returns joint prior draws", {
   fit$prior_samp <- NULL
   expect_equal(a$BF_10, select(fit)$BF_10)
 })
+
+test_that("running summaries match the stored draws", {
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 200, progress = FALSE, seed = 1)
+  idx <- 51:250
+  expect_equal(fit$post_samp$z_mean,
+               apply(fit$post_samp$fisher_z[,, idx], 1:2, mean), tolerance = 1e-8)
+  expect_equal(fit$post_samp$z_sd,
+               apply(fit$post_samp$fisher_z[,, idx], 1:2, sd), tolerance = 1e-8)
+  expect_equal(fit$post_samp$pcor_sd,
+               apply(fit$post_samp$pcors[,, idx], 1:2, sd), tolerance = 1e-8)
+  expect_equal(fit$pcor_mat,
+               apply(fit$post_samp$pcors[,, idx], 1:2, mean), tolerance = 1e-8)
+})
+
+test_that("store_post_draws = FALSE drops the draws; select() and summary() still work", {
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit_t <- explore(Y, iter = 200, progress = FALSE, seed = 1)
+  fit_f <- explore(Y, iter = 200, progress = FALSE, seed = 1, store_post_draws = FALSE)
+
+  expect_null(fit_f$post_samp$pcors)
+  expect_null(fit_f$post_samp$fisher_z)
+  expect_false(fit_f$store_post_draws)
+  expect_equal(fit_t$pcor_mat, fit_f$pcor_mat)
+
+  for (alt in c("two.sided", "greater", "less", "exhaustive")) {
+    a <- select(fit_t, alternative = alt)
+    b <- select(fit_f, alternative = alt)
+    expect_equal(a$pcor_mat, b$pcor_mat, tolerance = 1e-6)
+    expect_equal(a$incl_prob, b$incl_prob, tolerance = 1e-6)
+    a <- select(fit_t, method = "BMA", alternative = alt)
+    b <- select(fit_f, method = "BMA", alternative = alt)
+    expect_equal(a$pcor_mat_zero, b$pcor_mat_zero, tolerance = 1e-6)
+  }
+  expect_equal(summary(fit_t)$dat_results, summary(fit_f)$dat_results)
+  expect_equal(summary(select(fit_t))$summary, summary(select(fit_f))$summary)
+})
+
+test_that("store_post_draws = FALSE works for other data types", {
+  fit <- explore(test_data_binary, type = "binary", iter = 100,
+                 progress = FALSE, store_post_draws = FALSE)
+  expect_null(fit$post_samp$pcors)
+  expect_s3_class(select(fit), "select.explore")
+
+  fit <- explore(test_data_ordinal, type = "ordinal", iter = 100,
+                 progress = FALSE, store_post_draws = FALSE)
+  expect_null(fit$post_samp$pcors)
+  expect_s3_class(select(fit), "select.explore")
+
+  fit <- explore(test_data_ordinal, type = "mixed", iter = 100,
+                 progress = FALSE, store_post_draws = FALSE)
+  expect_null(fit$post_samp$pcors)
+  expect_s3_class(select(fit), "select.explore")
+
+  dat <- data.frame(test_data_cont[, 1:4], control = rnorm(20))
+  fit <- explore(dat, formula = ~ control, iter = 100,
+                 progress = FALSE, store_post_draws = FALSE)
+  expect_null(fit$post_samp$pcors)
+  expect_false(is.null(fit$post_samp$beta))
+  expect_s3_class(select(fit), "select.explore")
+})
+
+test_that("functions that need draws give a clear error", {
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE, store_post_draws = FALSE)
+  expect_error(posterior_samples(fit), "store_post_draws = TRUE")
+  expect_error(pcor_to_cor(fit), "store_post_draws = TRUE")
+  expect_error(coef(fit), "store_post_draws = TRUE")
+  expect_error(convergence(fit), "store_post_draws = TRUE")
+  expect_error(predictability(fit), "store_post_draws = TRUE")
+  expect_error(predict(fit), "store_post_draws = TRUE")
+})

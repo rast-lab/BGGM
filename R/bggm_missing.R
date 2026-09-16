@@ -103,9 +103,22 @@ bggm_missing <- function(x, iter = 2000,
   if(method == "explore"){
 
     # fit the models
-    fits <- lapply(1:n_data_sets, function(x) explore(as.matrix(subset(Y, .imp == x)[,!(names(Y) %in% ".imp")]),
-                                                      iter = iter,
-                                                      impute = FALSE, ...))
+    # the posterior draws of the imputed data sets are combined below, so
+    # they must be stored
+    dots <- list(...)
+    if (isFALSE(dots$store_post_draws)) {
+      warning("'store_post_draws = FALSE' is ignored by bggm_missing(): ",
+              "the posterior draws of the imputed data sets are combined.",
+              call. = FALSE)
+    }
+    dots$store_post_draws <- NULL
+
+    fits <- lapply(1:n_data_sets, function(x)
+      do.call(explore, c(list(Y = as.matrix(subset(Y, .imp == x)[,!(names(Y) %in% ".imp")]),
+                              iter = iter,
+                              impute = FALSE,
+                              store_post_draws = TRUE),
+                         dots)))
 
     # iterations
     iter <- fits[[1]]$iter
