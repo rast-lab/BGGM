@@ -462,7 +462,6 @@ Rcpp::List Theta_continuous(arma::mat Y,
 
   // precison matrix
   arma::cube Theta(k, k, 1, arma::fill::zeros);
-  arma::cube Theta_mcmc(k, k, iter, arma::fill::zeros);
 
   // partial correlations
   arma::mat pcors(k,k);
@@ -610,7 +609,6 @@ Rcpp::List sample_prior(arma::mat Y,
 
   // precison matrix
   arma::cube Theta(k, k, 1, arma::fill::zeros);
-  arma::cube Theta_mcmc(k, k, iter, arma::fill::zeros);
 
   // partial correlations
   arma::mat pcors(k,k);
@@ -618,10 +616,8 @@ Rcpp::List sample_prior(arma::mat Y,
 
   // correlations
   arma::mat  cors(k,k);
-  arma::cube cors_mcmc(k, k, iter, arma::fill::zeros);
 
   // covariance matrix
-  arma::cube Sigma_mcmc(k, k, iter, arma::fill::zeros);
   arma::cube Sigma(k, k, 1, arma::fill::zeros);
 
   // starting value
@@ -735,7 +731,6 @@ Rcpp::List mv_continuous(arma::mat Y,
 
   // precison matrix
   arma::cube Theta(k, k, 1, arma::fill::zeros);
-  arma::cube Theta_mcmc(k, k, iter, arma::fill::zeros);
 
   // partial correlations
   arma::mat pcors(k,k);
@@ -743,11 +738,9 @@ Rcpp::List mv_continuous(arma::mat Y,
 
   // correlations
   arma::mat  cors(k,k);
-  arma::cube cors_mcmc(k, k, iter, arma::fill::zeros);
 
   // covariance matrix
   arma::cube Sigma(k, k, 1, arma::fill::zeros);
-  arma::cube Sigma_mcmc(k, k, iter, arma::fill::zeros);
 
   // coefficients
   arma::mat beta(p, k, arma::fill::zeros);
@@ -870,7 +863,6 @@ Rcpp::List mv_binary(arma::mat Y,
 
   // precison matrix
   arma::cube Theta(k, k, 1, arma::fill::zeros);
-  arma::cube Theta_mcmc(k, k, iter, arma::fill::zeros);
 
   // partial correlations
   arma::mat pcors(k,k);
@@ -1086,7 +1078,6 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
 
   // precison matrix
   arma::cube Theta(k, k, 1, arma::fill::zeros);
-  arma::cube Theta_mcmc(k, k, iter, arma::fill::zeros);
 
   // partial correlations
   arma::mat pcors(k,k);
@@ -1349,7 +1340,6 @@ Rcpp::List  copula(arma::mat z0_start,
 
   z0.slice(0) = z0_start;
   //
-  arma::cube zmcmc(n, k, iter, arma::fill::zeros);
   // Psi update
   arma::cube Psi(k, k, 1, arma::fill::zeros);
 
@@ -1373,7 +1363,6 @@ Rcpp::List  copula(arma::mat z0_start,
 
   // correlations
   arma::mat  cors(k,k);
-  arma::cube cors_mcmc(k, k, iter, arma::fill::zeros);
 //
   // covariance matrix
   // Sigma.slice(0) = Sigma_start;
@@ -2467,7 +2456,6 @@ Rcpp::List missing_copula(arma::mat Y,
 
   arma::mat Y_impute = Y;
 
-  arma::cube Y_collect(n, p, iter_missing, arma::fill::zeros);
 
   // p by p identity mat
   arma::mat  I_p(p, p, arma::fill::eye);
@@ -2614,7 +2602,6 @@ Rcpp::List missing_copula(arma::mat Y,
   ret["pcors"] = pcors_mcmc;
   ret["pcor_mat"] = pcor_mat;
   ret["fisher_z"] = fisher_z;
-  ret["Y_collect"] = Y_collect;
   return  ret;
 }
 

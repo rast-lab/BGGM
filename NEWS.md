@@ -48,6 +48,20 @@
 - **`select.explore()` exhaustive `method = "BF_cut"` no longer returns `NA` on
   the diagonal** of `null_mat`/`pos_mat`/`neg_mat` (the posterior sd is 0 there).
 
+### Performance
+- **Removed unused posterior arrays from the C++ samplers used by `explore()`**
+  (also used by `estimate()`, `confirm()` and the `ggm_compare_*()` functions):
+  `Theta_mcmc`, `cors_mcmc`
+  and `Sigma_mcmc` (each p x p x iter) were allocated but never filled or
+  returned in `Theta_continuous`, `sample_prior`, `mv_continuous`,
+  `mv_binary`, `mv_ordinal_albert` and `copula`; `copula` also allocated an
+  unused n x p x iter array of latent data. This reduces memory use
+  substantially for large networks (e.g. `mv_continuous`, used with
+  `formula`, allocated five p x p x iter arrays and now two).
+- **`missing_copula` (mixed data with `impute = TRUE`) no longer returns
+  `post_samp$Y_collect`**: this n x p x iter array was never filled (all
+  zeros) and was not used anywhere in BGGM.
+
 # BGGM 2.1.6.9000 (development)
 
 ### New features
