@@ -248,7 +248,7 @@ explore <- function(Y,
         n <- nrow(Y)
 
         # starting values
-        start <- solve(cov(Y))
+        start <- solve(cov(Y) + diag(0.1, ncol(Y)))
 
         # posterior sample
         post_samp <- .Call(
@@ -286,7 +286,7 @@ explore <- function(Y,
         # model matrix
         X <- as.matrix(control_info$model_matrices[[1]])
 
-        start <- solve(cov(Y))
+        start <- solve(cov(Y) + diag(0.1, ncol(Y)))
 
         # posterior sample
         post_samp <- .Call(
@@ -321,7 +321,7 @@ explore <- function(Y,
 
         formula <- ~ 1
 
-        start <- solve(cov(Y))
+        start <- solve(cov(Y) + diag(0.1, ncol(Y)))
 
       } else {
 
@@ -342,7 +342,7 @@ explore <- function(Y,
         # model matrix
         X <- as.matrix(control_info$model_matrices[[1]])
 
-        start <- solve(cov(Y))
+        start <- solve(cov(Y) + diag(0.1, ncol(Y)))
 
       }
 
@@ -383,7 +383,7 @@ explore <- function(Y,
         formula <- ~ 1
 
         # start
-        start <- solve(cov(Y))
+        start <- solve(cov(Y) + diag(0.1, ncol(Y)))
 
       } else {
 
@@ -403,7 +403,7 @@ explore <- function(Y,
         X <- as.matrix(control_info$model_matrices[[1]])
 
         # start
-        start <- solve(cov(Y))
+        start <- solve(cov(Y) + diag(0.1, ncol(Y)))
 
       }
 
