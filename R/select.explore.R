@@ -26,8 +26,11 @@
 #'        \code{method = "BF_cut"} (defaults to 3). 
 #'
 #' @param prior.prob.H0 Numeric between 0 and 1. Prior probability assigned
-#'        to the null hypothesis for each edge when
-#'        \code{method = "BMA"} (defaults to \code{0.5}).
+#'        to the null hypothesis for each edge (defaults to \code{0.5}). With
+#'        \code{method = "BMA"} it is used for model averaging and the edge
+#'        inclusion probabilities. With \code{method = "BF_cut"} it only affects
+#'        the reported edge inclusion probabilities (\code{incl_prob}), not the
+#'        selected graph, and it is not used for \code{alternative = "exhaustive"}.
 #'
 #' @param alternative A character string specifying the alternative hypothesis. It
 #'                    must be one of "two.sided" (default), "greater", "less",
@@ -93,6 +96,10 @@
 #'
 #'  \item \code{Adj_01} Adjacency matrix for which there was
 #'                      evidence for the null hypothesis.
+#'
+#'  \item \code{incl_prob} Matrix of posterior edge inclusion probabilities,
+#'  \eqn{P(H_1 \mid Y)}, based on \code{BF_10} and prior inclusion probability
+#'  \code{1 - prior.prob.H0}.
 #'  }
 #'
 #' \code{alternative = "greater"} and \code{"less"}
@@ -107,6 +114,10 @@
 #'
 #'  \item \code{Adj_02} Adjacency matrix for which there was
 #'                      evidence for the null hypothesis (see note).
+#'
+#'  \item \code{incl_prob} Matrix of posterior probabilities of the
+#'  one-sided hypothesis against the null, based on \code{BF_20} and prior
+#'  probability \code{1 - prior.prob.H0}.
 #'  }
 #'
 #' \code{alternative = "exhaustive"}
@@ -127,6 +138,9 @@
 #' \item \code{neg_mat} Adjacency matrix for negative edges.
 #'
 #' \item \code{null_mat} Adjacency matrix for null edges (see note).
+#'
+#' \item \code{incl_prob} Matrix of posterior edge inclusion probabilities,
+#'   \eqn{1 - P(H_0 \mid Y)}.
 #'
 #'  \item \code{pcor_mat} Partial correlation matrix (posterior mean). The weighted adjacency
 #'  matrices can be computed by multiplying \code{pcor_mat} with an adjacency matrix.
@@ -185,19 +199,27 @@ select.explore <- function(object,
   prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
   prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
 
-  # prior.prob.H0 only affects method = "BMA". If the user explicitly set it
-  # while using method = "BF_cut", it has no effect on the result -- selection
-  # is driven entirely by the BF_cut threshold -- so remind them rather than
-  # let it pass silently.
+  # With method = "BF_cut", prior.prob.H0 does not affect edge selection
+  # (which is driven by BF_cut). For "two.sided", "greater" and "less" it is
+  # still used for the reported edge inclusion probabilities (incl_prob); for
+  # "exhaustive" (fixed equal 1/3 priors) it is not used at all.
   if (method == "BF_cut" && "prior.prob.H0" %in% names(match.call())) {
-    warning(
-      paste0(
-        "'prior.prob.H0' is ignored when method = \"BF_cut\": edge selection ",
-        "is based on the 'BF_cut' Bayes-factor threshold (BF_cut = ", BF_cut,
-        "). Use method = \"BMA\" for 'prior.prob.H0' to take effect."
-      ),
-      call. = FALSE
-    )
+    if (alternative == "exhaustive") {
+      warning(
+        paste0(
+          "'prior.prob.H0' is ignored when method = \"BF_cut\" and ",
+          "alternative = \"exhaustive\": the three hypotheses have equal prior ",
+          "probabilities. Use method = \"BMA\" for 'prior.prob.H0' to take effect."
+        ),
+        call. = FALSE
+      )
+    } else {
+      message(
+        "'prior.prob.H0' only affects the edge inclusion probabilities ",
+        "('incl_prob') when method = \"BF_cut\"; edge selection is based on ",
+        "BF_cut = ", BF_cut, "."
+      )
+    }
   }
 
   if (method == "BF_cut") {
@@ -223,6 +245,8 @@ select.explore <- function(object,
         BF_10          = BF_10_mat,
         BF_01          = BF_01_mat,
         BF_cut         = BF_cut,
+        incl_prob      = .incl_prob(BF_10_mat, prior.prob.H0),
+        prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
         call           = match.call(),
@@ -254,6 +278,8 @@ select.explore <- function(object,
         BF_20          = BF_20_mat,
         BF_02          = BF_02_mat,
         BF_cut         = BF_cut,
+        incl_prob      = .incl_prob(BF_20_mat, prior.prob.H0),
+        prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
         call           = match.call(),
@@ -285,6 +311,8 @@ select.explore <- function(object,
         BF_20          = BF_20_mat,
         BF_02          = BF_02_mat,
         BF_cut         = BF_cut,
+        incl_prob      = .incl_prob(BF_20_mat, prior.prob.H0),
+        prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
         call           = match.call(),
@@ -357,6 +385,7 @@ select.explore <- function(object,
         call           = match.call(),
         # posterior-probability threshold used for selection
         prob           = hyp_prob,
+        incl_prob      = .incl_prob_exhaustive(prob_null),
         method         = method,
         type           = x$type,
         formula        = x$formula,
@@ -488,6 +517,7 @@ select.explore <- function(object,
         BF_10          = BF_10_mat,
         BF_01          = BF_01_mat,
         BF_cut         = NA,
+        incl_prob      = .incl_prob(BF_10_mat, prior.prob.H0),
         prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
@@ -529,6 +559,7 @@ select.explore <- function(object,
         BF_20          = BF_20_mat,
         BF_02          = BF_02_mat,
         BF_cut         = NA,
+        incl_prob      = .incl_prob(BF_20_mat, prior.prob.H0),
         prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
@@ -570,6 +601,7 @@ select.explore <- function(object,
         BF_20          = BF_20_mat,
         BF_02          = BF_02_mat,
         BF_cut         = NA,
+        incl_prob      = .incl_prob(BF_20_mat, prior.prob.H0),
         prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
@@ -657,6 +689,7 @@ select.explore <- function(object,
         pcor_sd_fisher = round(post_sd, 3),
         call           = match.call(),
         prob           = NA,
+        incl_prob      = .incl_prob_exhaustive(prob_null),
         prior.prob.H0  = prior.prob.H0,
         method         = method,
         type           = x$type,
@@ -672,6 +705,22 @@ select.explore <- function(object,
 
   class(returned_object) <- c("BGGM", "select.explore", "explore", "select")
   returned_object
+}
+
+# Posterior edge inclusion probabilities from a Bayes factor against H0,
+# P(H1 | Y) = q * BF / (q * BF + 1 - q), with q = 1 - prior.prob.H0.
+# Written so that BF = Inf gives 1. Diagonal set to 0.
+.incl_prob <- function(BF, prior.prob.H0) {
+  pip <- 1 / (1 + prior.prob.H0 / ((1 - prior.prob.H0) * BF))
+  diag(pip) <- 0
+  pip
+}
+
+# Exhaustive test: inclusion probability is P(H+ | Y) + P(H- | Y).
+.incl_prob_exhaustive <- function(prob_null) {
+  pip <- 1 - prob_null
+  diag(pip) <- 0
+  pip
 }
 
 
@@ -821,7 +870,8 @@ summary.select.explore <- function(object,
 
     post_mean <- x$pcor_mat[upper.tri(x$pcor_mat)]
     post_sd <-  x$pcor_sd_fisher[upper.tri(x$pcor_sd_fisher)]
-    prob_H1 <- x$BF_10[upper.tri(x$BF_10)] / (x$BF_10[upper.tri(x$BF_10)] + 1)
+    prob_H1 <- if (!is.null(x$incl_prob)) x$incl_prob[upper.tri(x$incl_prob)] else
+      x$BF_10[upper.tri(x$BF_10)] / (x$BF_10[upper.tri(x$BF_10)] + 1)
     prob_H0 <- 1 - prob_H1
     summ <-  data.frame(
       Relation = mat_names,
@@ -835,7 +885,8 @@ summary.select.explore <- function(object,
 
     post_mean <- x$pcor_mat[upper.tri(x$pcor_mat)]
     post_sd <-  x$pcor_sd_fisher[upper.tri(x$pcor_sd_fisher)]
-    prob_H1 <- x$BF_20[upper.tri(x$BF_20)] / (x$BF_20[upper.tri(x$BF_20)] + 1)
+    prob_H1 <- if (!is.null(x$incl_prob)) x$incl_prob[upper.tri(x$incl_prob)] else
+      x$BF_20[upper.tri(x$BF_20)] / (x$BF_20[upper.tri(x$BF_20)] + 1)
     prob_H0 <- 1 - prob_H1
     summ <-  data.frame(
       Relation = mat_names,

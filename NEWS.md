@@ -28,6 +28,13 @@
 - **`truncnorm` added to `Imports`**: required for the truncated-normal draws used
   in one-sided BMA alternatives.
 
+- **`select.explore()` returns edge inclusion probabilities (`incl_prob`)**:
+  a matrix of posterior edge inclusion probabilities, `q * BF / (q * BF + 1 - q)`
+  with prior inclusion probability `q = 1 - prior.prob.H0` (`BF_10` for
+  `"two.sided"`, `BF_20` for `"greater"`/`"less"`), and `1 - P(H0 | Y)` for
+  `"exhaustive"`. With `method = "BF_cut"`, `prior.prob.H0` now affects these
+  probabilities (and `summary()`) but not the selected graph.
+
 ### Bug fixes
 - **Fixed `bggm_missing()` dropping the wrong column with `mice` >= 3.17.0** ([#2](https://github.com/rast-lab/BGGM/issues/2)): `bggm_missing()` removed the `.id` column from `mice::complete(action = "long")` by position (column 2), which was correct only before `mice` 3.17.0. Since `mice` 3.17.0 places `.imp`/`.id` in the last two columns, this stripped a real data column and let `.id` leak into the model, corrupting the data passed to `estimate()`/`explore()`. The column is now removed by name, which is robust to `mice`'s column order. Reported by \@LilyTeesson.
 - **Documented how `BF_cut` is used in `select.explore()` with

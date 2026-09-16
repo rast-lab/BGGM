@@ -21,7 +21,7 @@ test_that("select.explore returns expected structure for two-sided alternative",
   result <- select.explore(fit, alternative = "two.sided")
   
   expect_s3_class(result, "select.explore")
-  expect_named(result, c("pcor_mat_zero", "pcor_mat", "pcor_sd_fisher", "Adj_10", "Adj_01", "BF_10", "BF_01", "BF_cut", "method", "alternative", "call", "type", "formula", "analytic", "object"))
+  expect_named(result, c("pcor_mat_zero", "pcor_mat", "pcor_sd_fisher", "Adj_10", "Adj_01", "BF_10", "BF_01", "BF_cut", "incl_prob", "prior.prob.H0", "method", "alternative", "call", "type", "formula", "analytic", "object"))
   expect_true(is.matrix(result$pcor_mat_zero))
   expect_true(is.matrix(result$pcor_mat))
   expect_true(is.matrix(result$Adj_10))
@@ -34,7 +34,7 @@ test_that("select.explore returns expected structure for greater alternative", {
   result <- select.explore(fit, alternative = "greater")
   
   expect_s3_class(result, "select.explore")
-  expect_named(result, c("pcor_mat_zero", "pcor_mat", "pcor_sd_fisher", "Adj_20", "Adj_02", "BF_20", "BF_02", "BF_cut", "method", "alternative", "call", "type", "formula", "analytic", "object"))
+  expect_named(result, c("pcor_mat_zero", "pcor_mat", "pcor_sd_fisher", "Adj_20", "Adj_02", "BF_20", "BF_02", "BF_cut", "incl_prob", "prior.prob.H0", "method", "alternative", "call", "type", "formula", "analytic", "object"))
   expect_true(is.matrix(result$pcor_mat_zero))
   expect_true(is.matrix(result$pcor_mat))
   expect_true(is.matrix(result$Adj_20))
@@ -47,7 +47,7 @@ test_that("select.explore returns expected structure for exhaustive alternative"
   result <- select.explore(fit, alternative = "exhaustive")
 
   expect_s3_class(result, "select.explore")
-  expect_named(result, c("post_prob", "neg_mat", "pos_mat", "null_mat", "alternative", "pcor_mat", "pcor_sd_fisher", "call", "prob", "method", "type", "formula", "analytic", "object"))
+  expect_named(result, c("post_prob", "neg_mat", "pos_mat", "null_mat", "alternative", "pcor_mat", "pcor_sd_fisher", "call", "prob", "incl_prob", "method", "type", "formula", "analytic", "object"))
   expect_true(is.data.frame(result$post_prob))
   expect_true(is.matrix(result$neg_mat))
   expect_true(is.matrix(result$pos_mat))
@@ -397,6 +397,67 @@ test_that("exhaustive BF_cut ignores prior.prob.H0 (equal 1/3 priors)", {
     select(fit, BF_cut = 3, alternative = "exhaustive", prior.prob.H0 = 0.9))
   expect_equal(a$post_prob, b$post_prob)
   expect_equal(a$null_mat, b$null_mat)
+})
+
+# ---- Edge inclusion probabilities ----
+
+test_that("incl_prob matches q*BF10 / (q*BF10 + 1 - q) for two.sided", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  for (q0 in c(0.5, 0.33, 0.8)) {
+    sel <- suppressMessages(select(fit, alternative = "two.sided", prior.prob.H0 = q0))
+    bf  <- sel$BF_10[upper.tri(sel$BF_10)]
+    q   <- 1 - q0
+    expect_equal(sel$incl_prob[upper.tri(sel$incl_prob)], q * bf / (q * bf + 1 - q))
+    expect_true(all(diag(sel$incl_prob) == 0))
+    expect_true(isSymmetric(sel$incl_prob))
+  }
+})
+
+test_that("incl_prob does not change BF_cut selection and gives a message", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  expect_message(select(fit, alternative = "two.sided", prior.prob.H0 = 0.8),
+                 "only affects the edge inclusion probabilities")
+  a <- select(fit, alternative = "two.sided")
+  b <- suppressMessages(select(fit, alternative = "two.sided", prior.prob.H0 = 0.8))
+  expect_equal(a$Adj_10, b$Adj_10)
+  expect_true(all(b$incl_prob[upper.tri(b$incl_prob)] <=
+                  a$incl_prob[upper.tri(a$incl_prob)] + 1e-12))
+})
+
+test_that("incl_prob handles BF10 = Inf", {
+  BF <- matrix(c(0, Inf, Inf, 0), 2, 2)
+  expect_equal(BGGM:::.incl_prob(BF, 0.5), matrix(c(0, 1, 1, 0), 2, 2))
+})
+
+test_that("incl_prob for greater/less and exhaustive", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, alternative = "greater")
+  bf  <- sel$BF_20[upper.tri(sel$BF_20)]
+  expect_equal(sel$incl_prob[upper.tri(sel$incl_prob)], bf / (bf + 1))
+
+  sel <- select(fit, alternative = "exhaustive")
+  expect_equal(sel$incl_prob[upper.tri(sel$incl_prob)],
+               1 - sel$post_prob$prob_zero)
+  expect_false(any(is.na(sel$incl_prob)))
+
+  sel <- select(fit, method = "BMA", alternative = "exhaustive")
+  expect_equal(sel$incl_prob[upper.tri(sel$incl_prob)],
+               1 - sel$post_prob$prob_zero)
+})
+
+test_that("summary uses incl_prob", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- suppressMessages(select(fit, alternative = "two.sided", prior.prob.H0 = 0.8))
+  expect_equal(summary(sel)$summary$Pr.H1,
+               round(sel$incl_prob[upper.tri(sel$incl_prob)], 3))
 })
 
 # ---- BMA tests ----
