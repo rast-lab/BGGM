@@ -16,10 +16,10 @@
 #'        \insertCite{Williams2019_bf}{BGGM}.
 #'
 #'        \item \code{"BMA"}: Bayesian model averaging based on posterior model
-#'        probabilities. For each edge, posterior draws are generated from a
-#'        mixture distribution placing mass at zero under the null model and
-#'        using posterior draws from the alternative model otherwise.
-#'        Reported edges are based on the posterior median of these draws.
+#'        probabilities. For each edge, the posterior is a mixture
+#'        distribution placing mass at zero under the null model and using the
+#'        posterior under the alternative model otherwise. Reported edges are
+#'        based on the median of this mixture.
 #'        }
 #'
 #' @param BF_cut Numeric. Bayes factor threshold for including an edge when
@@ -55,13 +55,16 @@
 #' cutoff corresponds to a Bayes factor of \code{2 * BF_cut} against the complement.
 #' An edge can be assigned to none of the three hypotheses.
 #'
-#' \code{method = "BMA"} performs Bayesian model averaging by generating
-#' posterior draws from a spike-and-slab style mixture distribution for each
-#' edge. The spike corresponds to the null hypothesis (exactly zero partial
-#' correlation), whereas the slab corresponds to posterior draws under the
-#' alternative hypothesis. Posterior model probabilities are computed from the
-#' Bayes factors and \code{prior.prob.H0}. The selected network is based on
-#' the posterior median of the resulting draws. For
+#' \code{method = "BMA"} performs Bayesian model averaging using a
+#' spike-and-slab style mixture distribution for each edge. The spike
+#' corresponds to the null hypothesis (exactly zero partial correlation),
+#' whereas the slab corresponds to the posterior under the alternative
+#' hypothesis, approximated by a normal distribution for the Fisher-z
+#' transformed partial correlation (truncated to the positive or negative
+#' half-line for one-sided hypotheses). Posterior model probabilities are
+#' computed from the Bayes factors and \code{prior.prob.H0}. The selected
+#' network is based on the median of this mixture, which is computed exactly
+#' (no simulation), so the result is deterministic. For
 #' \code{alternative = "exhaustive"} the mixture has three states -- a spike at
 #' zero (\eqn{H_0}), a positive slab (\eqn{H_+}), and a negative slab
 #' (\eqn{H_-}) -- mixed by the posterior hypothesis probabilities. The
@@ -398,88 +401,35 @@ select.explore <- function(object,
   } else {
     # BMA
 
-    P        <- object$p
-    indices  <- which(lower.tri(diag(P), diag = FALSE), arr.ind = TRUE)
-    num_pcor <- P * (P - 1) / 2
+    P <- object$p
 
-    .bma_matrix <- function(excl_vec, incl_vec, draw_fn) {
-      bma_draws <- do.call(cbind, lapply(seq_len(num_pcor), function(e) {
-        d        <- sample(c(0, 1), size = x$iter,
-                           prob = c(excl_vec[e], incl_vec[e]), replace = TRUE)
-        incl_pos <- which(d == 1)
-        if (length(incl_pos) > 0) d[incl_pos] <- draw_fn(e, incl_pos)
-        d
-      }))
-      medians <- apply(bma_draws, 2, median)
-      m <- matrix(0, P, P)
-      for (i in seq_len(nrow(indices))) {
-        m[indices[i, 1], indices[i, 2]] <- medians[i]
-        m[indices[i, 2], indices[i, 1]] <- medians[i]
-      }
-      m
-    }
-
-    # Restricted-posterior slab draws for edge `e`: n draws from the positive
-    # (> 0) or negative (< 0) part of the posterior partial correlation. When
-    # the sampled posterior has no draw on the required side, fall back to a
-    # truncated-normal approximation on the Fisher-z scale. Shared by the
-    # "greater", "less", and "exhaustive" BMA branches so their slab logic
-    # cannot drift apart.
-    .draw_positive_slab <- function(e, n) {
-      pos_idx <- which(object$post_samp$pcors[indices[e, 1], indices[e, 2], samp_idx] > 0)
-      if (length(pos_idx) > 0) {
-        object$post_samp$pcors[
-          indices[e, 1], indices[e, 2],
-          sample(samp_idx[pos_idx], size = n, replace = TRUE)
-        ]
-      } else {
-        tanh(truncnorm::rtruncnorm(n,
-                        mean = post_mean[indices[e, 1], indices[e, 2]],
-                        sd   = post_sd[indices[e, 1], indices[e, 2]],
-                        a    = 0))
-      }
-    }
-
-    .draw_negative_slab <- function(e, n) {
-      neg_idx <- which(object$post_samp$pcors[indices[e, 1], indices[e, 2], samp_idx] < 0)
-      if (length(neg_idx) > 0) {
-        object$post_samp$pcors[
-          indices[e, 1], indices[e, 2],
-          sample(samp_idx[neg_idx], size = n, replace = TRUE)
-        ]
-      } else {
-        tanh(truncnorm::rtruncnorm(n,
-                        mean = post_mean[indices[e, 1], indices[e, 2]],
-                        sd   = post_sd[indices[e, 1], indices[e, 2]],
-                        b    = 0))
-      }
-    }
-
-    # Three-state spike-and-slab BMA: the exhaustive analogue of .bma_matrix.
-    # For each edge, draw a hypothesis state H0 / H+ / H- with probabilities
-    # (p0, pplus, pminus) for each of x$iter draws, then set the draw to an
-    # exact 0 (H0), a positive slab draw (H+), or a negative slab draw (H-).
-    # The per-edge posterior median of this mixture is the model-averaged
-    # estimate -- it integrates over all three hypotheses rather than picking
-    # the single most probable one.
-    .bma_matrix_3state <- function(p0_vec, pplus_vec, pminus_vec) {
-      bma_draws <- do.call(cbind, lapply(seq_len(num_pcor), function(e) {
-        state <- sample(c(0L, 1L, 2L), size = x$iter, replace = TRUE,
-                        prob = c(p0_vec[e], pplus_vec[e], pminus_vec[e]))
-        vals  <- numeric(x$iter)
-        pos   <- which(state == 1L)
-        neg   <- which(state == 2L)
-        if (length(pos) > 0) vals[pos] <- .draw_positive_slab(e, length(pos))
-        if (length(neg) > 0) vals[neg] <- .draw_negative_slab(e, length(neg))
-        vals
-      }))
-      medians <- apply(bma_draws, 2, median)
-      m <- matrix(0, P, P)
-      for (i in seq_len(nrow(indices))) {
-        m[indices[i, 1], indices[i, 2]] <- medians[i]
-        m[indices[i, 2], indices[i, 1]] <- medians[i]
-      }
-      m
+    # Model-averaged partial correlations: the median of the spike-and-slab
+    # mixture with a spike at 0 (mass p0), a positive slab (mass pplus) and a
+    # negative slab (mass pminus). The slabs are the posterior of the Fisher-z
+    # partial correlation, approximated by N(post_mean, post_sd^2), truncated
+    # to z > 0 and z < 0. The median is computed exactly under this
+    # approximation (no simulation) and transformed back with tanh:
+    #   pminus > 0.5         -> median in the negative slab
+    #   pminus + p0 >= 0.5   -> median is 0
+    #   otherwise            -> median in the positive slab
+    # For the two-sided test the (untruncated) slab with mass 1 - p0 equals a
+    # positive and a negative truncated slab with masses (1 - p0) * P(z > 0)
+    # and (1 - p0) * P(z < 0). Quantiles are computed on the log scale for
+    # numerical stability.
+    .bma_median <- function(p0, pplus, pminus) {
+      log_lo <- pnorm(0, post_mean, post_sd, log.p = TRUE)
+      log_up <- pnorm(0, post_mean, post_sd, lower.tail = FALSE, log.p = TRUE)
+      off <- row(post_mean) != col(post_mean)
+      neg <- off & ((pminus > 0.5) %in% TRUE)
+      pos <- off & !neg & ((pminus + p0 < 0.5) %in% TRUE)
+      z   <- matrix(0, P, P)
+      z[neg] <- qnorm(log_lo[neg] + log(0.5 / pminus[neg]),
+                      post_mean[neg], post_sd[neg], log.p = TRUE)
+      q <- (0.5 - pminus[pos] - p0[pos]) / pplus[pos]
+      z[pos] <- qnorm(log_up[pos] + log1p(-q),
+                      post_mean[pos], post_sd[pos],
+                      lower.tail = FALSE, log.p = TRUE)
+      tanh(z)
     }
 
     if (alternative == "two.sided") {
@@ -491,15 +441,10 @@ select.explore <- function(object,
 
       edge_excl  <- (BF_01_mat * prior.prob.H0) /
                     (BF_01_mat * prior.prob.H0 + (1 - prior.prob.H0))
-      excl_vec   <- edge_excl[lower.tri(diag(P))]
-      incl_vec   <- 1 - excl_vec
-
-      bma_matrix <- .bma_matrix(excl_vec, incl_vec, function(e, incl_pos) {
-        object$post_samp$pcors[
-          indices[e, 1], indices[e, 2],
-          sample(samp_idx, size = length(incl_pos), replace = TRUE)
-        ]
-      })
+      p_lo       <- pnorm(0, post_mean, post_sd)
+      bma_matrix <- .bma_median(p0     = edge_excl,
+                                pplus  = (1 - edge_excl) * (1 - p_lo),
+                                pminus = (1 - edge_excl) * p_lo)
 
       Adj_10 <- ifelse(bma_matrix != 0, 1, 0)
       Adj_01 <- ifelse(bma_matrix == 0, 1, 0)
@@ -536,12 +481,8 @@ select.explore <- function(object,
 
       edge_excl <- (BF_02_mat * prior.prob.H0) /
                    (BF_02_mat * prior.prob.H0 + (1 - prior.prob.H0))
-      excl_vec  <- edge_excl[lower.tri(diag(P))]
-      incl_vec  <- 1 - excl_vec
-
-      bma_matrix <- .bma_matrix(excl_vec, incl_vec, function(e, incl_pos) {
-        .draw_positive_slab(e, length(incl_pos))
-      })
+      bma_matrix <- .bma_median(p0 = edge_excl, pplus = 1 - edge_excl,
+                                pminus = 0 * edge_excl)
 
       Adj_20 <- ifelse(bma_matrix != 0, 1, 0)
       Adj_02 <- ifelse(bma_matrix == 0, 1, 0)
@@ -578,12 +519,8 @@ select.explore <- function(object,
 
       edge_excl <- (BF_02_mat * prior.prob.H0) /
                    (BF_02_mat * prior.prob.H0 + (1 - prior.prob.H0))
-      excl_vec  <- edge_excl[lower.tri(diag(P))]
-      incl_vec  <- 1 - excl_vec
-
-      bma_matrix <- .bma_matrix(excl_vec, incl_vec, function(e, incl_pos) {
-        .draw_negative_slab(e, length(incl_pos))
-      })
+      bma_matrix <- .bma_median(p0 = edge_excl, pplus = 0 * edge_excl,
+                                pminus = 1 - edge_excl)
 
       Adj_20 <- ifelse(bma_matrix != 0, 1, 0)
       Adj_02 <- ifelse(bma_matrix == 0, 1, 0)
@@ -648,17 +585,11 @@ select.explore <- function(object,
       )
       row.names(prob_dat) <- c()
 
-      # Genuine three-state Bayesian model averaging: draw a spike-and-slab
-      # mixture with the null spike at 0, a positive slab, and a negative slab,
-      # mixed by the posterior hypothesis probabilities (prob_null,
-      # prob_greater, prob_less). pcor_mat_zero is the per-edge posterior
-      # median of that mixture -- the model-averaged estimate, the exhaustive
-      # analogue of the two-state BMA output.
-      p0_vec     <- prob_null[lower.tri(diag(P))]
-      pplus_vec  <- prob_greater[lower.tri(diag(P))]
-      pminus_vec <- prob_less[lower.tri(diag(P))]
-
-      bma_matrix <- .bma_matrix_3state(p0_vec, pplus_vec, pminus_vec)
+      # Three-state Bayesian model averaging: pcor_mat_zero is the median of
+      # the mixture of the null spike at 0, the positive slab and the negative
+      # slab, mixed by the posterior hypothesis probabilities.
+      bma_matrix <- .bma_median(p0 = prob_null, pplus = prob_greater,
+                                pminus = prob_less)
 
       # Classify each edge by the SIGN of the model-averaged median, not by the
       # single most probable hypothesis. null_mat == 1 means that the
@@ -666,7 +597,7 @@ select.explore <- function(object,
       # the most probable hypothesis, because neither the positive nor the
       # negative side contains more than half of the posterior mixture
       # probability mass (the median is set by probability mass, not by the
-      # magnitudes of the slab draws). The three matrices are mutually exclusive
+      # magnitudes of the slab values). The three matrices are mutually exclusive
       # by construction (a real number is > 0, < 0, or == 0), so this also
       # removes the tie ambiguity of an argmax over equal probabilities.
       pos_mat        <- 1 * (bma_matrix > 0)

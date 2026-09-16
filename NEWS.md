@@ -7,6 +7,13 @@
   `"two.sided"`, `BF_20` for `"greater"`/`"less"`), and `1 - P(H0 | Y)` for
   `"exhaustive"`. With `method = "BF_cut"`, `prior.prob.H0` now affects these
   probabilities (and `summary()`) but not the selected graph.
+- **`select.explore()` with `method = "BMA"` is now deterministic**: the
+  model-averaged partial correlations (`pcor_mat_zero`) are the exact median of
+  the spike-and-slab mixture, with the slab(s) given by the normal
+  approximation of the posterior of the Fisher-z partial correlation
+  (truncated at 0 for one-sided hypotheses), instead of the median of
+  simulated mixture draws. Results change slightly and no longer depend on the
+  random seed.
 - **`explore()` no longer samples the prior**: the Bayes factors only need the
   prior sd of the Fisher-z partial correlations, which is now computed by
   numerical integration from the marginal prior

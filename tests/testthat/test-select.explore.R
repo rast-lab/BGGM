@@ -460,6 +460,28 @@ test_that("summary uses incl_prob", {
 
 # ---- BMA tests ----
 
+test_that("BMA is deterministic and equals the exact mixture median", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  a <- select(fit, method = "BMA", alternative = "two.sided")
+  b <- select(fit, method = "BMA", alternative = "two.sided")
+  expect_equal(a$pcor_mat_zero, b$pcor_mat_zero)
+
+  # compare one edge with a simulated mixture median
+  d  <- .se_dens(fit)
+  bf <- d$BF_10[1, 2]
+  p0 <- 1 / (1 + bf)                       # prior.prob.H0 = 0.5
+  set.seed(1)
+  N  <- 4e5
+  z  <- ifelse(runif(N) < p0, 0, rnorm(N, d$post_mean[1, 2], d$post_sd[1, 2]))
+  expect_lt(abs(a$pcor_mat_zero[1, 2] - tanh(median(z))), 0.01)
+
+  e <- select(fit, method = "BMA", alternative = "exhaustive")
+  expect_false(any(is.na(e$pcor_mat_zero)))
+  expect_true(all(diag(e$pcor_mat_zero) == 0))
+})
+
 test_that("BMA two.sided returns correct structure", {
   set.seed(123)
   Y <- BGGM::bfi[1:100, 1:5]
