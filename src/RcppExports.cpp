@@ -126,8 +126,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // Theta_continuous
-Rcpp::List Theta_continuous(arma::mat Y, int iter, float delta, float epsilon, int prior_only, int explore, arma::mat start, bool progress, bool impute, arma::mat Y_missing);
-RcppExport SEXP _BGGM_Theta_continuous(SEXP YSEXP, SEXP iterSEXP, SEXP deltaSEXP, SEXP epsilonSEXP, SEXP prior_onlySEXP, SEXP exploreSEXP, SEXP startSEXP, SEXP progressSEXP, SEXP imputeSEXP, SEXP Y_missingSEXP) {
+Rcpp::List Theta_continuous(arma::mat Y, int iter, float delta, float epsilon, int prior_only, int explore, arma::mat start, bool progress, bool impute, arma::mat Y_missing, bool store);
+RcppExport SEXP _BGGM_Theta_continuous(SEXP YSEXP, SEXP iterSEXP, SEXP deltaSEXP, SEXP epsilonSEXP, SEXP prior_onlySEXP, SEXP exploreSEXP, SEXP startSEXP, SEXP progressSEXP, SEXP imputeSEXP, SEXP Y_missingSEXP, SEXP storeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -141,7 +141,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type progress(progressSEXP);
     Rcpp::traits::input_parameter< bool >::type impute(imputeSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type Y_missing(Y_missingSEXP);
-    rcpp_result_gen = Rcpp::wrap(Theta_continuous(Y, iter, delta, epsilon, prior_only, explore, start, progress, impute, Y_missing));
+    Rcpp::traits::input_parameter< bool >::type store(storeSEXP);
+    rcpp_result_gen = Rcpp::wrap(Theta_continuous(Y, iter, delta, epsilon, prior_only, explore, start, progress, impute, Y_missing, store));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -163,8 +164,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // mv_continuous
-Rcpp::List mv_continuous(arma::mat Y, arma::mat X, float delta, float epsilon, int iter, arma::mat start, bool progress);
-RcppExport SEXP _BGGM_mv_continuous(SEXP YSEXP, SEXP XSEXP, SEXP deltaSEXP, SEXP epsilonSEXP, SEXP iterSEXP, SEXP startSEXP, SEXP progressSEXP) {
+Rcpp::List mv_continuous(arma::mat Y, arma::mat X, float delta, float epsilon, int iter, arma::mat start, bool progress, bool store);
+RcppExport SEXP _BGGM_mv_continuous(SEXP YSEXP, SEXP XSEXP, SEXP deltaSEXP, SEXP epsilonSEXP, SEXP iterSEXP, SEXP startSEXP, SEXP progressSEXP, SEXP storeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -175,13 +176,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type iter(iterSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type start(startSEXP);
     Rcpp::traits::input_parameter< bool >::type progress(progressSEXP);
-    rcpp_result_gen = Rcpp::wrap(mv_continuous(Y, X, delta, epsilon, iter, start, progress));
+    Rcpp::traits::input_parameter< bool >::type store(storeSEXP);
+    rcpp_result_gen = Rcpp::wrap(mv_continuous(Y, X, delta, epsilon, iter, start, progress, store));
     return rcpp_result_gen;
 END_RCPP
 }
 // mv_binary
-Rcpp::List mv_binary(arma::mat Y, arma::mat X, float delta, float epsilon, int iter, float beta_prior, arma::rowvec cutpoints, arma::mat start, bool progress);
-RcppExport SEXP _BGGM_mv_binary(SEXP YSEXP, SEXP XSEXP, SEXP deltaSEXP, SEXP epsilonSEXP, SEXP iterSEXP, SEXP beta_priorSEXP, SEXP cutpointsSEXP, SEXP startSEXP, SEXP progressSEXP) {
+Rcpp::List mv_binary(arma::mat Y, arma::mat X, float delta, float epsilon, int iter, float beta_prior, arma::rowvec cutpoints, arma::mat start, bool progress, bool store);
+RcppExport SEXP _BGGM_mv_binary(SEXP YSEXP, SEXP XSEXP, SEXP deltaSEXP, SEXP epsilonSEXP, SEXP iterSEXP, SEXP beta_priorSEXP, SEXP cutpointsSEXP, SEXP startSEXP, SEXP progressSEXP, SEXP storeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -194,13 +196,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::rowvec >::type cutpoints(cutpointsSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type start(startSEXP);
     Rcpp::traits::input_parameter< bool >::type progress(progressSEXP);
-    rcpp_result_gen = Rcpp::wrap(mv_binary(Y, X, delta, epsilon, iter, beta_prior, cutpoints, start, progress));
+    Rcpp::traits::input_parameter< bool >::type store(storeSEXP);
+    rcpp_result_gen = Rcpp::wrap(mv_binary(Y, X, delta, epsilon, iter, beta_prior, cutpoints, start, progress, store));
     return rcpp_result_gen;
 END_RCPP
 }
 // mv_ordinal_albert
-Rcpp::List mv_ordinal_albert(arma::mat Y, arma::mat X, int iter, float delta, float epsilon, int K, arma::mat start, bool progress);
-RcppExport SEXP _BGGM_mv_ordinal_albert(SEXP YSEXP, SEXP XSEXP, SEXP iterSEXP, SEXP deltaSEXP, SEXP epsilonSEXP, SEXP KSEXP, SEXP startSEXP, SEXP progressSEXP) {
+Rcpp::List mv_ordinal_albert(arma::mat Y, arma::mat X, int iter, float delta, float epsilon, int K, arma::mat start, bool progress, bool store);
+RcppExport SEXP _BGGM_mv_ordinal_albert(SEXP YSEXP, SEXP XSEXP, SEXP iterSEXP, SEXP deltaSEXP, SEXP epsilonSEXP, SEXP KSEXP, SEXP startSEXP, SEXP progressSEXP, SEXP storeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -212,13 +215,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type K(KSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type start(startSEXP);
     Rcpp::traits::input_parameter< bool >::type progress(progressSEXP);
-    rcpp_result_gen = Rcpp::wrap(mv_ordinal_albert(Y, X, iter, delta, epsilon, K, start, progress));
+    Rcpp::traits::input_parameter< bool >::type store(storeSEXP);
+    rcpp_result_gen = Rcpp::wrap(mv_ordinal_albert(Y, X, iter, delta, epsilon, K, start, progress, store));
     return rcpp_result_gen;
 END_RCPP
 }
 // copula
-Rcpp::List copula(arma::mat z0_start, arma::mat levels, arma::vec K, arma::mat Sigma_start, int iter, float delta, float epsilon, arma::vec idx, bool progress);
-RcppExport SEXP _BGGM_copula(SEXP z0_startSEXP, SEXP levelsSEXP, SEXP KSEXP, SEXP Sigma_startSEXP, SEXP iterSEXP, SEXP deltaSEXP, SEXP epsilonSEXP, SEXP idxSEXP, SEXP progressSEXP) {
+Rcpp::List copula(arma::mat z0_start, arma::mat levels, arma::vec K, arma::mat Sigma_start, int iter, float delta, float epsilon, arma::vec idx, bool progress, bool store);
+RcppExport SEXP _BGGM_copula(SEXP z0_startSEXP, SEXP levelsSEXP, SEXP KSEXP, SEXP Sigma_startSEXP, SEXP iterSEXP, SEXP deltaSEXP, SEXP epsilonSEXP, SEXP idxSEXP, SEXP progressSEXP, SEXP storeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -231,7 +235,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< float >::type epsilon(epsilonSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type idx(idxSEXP);
     Rcpp::traits::input_parameter< bool >::type progress(progressSEXP);
-    rcpp_result_gen = Rcpp::wrap(copula(z0_start, levels, K, Sigma_start, iter, delta, epsilon, idx, progress));
+    Rcpp::traits::input_parameter< bool >::type store(storeSEXP);
+    rcpp_result_gen = Rcpp::wrap(copula(z0_start, levels, K, Sigma_start, iter, delta, epsilon, idx, progress, store));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -528,8 +533,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // missing_copula
-Rcpp::List missing_copula(arma::mat Y, arma::mat Y_missing, arma::mat z0_start, arma::mat Sigma_start, arma::mat levels, int iter_missing, bool progress_impute, arma::vec K, arma::vec idx, float epsilon, float delta);
-RcppExport SEXP _BGGM_missing_copula(SEXP YSEXP, SEXP Y_missingSEXP, SEXP z0_startSEXP, SEXP Sigma_startSEXP, SEXP levelsSEXP, SEXP iter_missingSEXP, SEXP progress_imputeSEXP, SEXP KSEXP, SEXP idxSEXP, SEXP epsilonSEXP, SEXP deltaSEXP) {
+Rcpp::List missing_copula(arma::mat Y, arma::mat Y_missing, arma::mat z0_start, arma::mat Sigma_start, arma::mat levels, int iter_missing, bool progress_impute, arma::vec K, arma::vec idx, float epsilon, float delta, bool store);
+RcppExport SEXP _BGGM_missing_copula(SEXP YSEXP, SEXP Y_missingSEXP, SEXP z0_startSEXP, SEXP Sigma_startSEXP, SEXP levelsSEXP, SEXP iter_missingSEXP, SEXP progress_imputeSEXP, SEXP KSEXP, SEXP idxSEXP, SEXP epsilonSEXP, SEXP deltaSEXP, SEXP storeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -544,7 +549,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::vec >::type idx(idxSEXP);
     Rcpp::traits::input_parameter< float >::type epsilon(epsilonSEXP);
     Rcpp::traits::input_parameter< float >::type delta(deltaSEXP);
-    rcpp_result_gen = Rcpp::wrap(missing_copula(Y, Y_missing, z0_start, Sigma_start, levels, iter_missing, progress_impute, K, idx, epsilon, delta));
+    Rcpp::traits::input_parameter< bool >::type store(storeSEXP);
+    rcpp_result_gen = Rcpp::wrap(missing_copula(Y, Y_missing, z0_start, Sigma_start, levels, iter_missing, progress_impute, K, idx, epsilon, delta, store));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -579,12 +585,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_BGGM_remove_col", (DL_FUNC) &_BGGM_remove_col, 2},
     {"_BGGM_internal_missing_gaussian", (DL_FUNC) &_BGGM_internal_missing_gaussian, 4},
     {"_BGGM_missing_gaussian", (DL_FUNC) &_BGGM_missing_gaussian, 7},
-    {"_BGGM_Theta_continuous", (DL_FUNC) &_BGGM_Theta_continuous, 10},
+    {"_BGGM_Theta_continuous", (DL_FUNC) &_BGGM_Theta_continuous, 11},
     {"_BGGM_sample_prior", (DL_FUNC) &_BGGM_sample_prior, 7},
-    {"_BGGM_mv_continuous", (DL_FUNC) &_BGGM_mv_continuous, 7},
-    {"_BGGM_mv_binary", (DL_FUNC) &_BGGM_mv_binary, 9},
-    {"_BGGM_mv_ordinal_albert", (DL_FUNC) &_BGGM_mv_ordinal_albert, 8},
-    {"_BGGM_copula", (DL_FUNC) &_BGGM_copula, 9},
+    {"_BGGM_mv_continuous", (DL_FUNC) &_BGGM_mv_continuous, 8},
+    {"_BGGM_mv_binary", (DL_FUNC) &_BGGM_mv_binary, 10},
+    {"_BGGM_mv_ordinal_albert", (DL_FUNC) &_BGGM_mv_ordinal_albert, 9},
+    {"_BGGM_copula", (DL_FUNC) &_BGGM_copula, 10},
     {"_BGGM_pcor_to_cor_internal", (DL_FUNC) &_BGGM_pcor_to_cor_internal, 2},
     {"_BGGM_predictability_helper", (DL_FUNC) &_BGGM_predictability_helper, 6},
     {"_BGGM_beta_helper_fast", (DL_FUNC) &_BGGM_beta_helper_fast, 4},
@@ -605,7 +611,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_BGGM_search", (DL_FUNC) &_BGGM_search, 9},
     {"_BGGM_fast_g_matrix_F", (DL_FUNC) &_BGGM_fast_g_matrix_F, 10},
     {"_BGGM_contrained_helper", (DL_FUNC) &_BGGM_contrained_helper, 4},
-    {"_BGGM_missing_copula", (DL_FUNC) &_BGGM_missing_copula, 11},
+    {"_BGGM_missing_copula", (DL_FUNC) &_BGGM_missing_copula, 12},
     {"_BGGM_missing_copula_data", (DL_FUNC) &_BGGM_missing_copula_data, 10},
     {NULL, NULL, 0}
 };

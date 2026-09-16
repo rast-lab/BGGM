@@ -26,6 +26,14 @@
   affected by the matrix-F approximation (e.g. about 0.69-0.70 instead of 0.684
   for `prior_sd = 0.5`).
 
+- **`explore()` gains `store_post_draws` (default `TRUE`)**: all samplers used
+  by `explore()` now keep running posterior summaries of the partial
+  correlations (`post_samp$pcor_mat`, `pcor_sd`, `z_mean`, `z_sd`, the latter two
+  for the Fisher-z transformation). With `store_post_draws = FALSE` the
+  `p x p x iter` arrays `post_samp$pcors` and `post_samp$fisher_z` are not
+  stored, so memory use no longer grows with the number of iterations.
+  `post_samp$pcor_mat` is now computed from these running sums.
+
 ### Bug fixes
 - **`explore()` for large or n < p networks**: the starting value is
   regularized (`solve(cov(Y) + 0.1 I)`), and the matrix-F prior now uses

@@ -430,7 +430,8 @@ ggm_compare_confirm <- function(...,
           start = start,
           progress = progress,
           impute = impute,
-          Y_miss = Y_miss
+          Y_miss = Y_miss,
+          store = TRUE
         )
       })
 
@@ -472,7 +473,8 @@ ggm_compare_confirm <- function(...,
           epsilon = 0.01,
           iter = iter + 50,
           start = start,
-          progress = progress
+          progress = progress,
+          store = TRUE
         )
       })
     }
@@ -515,7 +517,8 @@ ggm_compare_confirm <- function(...,
         beta_prior = 0.0001,
         cutpoints = c(-Inf, 0, Inf),
         start = start,
-        progress = progress
+        progress = progress,
+        store = TRUE
       )
       })
 
@@ -556,7 +559,8 @@ ggm_compare_confirm <- function(...,
           beta_prior = 0.0001,
           cutpoints = c(-Inf, 0, Inf),
           start = start,
-          progress = progress
+          progress = progress,
+          store = TRUE
         )
       })
     }
@@ -600,7 +604,8 @@ ggm_compare_confirm <- function(...,
           epsilon = 0.01,
           K = K,
           start = start,
-          progress = progress
+          progress = progress,
+          store = TRUE
           )
       })
 
@@ -645,7 +650,8 @@ ggm_compare_confirm <- function(...,
             epsilon = 0.01,
             K = K,
             start = start,
-            progress = progress
+            progress = progress,
+            store = TRUE
             )
         })
   }
@@ -703,7 +709,8 @@ ggm_compare_confirm <- function(...,
           delta = delta,
           epsilon = 0.01,
           idx = idx,
-          progress = progress
+          progress = progress,
+          store = TRUE
         )
         })
 
@@ -751,7 +758,8 @@ ggm_compare_confirm <- function(...,
           delta = delta,
           epsilon = 0.01,
           idx = idx,
-          progress = progress
+          progress = progress,
+          store = TRUE
         )
       })
       }

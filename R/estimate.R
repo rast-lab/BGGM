@@ -296,7 +296,8 @@ estimate  <- function(Y,
           start = start,
           progress =  progress,
           impute = impute,
-          Y_miss = Y_miss
+          Y_miss = Y_miss,
+          store = TRUE
           )
 
         # control for variables
@@ -328,7 +329,8 @@ estimate  <- function(Y,
           epsilon = 0.1,
           iter = iter + 50,
           start = start,
-          progress = progress
+          progress = progress,
+          store = TRUE
         )
       # end control
       }
@@ -385,7 +387,8 @@ estimate  <- function(Y,
         beta_prior = 0.0001,
         cutpoints = c(-Inf, 0, Inf),
         start = start,
-        progress = progress
+        progress = progress,
+        store = TRUE
       )
 
       # ordinal
@@ -444,7 +447,8 @@ estimate  <- function(Y,
           epsilon = 0.1,
           K = K,
           start = start,
-          progress = progress
+          progress = progress,
+          store = TRUE
         )
 
         } else if(type == "mixed"){
@@ -503,7 +507,8 @@ estimate  <- function(Y,
           K = rank_vars$K,
           idx = idx,
           epsilon = 0.1,
-          delta = delta
+          delta = delta,
+          store = TRUE
         )
 
         } else {
@@ -530,7 +535,8 @@ estimate  <- function(Y,
             delta = delta,
             epsilon = 0.1,
             idx = idx,
-            progress = progress
+            progress = progress,
+            store = TRUE
           )
     }
 

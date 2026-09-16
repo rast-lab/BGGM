@@ -308,7 +308,8 @@ confirm <- function(Y, hypothesis,
         start = start,
         progress = progress,
         impute = impute,
-        Y_miss = Y_miss
+        Y_miss = Y_miss,
+        store = TRUE
       )
 
       # control for variables
@@ -340,7 +341,8 @@ confirm <- function(Y, hypothesis,
         epsilon = 0.1,
         iter = iter + 50,
         start = start,
-        progress = progress
+        progress = progress,
+        store = TRUE
       )
 
     } # end control
@@ -397,7 +399,8 @@ confirm <- function(Y, hypothesis,
       beta_prior = 0.0001,
       cutpoints = c(-Inf, 0, Inf),
       start = start,
-      progress = progress
+      progress = progress,
+      store = TRUE
     )
 
     # ordinal
@@ -456,7 +459,8 @@ confirm <- function(Y, hypothesis,
       epsilon = 0.01,
       K = K,
       start = start,
-      progress = progress
+      progress = progress,
+      store = TRUE
     )
 
   } else if(type == "mixed"){
@@ -516,7 +520,8 @@ confirm <- function(Y, hypothesis,
       delta = delta,
       epsilon = 0.01,
       idx = idx,
-      progress = progress
+      progress = progress,
+      store = TRUE
     )
 
   } else {

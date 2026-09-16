@@ -34,6 +34,15 @@
 #'
 #' @param seed An integer for the random seed.
 #'
+#' @param store_post_draws Logical. Should the posterior draws of the partial
+#'        correlations be stored (default \code{TRUE})? With \code{FALSE}, only
+#'        running posterior summaries are stored (posterior mean and standard
+#'        deviation of the partial correlations and of their Fisher-z
+#'        transformations), which reduces memory use from
+#'        \code{p x p x iter} to \code{p x p} arrays. This is sufficient for
+#'        \code{\link{select.explore}}, but functions that need the draws
+#'        (e.g., \code{\link{posterior_samples}}) are then not available.
+#'
 #' @param store_prior_draws Logical. Should draws from the (joint) prior distribution
 #'        of the partial correlations be returned (default \code{FALSE})? These
 #'        draws are not needed for hypothesis testing, which uses the analytic
@@ -55,7 +64,10 @@
 #'
 #' \item \code{pcor_mat} partial correltion matrix (posterior mean).
 #'
-#' \item \code{post_samp} an object containing the posterior samples.
+#' \item \code{post_samp} an object containing the posterior samples
+#' (\code{pcors}, \code{fisher_z}; only when \code{store_post_draws = TRUE})
+#' and posterior summaries (\code{pcor_mat}, \code{pcor_sd}, \code{z_mean},
+#' \code{z_sd}).
 #'
 #' \item \code{prior_samp} an object containing the prior samples
 #' (only when \code{store_prior_draws = TRUE}; otherwise \code{NULL}).
@@ -186,6 +198,7 @@ explore <- function(Y,
                     progress = TRUE,
                     impute = FALSE,
                     seed = NULL,
+                    store_post_draws = TRUE,
                     store_prior_draws = FALSE, ...){
 
   # Temporarily, if the type is not in an allowed set.
@@ -281,7 +294,8 @@ explore <- function(Y,
           start = start,
           progress = progress,
           impute = impute,
-          Y_miss = Y_miss
+          Y_miss = Y_miss,
+          store = store_post_draws
         )
 
         # control for variables
@@ -315,7 +329,8 @@ explore <- function(Y,
           epsilon = eps,
           iter = iter + 50,
           start = start,
-          progress = progress
+          progress = progress,
+          store = store_post_draws
         )
 
       } # end control
@@ -375,7 +390,8 @@ explore <- function(Y,
         beta_prior = 0.1,
         cutpoints = c(-Inf, 0, Inf),
         start = start,
-        progress = progress
+        progress = progress,
+        store = store_post_draws
       )
 
       # ordinal
@@ -438,7 +454,8 @@ explore <- function(Y,
       epsilon = eps,
       K = K,
       start = start,
-      progress = progress
+      progress = progress,
+      store = store_post_draws
     )
 
   } else if(type == "mixed"){
@@ -498,7 +515,8 @@ explore <- function(Y,
         K = rank_vars$K,
         idx = idx,
         epsilon = eps,
-        delta = delta
+        delta = delta,
+        store = store_post_draws
       )
 
     } else {
@@ -513,7 +531,8 @@ explore <- function(Y,
       delta = delta,
       epsilon = eps,
       idx = idx,
-      progress = progress
+      progress = progress,
+      store = store_post_draws
     )
 
     }
@@ -567,6 +586,7 @@ explore <- function(Y,
       formula = formula,
       post_samp = post_samp,
       prior_sd_z = sd_z,
+      store_post_draws = store_post_draws,
       prior_samp = prior_samp,
       delta = delta,
       type = type,

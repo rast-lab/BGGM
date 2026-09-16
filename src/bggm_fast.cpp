@@ -143,6 +143,42 @@ arma::mat cov_to_cor(const arma::mat& M) {
   return arma::diagmat(inv_sd) * M * arma::diagmat(inv_sd);
 }
 
+// Running posterior summaries of the partial correlations, so that the
+// p x p x iter arrays of draws need not be stored. add() is called with the
+// partial correlation matrix r (zero diagonal) of every post-burn-in draw;
+// write() adds pcor_mat (posterior mean of r), pcor_sd (posterior sd of r),
+// z_mean and z_sd (posterior mean and sd of z = atanh(r)) to the output list.
+class PcorSummary {
+public:
+  explicit PcorSummary(int k)
+    : r_sum(k, k, arma::fill::zeros), r_sq(k, k, arma::fill::zeros),
+      z_sum(k, k, arma::fill::zeros), z_sq(k, k, arma::fill::zeros), m(0.0) {}
+
+  void add(const arma::mat& r) {
+    arma::mat z = arma::atanh(r);
+    r_sum += r;  r_sq += r % r;
+    z_sum += z;  z_sq += z % z;
+    m += 1.0;
+  }
+
+  void write(Rcpp::List& ret) const {
+    ret["pcor_mat"] = arma::mat(r_sum / m);
+    ret["pcor_sd"]  = sd(r_sum, r_sq);
+    ret["z_mean"]   = arma::mat(z_sum / m);
+    ret["z_sd"]     = sd(z_sum, z_sq);
+  }
+
+private:
+  arma::mat r_sum, r_sq, z_sum, z_sq;
+  double m;
+
+  arma::mat sd(const arma::mat& sum, const arma::mat& sq) const {
+    arma::mat v = (sq - sum % sum / m) / (m - 1.0);
+    v.elem(arma::find(v < 0)).zeros();   // rounding error on the diagonal
+    return arma::sqrt(v);
+  }
+};
+
 }  // namespace
 
 // mean of 3d array
@@ -410,7 +446,8 @@ Rcpp::List Theta_continuous(arma::mat Y,
                             arma::mat start,
                             bool progress,
                             bool impute,
-                            arma::mat Y_missing) {
+                            arma::mat Y_missing,
+                            bool store) {
 
 
 
@@ -465,7 +502,8 @@ Rcpp::List Theta_continuous(arma::mat Y,
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
+  arma::cube pcors_mcmc(k, k, store ? iter : 0, arma::fill::zeros);
+  PcorSummary pcor_summary(k);
 
   arma::cube Sigma(k, k, 1, arma::fill::zeros);
 
@@ -516,7 +554,9 @@ Rcpp::List Theta_continuous(arma::mat Y,
     pcors = cov_to_cor(Theta.slice(0));
 
     // store posterior samples
-    pcors_mcmc.slice(s) =  -(pcors - I_k);
+    arma::mat r_s = -(pcors - I_k);
+    if (store) pcors_mcmc.slice(s) = r_s;
+    if (s >= 50) pcor_summary.add(r_s);
 
 
     if(impute){
@@ -536,16 +576,14 @@ Rcpp::List Theta_continuous(arma::mat Y,
 
   }
 
-  arma::cube fisher_z = atanh(pcors_mcmc);
-
-  arma::mat  pcor_mat = mean(pcors_mcmc.tail_slices(iter - 50), 2);
-
   arma::mat  ppd_mean = mean(ppd_missing, 0).t();
 
   Rcpp::List ret;
-  ret["pcors"] = pcors_mcmc;
-  ret["pcor_mat"] =  pcor_mat;
-  ret["fisher_z"] = fisher_z;
+  pcor_summary.write(ret);
+  if (store) {
+    ret["pcors"]    = pcors_mcmc;
+    ret["fisher_z"] = arma::cube(arma::atanh(pcors_mcmc));
+  }
   ret["ppd_mean"] = ppd_mean;
   return ret;
 }
@@ -685,7 +723,8 @@ Rcpp::List mv_continuous(arma::mat Y,
                           float epsilon,
                           int iter,
                           arma::mat start,
-                          bool progress){
+                          bool progress,
+                          bool store){
 
 
   // progress
@@ -734,7 +773,8 @@ Rcpp::List mv_continuous(arma::mat Y,
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
+  arma::cube pcors_mcmc(k, k, store ? iter : 0, arma::fill::zeros);
+  PcorSummary pcor_summary(k);
 
   // correlations
   arma::mat  cors(k,k);
@@ -784,18 +824,18 @@ Rcpp::List mv_continuous(arma::mat Y,
 
 
     beta_mcmc.slice(s) = beta;
-    pcors_mcmc.slice(s) =  -(pcors - I_k);
+    arma::mat r_s = -(pcors - I_k);
+    if (store) pcors_mcmc.slice(s) = r_s;
+    if (s >= 50) pcor_summary.add(r_s);
   }
 
-  arma::cube fisher_z = atanh(pcors_mcmc);
-
-  arma::mat  pcor_mat = mean(pcors_mcmc.tail_slices(iter - 50), 2);
-
   Rcpp::List ret;
-  ret["pcors"] = pcors_mcmc;
-  ret["pcor_mat"] =  pcor_mat;
+  pcor_summary.write(ret);
+  if (store) {
+    ret["pcors"]    = pcors_mcmc;
+    ret["fisher_z"] = arma::cube(arma::atanh(pcors_mcmc));
+  }
   ret["beta"] = beta_mcmc;
-  ret["fisher_z"] = fisher_z;
   return ret;
 }
 
@@ -809,7 +849,8 @@ Rcpp::List mv_binary(arma::mat Y,
 		     float beta_prior,
 		     arma::rowvec cutpoints,
 		     arma::mat start,
-		     bool progress){
+		     bool progress,
+		     bool store){
 
   // Y: data matrix (n * k)
   // X: predictors (n * p) (blank for "network")
@@ -866,7 +907,8 @@ Rcpp::List mv_binary(arma::mat Y,
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
+  arma::cube pcors_mcmc(k, k, store ? iter : 0, arma::fill::zeros);
+  PcorSummary pcor_summary(k);
 
   // correlations
   arma::mat  cors(k,k);
@@ -968,7 +1010,7 @@ Rcpp::List mv_binary(arma::mat Y,
     }
 
     w = z0.slice(0) * D;
-    
+
     M  = Sinv_X * X.t() * w;
 
     gamma = reshape(mvnrnd(reshape(M, k * p , 1),
@@ -1004,18 +1046,19 @@ Rcpp::List mv_binary(arma::mat Y,
     R.slice(0) = cors;
 
     beta_mcmc.slice(s) =reshape(beta, p,k);
-    pcors_mcmc.slice(s) =  -(pcors - I_k);
+    arma::mat r_s = -(pcors - I_k);
+    if (store) pcors_mcmc.slice(s) = r_s;
+    if (s >= 50) pcor_summary.add(r_s);
 
   }
 
-  arma::cube fisher_z = atanh(pcors_mcmc);
-  arma::mat  pcor_mat = mean(pcors_mcmc.tail_slices(iter - 50), 2);
-
   Rcpp::List ret;
-  ret["pcors"] = pcors_mcmc;
-  ret["pcor_mat"] = pcor_mat;
+  pcor_summary.write(ret);
+  if (store) {
+    ret["pcors"]    = pcors_mcmc;
+    ret["fisher_z"] = arma::cube(arma::atanh(pcors_mcmc));
+  }
   ret["beta"] = beta_mcmc;
-  ret["fisher_z"] = fisher_z;
   return  ret;
 }
 
@@ -1029,7 +1072,8 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
                           float epsilon,
                           int K,
                           arma::mat start,
-                          bool progress
+                          bool progress,
+                          bool store
                           ){
 
 
@@ -1081,7 +1125,8 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
+  arma::cube pcors_mcmc(k, k, store ? iter : 0, arma::fill::zeros);
+  PcorSummary pcor_summary(k);
 
   // correlations
   arma::mat  cors(k,k);
@@ -1271,7 +1316,9 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
     R.slice(0) = cors;
 
     beta_mcmc.slice(s) =reshape(beta, p,k);
-    pcors_mcmc.slice(s) =  -(pcors - I_k);
+    arma::mat r_s = -(pcors - I_k);
+    if (store) pcors_mcmc.slice(s) = r_s;
+    if (s >= 50) pcor_summary.add(r_s);
     // cors_mcmc.slice(s) =  cors;
     // Sigma_mcmc.slice(s) = Sigma.slice(0);
     // Theta_mcmc.slice(s) = Theta.slice(0);
@@ -1279,16 +1326,14 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
 
   }
 
-  arma::cube fisher_z = atanh(pcors_mcmc);
-
-  arma::mat  pcor_mat = mean(pcors_mcmc.tail_slices(iter - 50), 2);
-
   Rcpp::List ret;
-  ret["pcors"] = pcors_mcmc;
-  ret["pcor_mat"] = pcor_mat;
+  pcor_summary.write(ret);
+  if (store) {
+    ret["pcors"]    = pcors_mcmc;
+    ret["fisher_z"] = arma::cube(arma::atanh(pcors_mcmc));
+  }
   ret["beta"] = beta_mcmc;
   ret["thresh"]  = thresh;
-  ret["fisher_z"] = fisher_z;
   return  ret;
 
 
@@ -1305,7 +1350,8 @@ Rcpp::List  copula(arma::mat z0_start,
                    float delta,
                    float epsilon,
                    arma::vec idx,
-                   bool progress
+                   bool progress,
+                   bool store
                    ) {
 
   // adapted from hoff 2008 for Bayesian hypothesis testing
@@ -1359,7 +1405,8 @@ Rcpp::List  copula(arma::mat z0_start,
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
+  arma::cube pcors_mcmc(k, k, store ? iter : 0, arma::fill::zeros);
+  PcorSummary pcor_summary(k);
 
   // correlations
   arma::mat  cors(k,k);
@@ -1445,16 +1492,17 @@ Rcpp::List  copula(arma::mat z0_start,
     // partial correlations
     pcors = cov_to_cor(Theta.slice(0));
 
-    pcors_mcmc.slice(s) =  -(pcors - I_k);
+    arma::mat r_s = -(pcors - I_k);
+    if (store) pcors_mcmc.slice(s) = r_s;
+    if (s >= 50) pcor_summary.add(r_s);
   }
 
-  arma::cube fisher_z = atanh(pcors_mcmc);
-  arma::mat  pcor_mat = mean(pcors_mcmc.tail_slices(iter - 50), 2);
-
   Rcpp::List ret;
-  ret["pcors"] = pcors_mcmc;
-  ret["pcor_mat"] = pcor_mat;
-  ret["fisher_z"] = fisher_z;
+  pcor_summary.write(ret);
+  if (store) {
+    ret["pcors"]    = pcors_mcmc;
+    ret["fisher_z"] = arma::cube(arma::atanh(pcors_mcmc));
+  }
   return ret;
 }
 
@@ -2444,7 +2492,8 @@ Rcpp::List missing_copula(arma::mat Y,
                              arma::vec K,
                              arma::vec idx,
                              float epsilon,
-                             float delta) {
+                             float delta,
+                             bool store) {
   // progress
   Progress  pr(iter_missing, progress_impute);
 
@@ -2493,7 +2542,8 @@ Rcpp::List missing_copula(arma::mat Y,
 
   // partial correlations
   arma::mat pcors(p,p);
-  arma::cube pcors_mcmc(p, p, iter_missing, arma::fill::zeros);
+  arma::cube pcors_mcmc(p, p, store ? iter_missing : 0, arma::fill::zeros);
+  PcorSummary pcor_summary(p);
 
   for(int  s = 0; s < iter_missing; ++s){
 
@@ -2588,17 +2638,18 @@ Rcpp::List missing_copula(arma::mat Y,
     pcors = cov_to_cor(Theta.slice(0));
 
     // store posterior samples
-    pcors_mcmc.slice(s) =  -(pcors - I_p);
+    arma::mat r_s = -(pcors - I_p);
+    if (store) pcors_mcmc.slice(s) = r_s;
+    if (s >= 50) pcor_summary.add(r_s);
 
   }
 
-  arma::cube fisher_z = atanh(pcors_mcmc);
-  arma::mat  pcor_mat = mean(pcors_mcmc.tail_slices(iter_missing - 50), 2);
-
   Rcpp::List ret;
-  ret["pcors"] = pcors_mcmc;
-  ret["pcor_mat"] = pcor_mat;
-  ret["fisher_z"] = fisher_z;
+  pcor_summary.write(ret);
+  if (store) {
+    ret["pcors"]    = pcors_mcmc;
+    ret["fisher_z"] = arma::cube(arma::atanh(pcors_mcmc));
+  }
   return  ret;
 }
 
