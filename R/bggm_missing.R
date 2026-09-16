@@ -116,9 +116,6 @@ bggm_missing <- function(x, iter = 2000,
     # fisher z
     post_start_fisher <- fits[[1]]$post_samp$fisher_z
 
-    # prior fisher z
-    prior_start_fisher <- fits[[1]]$prior_samp$fisher_z
-
     # regression (for multivariate)
     if(!is.null( fits[[1]]$formula)){
       post_start_beta <- fits[[1]]$post_samp$beta
@@ -132,9 +129,6 @@ bggm_missing <- function(x, iter = 2000,
 
       post_start_fisher <-  abind::abind(post_start_fisher,
                                          fits[[i]]$post_samp$fisher_z[,,])
-
-      prior_start_fisher <-  abind::abind(prior_start_fisher,
-                                         fits[[i]]$prior_samp$fisher_z[,,])
 
       # multivarate
      if(!is.null(fits[[1]]$formula)){
@@ -150,7 +144,6 @@ bggm_missing <- function(x, iter = 2000,
    # replace samples
    fits[[1]]$post_samp$pcors <- post_start_pcors[,,]
    fits[[1]]$post_samp$fisher_z <- post_start_fisher[,,]
-   fits[[1]]$prior_samp$fisher_z <- prior_start_fisher[,,]
 
    if(!is.null( fits[[1]]$formula)){
      fits[[1]]$post_samp$beta <- post_start_beta

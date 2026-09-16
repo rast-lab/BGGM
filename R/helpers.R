@@ -348,6 +348,21 @@ eps_default <- function(p) {
   min(0.01, 1 / (10 * p))
 }
 
+# Prior standard deviation of z = atanh(rho) under the matrix-F prior.
+# The marginal prior of a partial correlation is rho ~ 2 * Beta(delta/2, delta/2) - 1,
+# independent of p (Williams & Mulder, 2020), so the density of z is
+# f(z) = 2 u^a (1 - u)^a / B(a, a), with u = (tanh(z) + 1) / 2 = plogis(2 z)
+# and a = delta / 2. The mean is 0 by symmetry. Computed on the log scale for
+# numerical stability; e.g. delta = 3 gives 0.684, delta = 1 gives pi / 2.
+prior_sd_z <- function(delta) {
+  a <- delta / 2
+  f <- function(z) {
+    z^2 * exp(log(2) + a * stats::plogis(2 * z, log.p = TRUE) +
+                a * stats::plogis(-2 * z, log.p = TRUE) - lbeta(a, a))
+  }
+  sqrt(2 * stats::integrate(f, 0, Inf, rel.tol = 1e-10)$value)
+}
+
 delta_solve = function(x){
   if(x <= 0 || x > sqrt(1/2) ) stop("Error: \nPrior_sd must be between 0 and sqrt(1/2) approx. 0.7, to ensure that delta is not less than 1.\nFor delta = 1, set prior_sd to sqrt(1/2)\nFor delta = 2, set prior_sd to sqrt(1/3).")
   1/x^2 - 1

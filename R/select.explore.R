@@ -187,7 +187,6 @@ select.explore <- function(object,
   method     <- match.arg(method)
   x          <- object
   post_samp  <- x$post_samp
-  prior_samp <- x$prior_samp
   # post_samp arrays have iter + 50 slices; the first 50 are burn-in
   samp_idx   <- 51:(x$iter + 50)
 
@@ -196,8 +195,7 @@ select.explore <- function(object,
   post_sd    <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
   post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
   post_dens  <- dnorm(0, post_mean, post_sd)
-  prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-  prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
+  prior_dens <- dnorm(0, 0, .prior_sd_z(x))
 
   # With method = "BF_cut", prior.prob.H0 does not affect edge selection
   # (which is driven by BF_cut). For "two.sided", "greater" and "less" it is
@@ -705,6 +703,14 @@ select.explore <- function(object,
 
   class(returned_object) <- c("BGGM", "select.explore", "explore", "select")
   returned_object
+}
+
+# Prior sd of the Fisher-z partial correlations: analytic (prior_sd_z, set by
+# explore()); for objects created by older versions, from the prior draws.
+.prior_sd_z <- function(x) {
+  if (!is.null(x$prior_sd_z)) return(x$prior_sd_z)
+  prior_sd <- apply(x$prior_samp$fisher_z[,, 51:(x$iter + 50)], 1:2, sd)
+  mean(prior_sd[upper.tri(prior_sd)])
 }
 
 # Posterior edge inclusion probabilities from a Bayes factor against H0,

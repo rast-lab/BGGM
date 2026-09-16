@@ -154,3 +154,15 @@ test_that("explore runs when n < p", {
   fit <- explore(Y, iter = 50, progress = FALSE)
   expect_false(any(is.na(fit$pcor_mat)))
 })
+
+test_that("analytic prior sd of Fisher z matches the marginal beta prior", {
+  expect_equal(BGGM:::prior_sd_z(1), pi / 2, tolerance = 1e-6)
+  set.seed(1)
+  r <- 2 * rbeta(2e5, 1.5, 1.5) - 1
+  expect_equal(BGGM:::prior_sd_z(3), sd(atanh(r)), tolerance = 0.01)
+
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 50, progress = FALSE)
+  expect_null(fit$prior_samp)
+  expect_equal(fit$prior_sd_z, BGGM:::prior_sd_z(3))
+})

@@ -8,9 +8,7 @@ library(BGGM)
   post_sd   <- apply(fit$post_samp$fisher_z[,, samp_idx], 1:2, sd)
   post_mean <- apply(fit$post_samp$fisher_z[,, samp_idx], 1:2, mean)
   post_dens <- dnorm(0, post_mean, post_sd)
-  prior_sd  <- apply(fit$prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-  # correct: average only the off-diagonal (edge) prior SDs
-  prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(prior_sd)]))
+  prior_dens <- dnorm(0, 0, fit$prior_sd_z)
   list(post_mean = post_mean, post_sd = post_sd,
        BF_10 = prior_dens / post_dens)
 }

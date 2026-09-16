@@ -7,6 +7,16 @@
   `"two.sided"`, `BF_20` for `"greater"`/`"less"`), and `1 - P(H0 | Y)` for
   `"exhaustive"`. With `method = "BF_cut"`, `prior.prob.H0` now affects these
   probabilities (and `summary()`) but not the selected graph.
+- **`explore()` no longer samples the prior**: the Bayes factors only need the
+  prior sd of the Fisher-z partial correlations, which is now computed by
+  numerical integration from the marginal prior
+  `rho ~ 2 * Beta(delta/2, delta/2) - 1` (independent of `p`) and stored as
+  `prior_sd_z`; `prior_samp` is no longer returned. This halves memory use for
+  large networks. `select.explore()`, `ggm_compare_explore()` and
+  `bggm_missing()` use `prior_sd_z` (older `explore` objects still work in
+  `select()`). Bayes factors change slightly, because the sampled prior sd was
+  affected by the matrix-F approximation (e.g. about 0.69-0.70 instead of 0.684
+  for `prior_sd = 0.5`).
 
 ### Bug fixes
 - **`explore()` for large or n < p networks**: the starting value is

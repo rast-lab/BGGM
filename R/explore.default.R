@@ -508,34 +508,10 @@ explore <- function(Y,
 
     }
 
-    ## matrix dimensions for prior
-    ## Old:
-    ## Y_dummy <- matrix(rnorm( 10 * 3 ),
-    ##                  nrow = 10, ncol = 3)
-
-    ## Replaced with:
-    ## 10 times as many rows as columns
-    n_row = ncol(Y) * 10
-    Y_dummy <- matrix(rnorm( n_row * ncol(Y) ),
-                      nrow = n_row, ncol = ncol(Y))
-    ## Probably not necessary to scale up Y dim as k=3 was good enough approx.
-
-    if(isTRUE(progress)){
-
-      message(paste0("BGGM: Prior Sampling ", ...))
-
-    }
-
-    # sample prior
-    prior_samp <- .Call('_BGGM_sample_prior',
-                      PACKAGE = 'BGGM',
-                      Y = Y_dummy,
-                      iter = iter + 50,
-                      delta = delta,
-                      epsilon = eps,
-                      prior_only = 1,
-                      explore = 0,  ## with explore = 0,  k takes number of Y columns instead of k = 3 
-                      progress = progress)
+    # Prior sd of the Fisher-z partial correlations. The marginal prior does
+    # not depend on p, so it is computed analytically instead of sampling the
+    # prior at full dimension (which cost as much memory as the posterior).
+    sd_z <- prior_sd_z(delta)
 
     if(isTRUE(progress)){
 
@@ -551,7 +527,8 @@ explore <- function(Y,
       analytic = analytic,
       formula = formula,
       post_samp = post_samp,
-      prior_samp = prior_samp,
+      prior_sd_z = sd_z,
+      delta = delta,
       type = type,
       iter = iter,
       Y = Y,

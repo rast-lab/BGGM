@@ -202,7 +202,8 @@ ggm_compare_explore <- function(...,
 
   post_samp <- lapply(1:groups, function(x) samp[[x]]$post_samp )
 
-  prior_samp <-  lapply(1:groups, function(x) samp[[x]]$prior_samp)
+  # prior sd of the Fisher-z partial correlation in each group (analytic)
+  sd_z <- sapply(1:groups, function(x) samp[[x]]$prior_sd_z)
 
   # p with predictors removed
   p <- samp[[1]]$p
@@ -236,19 +237,17 @@ ggm_compare_explore <- function(...,
 
     # start
     post_group <-  post_samp[[1]]$fisher_z[ rho_ij[1], rho_ij[2], (51:(iter + 50))]
-    prior_group <-  prior_samp[[1]]$fisher_z[ 1, 2,]
 
     # combined groups
     for(j in 2:(groups)){
       post_group <-  cbind(post_group,  post_samp[[j]]$fisher_z[ rho_ij[1], rho_ij[2], (51:(iter + 50))])
-      prior_group <-  cbind(prior_group,  prior_samp[[j]]$fisher_z[1, 2,])
     }
 
     # posterior covariance
     cov_post <- cov(post_group)
 
-    # prior covariance
-    cov_prior <- cov(prior_group)
+    # prior covariance (groups are a priori independent)
+    cov_prior <- diag(sd_z^2, groups)
 
     # posterior mean
     post_mean <- colMeans(post_group)
