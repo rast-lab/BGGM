@@ -166,3 +166,14 @@ test_that("analytic prior sd of Fisher z matches the marginal beta prior", {
   expect_null(fit$prior_samp)
   expect_equal(fit$prior_sd_z, BGGM:::prior_sd_z(3))
 })
+
+test_that("prior_samples = TRUE returns joint prior draws", {
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 50, progress = FALSE, prior_samples = TRUE)
+  expect_equal(dim(fit$prior_samp$fisher_z), c(5, 5, 100))
+  expect_equal(dim(fit$prior_samp$pcors), c(5, 5, 100))
+  # selection still uses the analytic prior sd
+  a <- select(fit)
+  fit$prior_samp <- NULL
+  expect_equal(a$BF_10, select(fit)$BF_10)
+})

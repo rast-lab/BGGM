@@ -11,8 +11,9 @@
   prior sd of the Fisher-z partial correlations, which is now computed by
   numerical integration from the marginal prior
   `rho ~ 2 * Beta(delta/2, delta/2) - 1` (independent of `p`) and stored as
-  `prior_sd_z`; `prior_samp` is no longer returned. This halves memory use for
-  large networks. `select.explore()`, `ggm_compare_explore()` and
+  `prior_sd_z`. Draws from the joint prior (`prior_samp`) are now only
+  returned with the new argument `prior_samples = TRUE` (default `FALSE`), which
+  halves time and memory use for large networks by default. `select.explore()`, `ggm_compare_explore()` and
   `bggm_missing()` use `prior_sd_z` (older `explore` objects still work in
   `select()`). Bayes factors change slightly, because the sampled prior sd was
   affected by the matrix-F approximation (e.g. about 0.69-0.70 instead of 0.684

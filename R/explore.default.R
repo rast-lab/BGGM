@@ -34,6 +34,14 @@
 #'
 #' @param seed An integer for the random seed.
 #'
+#' @param prior_samples Logical. Should draws from the (joint) prior distribution
+#'        of the partial correlations be returned (default \code{FALSE})? These
+#'        draws are not needed for hypothesis testing, which uses the analytic
+#'        prior standard deviation of the Fisher-z transformed partial
+#'        correlations, but they retain the dependence between the partial
+#'        correlations. Sampling them costs about as much time and memory as
+#'        the posterior sampling.
+#'
 #' @param ... Currently ignored (leave empty).
 #'
 #' @references
@@ -48,6 +56,12 @@
 #' \item \code{pcor_mat} partial correltion matrix (posterior mean).
 #'
 #' \item \code{post_samp} an object containing the posterior samples.
+#'
+#' \item \code{prior_samp} an object containing the prior samples
+#' (only when \code{prior_samples = TRUE}; otherwise \code{NULL}).
+#'
+#' \item \code{prior_sd_z} prior standard deviation of the Fisher-z
+#' transformed partial correlations (used for the Bayes factors).
 #'
 #' }
 #'
@@ -171,7 +185,8 @@ explore <- function(Y,
                     iter = 5000,
                     progress = TRUE,
                     impute = FALSE,
-                    seed = NULL, ...){
+                    seed = NULL,
+                    prior_samples = FALSE, ...){
 
   # Temporarily, if the type is not in an allowed set.
   if (!type %in% c("continuous", "mixed")) {
@@ -513,6 +528,30 @@ explore <- function(Y,
     # prior at full dimension (which cost as much memory as the posterior).
     sd_z <- prior_sd_z(delta)
 
+    # optional draws from the joint prior (not used for the Bayes factors)
+    prior_samp <- NULL
+    if (isTRUE(prior_samples)) {
+
+      if(isTRUE(progress)){
+        message(paste0("BGGM: Prior Sampling ", ...))
+      }
+
+      # 10 times as many rows as columns
+      n_row <- ncol(Y) * 10
+      Y_dummy <- matrix(rnorm(n_row * ncol(Y)),
+                        nrow = n_row, ncol = ncol(Y))
+
+      prior_samp <- .Call('_BGGM_sample_prior',
+                          PACKAGE = 'BGGM',
+                          Y = Y_dummy,
+                          iter = iter + 50,
+                          delta = delta,
+                          epsilon = eps,
+                          prior_only = 1,
+                          explore = 0,  # k = number of columns of Y
+                          progress = progress)
+    }
+
     if(isTRUE(progress)){
 
       message("BGGM: Finished")
@@ -528,6 +567,7 @@ explore <- function(Y,
       formula = formula,
       post_samp = post_samp,
       prior_sd_z = sd_z,
+      prior_samp = prior_samp,
       delta = delta,
       type = type,
       iter = iter,
