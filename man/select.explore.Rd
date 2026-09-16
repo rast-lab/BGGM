@@ -25,10 +25,10 @@
        \insertCite{Williams2019_bf}{BGGM}.
 
        \item \code{"BMA"}: Bayesian model averaging based on posterior model
-       probabilities. For each edge, posterior draws are generated from a
-       mixture distribution placing mass at zero under the null model and
-       using posterior draws from the alternative model otherwise.
-       Reported edges are based on the posterior median of these draws.
+       probabilities. For each edge, the posterior is a mixture
+       distribution placing mass at zero under the null model and using the
+       posterior under the alternative model otherwise. Reported edges are
+       based on the median of this mixture.
        }}
 
 \item{BF_cut}{Numeric. Bayes factor threshold for including an edge when
@@ -139,13 +139,16 @@ its posterior probability exceeds \code{BF_cut / (BF_cut + 1)} (0.75 for
 cutoff corresponds to a Bayes factor of \code{2 * BF_cut} against the complement.
 An edge can be assigned to none of the three hypotheses.
 
-\code{method = "BMA"} performs Bayesian model averaging by generating
-posterior draws from a spike-and-slab style mixture distribution for each
-edge. The spike corresponds to the null hypothesis (exactly zero partial
-correlation), whereas the slab corresponds to posterior draws under the
-alternative hypothesis. Posterior model probabilities are computed from the
-Bayes factors and \code{prior.prob.H0}. The selected network is based on
-the posterior median of the resulting draws. For
+\code{method = "BMA"} performs Bayesian model averaging using a
+spike-and-slab style mixture distribution for each edge. The spike
+corresponds to the null hypothesis (exactly zero partial correlation),
+whereas the slab corresponds to the posterior under the alternative
+hypothesis, approximated by a normal distribution for the Fisher-z
+transformed partial correlation (truncated to the positive or negative
+half-line for one-sided hypotheses). Posterior model probabilities are
+computed from the Bayes factors and \code{prior.prob.H0}. The selected
+network is based on the median of this mixture, which is computed exactly
+(no simulation), so the result is deterministic. For
 \code{alternative = "exhaustive"} the mixture has three states -- a spike at
 zero (\eqn{H_0}), a positive slab (\eqn{H_+}), and a negative slab
 (\eqn{H_-}) -- mixed by the posterior hypothesis probabilities. The
