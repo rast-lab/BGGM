@@ -35,8 +35,11 @@
 \code{method = "BF_cut"} (defaults to 3).}
 
 \item{prior.prob.H0}{Numeric between 0 and 1. Prior probability assigned
-to the null hypothesis for each edge when
-\code{method = "BMA"} (defaults to \code{0.5}).}
+to the null hypothesis for each edge (defaults to \code{0.5}). With
+\code{method = "BMA"} it is used for model averaging and the edge
+inclusion probabilities. With \code{method = "BF_cut"} it only affects
+the reported edge inclusion probabilities (\code{incl_prob}), not the
+selected graph, and it is not used for \code{alternative = "exhaustive"}.}
 
 \item{alternative}{A character string specifying the alternative hypothesis. It
 must be one of "two.sided" (default), "greater", "less",
@@ -62,6 +65,10 @@ The returned object of class \code{select.explore} contains a lot of information
 
  \item \code{Adj_01} Adjacency matrix for which there was
                      evidence for the null hypothesis.
+
+ \item \code{incl_prob} Matrix of posterior edge inclusion probabilities,
+ \eqn{P(H_1 \mid Y)}, based on \code{BF_10} and prior inclusion probability
+ \code{1 - prior.prob.H0}.
  }
 
 \code{alternative = "greater"} and \code{"less"}
@@ -76,6 +83,10 @@ The returned object of class \code{select.explore} contains a lot of information
 
  \item \code{Adj_02} Adjacency matrix for which there was
                      evidence for the null hypothesis (see note).
+
+ \item \code{incl_prob} Matrix of posterior probabilities of the
+ one-sided hypothesis against the null, based on \code{BF_20} and prior
+ probability \code{1 - prior.prob.H0}.
  }
 
 \code{alternative = "exhaustive"}
@@ -96,6 +107,9 @@ The returned object of class \code{select.explore} contains a lot of information
 \item \code{neg_mat} Adjacency matrix for negative edges.
 
 \item \code{null_mat} Adjacency matrix for null edges (see note).
+
+\item \code{incl_prob} Matrix of posterior edge inclusion probabilities,
+  \eqn{1 - P(H_0 \mid Y)}.
 
  \item \code{pcor_mat} Partial correlation matrix (posterior mean). The weighted adjacency
  matrices can be computed by multiplying \code{pcor_mat} with an adjacency matrix.

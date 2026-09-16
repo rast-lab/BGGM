@@ -1,3 +1,35 @@
+# BGGM 2.1.6.9001 (development)
+
+### New features
+- **`select.explore()` returns edge inclusion probabilities (`incl_prob`)**:
+  a matrix of posterior edge inclusion probabilities, `q * BF / (q * BF + 1 - q)`
+  with prior inclusion probability `q = 1 - prior.prob.H0` (`BF_10` for
+  `"two.sided"`, `BF_20` for `"greater"`/`"less"`), and `1 - P(H0 | Y)` for
+  `"exhaustive"`. With `method = "BF_cut"`, `prior.prob.H0` now affects these
+  probabilities (and `summary()`) but not the selected graph.
+
+### Bug fixes
+- **`explore()` for large or n < p networks**: the starting value is
+  regularized (`solve(cov(Y) + 0.1 I)`), and the matrix-F prior now uses
+  `epsilon = min(0.01, 1 / (10 p))` instead of a fixed 0.01, so that
+  `nu = 1 / epsilon` stays well above `p - 1` (required for a proper prior,
+  Williams & Mulder, 2020). Results change slightly for `p > 10`.
+- **C++ samplers no longer truncate the matrix-F degrees of freedom** to
+  integers (non-integer `delta` from `prior_sd`).
+- **`select.explore()` with `alternative = "exhaustive"` and `method = "BF_cut"`
+  again selects on posterior probabilities** (reverts the Bayes-factor-against-
+  the-complement rule introduced in 2.1.6.9000): `BF_cut` is translated into a cutoff for the
+  posterior hypothesis probabilities, `BF_cut / (BF_cut + 1)` (0.75 for the
+  default `BF_cut = 3`), i.e. a hypothesis is selected when its posterior odds
+  against the other two hypotheses combined exceed `BF_cut`. With equal prior
+  probabilities (1/3) this corresponds to a Bayes factor of `2 * BF_cut` against
+  the complement. The `prob` field of the returned object reports this cutoff.
+- **`select.explore()` now uses all post-burn-in draws**: the draws used for the
+  posterior mean/sd were `51:iter`, which dropped the last 50 of the `iter + 50`
+  stored draws; now `51:(iter + 50)`, as in `summary()` for `explore` objects.
+- **`select.explore()` exhaustive `method = "BF_cut"` no longer returns `NA` on
+  the diagonal** of `null_mat`/`pos_mat`/`neg_mat` (the posterior sd is 0 there).
+
 # BGGM 2.1.6.9000 (development)
 
 ### New features
@@ -27,30 +59,8 @@
   the result is stochastic. Thanks to Joris Mulder for the suggestion.
 - **`truncnorm` added to `Imports`**: required for the truncated-normal draws used
   in one-sided BMA alternatives.
-
-- **`select.explore()` returns edge inclusion probabilities (`incl_prob`)**:
-  a matrix of posterior edge inclusion probabilities, `q * BF / (q * BF + 1 - q)`
-  with prior inclusion probability `q = 1 - prior.prob.H0` (`BF_10` for
-  `"two.sided"`, `BF_20` for `"greater"`/`"less"`), and `1 - P(H0 | Y)` for
-  `"exhaustive"`. With `method = "BF_cut"`, `prior.prob.H0` now affects these
-  probabilities (and `summary()`) but not the selected graph.
-
 ### Bug fixes
-- **`explore()` for large or n < p networks**: the starting value is
-  regularized (`solve(cov(Y) + 0.1 I)`), and the matrix-F prior now uses
-  `epsilon = min(0.01, 1 / (10 p))` instead of a fixed 0.01, so that
-  `nu = 1 / epsilon` stays well above `p - 1` (required for a proper prior,
-  Williams & Mulder, 2020). Results change slightly for `p > 10`.
-- **C++ samplers no longer truncate the matrix-F degrees of freedom** to
-  integers (non-integer `delta` from `prior_sd`).
 - **Fixed `bggm_missing()` dropping the wrong column with `mice` >= 3.17.0** ([#2](https://github.com/rast-lab/BGGM/issues/2)): `bggm_missing()` removed the `.id` column from `mice::complete(action = "long")` by position (column 2), which was correct only before `mice` 3.17.0. Since `mice` 3.17.0 places `.imp`/`.id` in the last two columns, this stripped a real data column and let `.id` leak into the model, corrupting the data passed to `estimate()`/`explore()`. The column is now removed by name, which is robust to `mice`'s column order. Reported by \@LilyTeesson.
-- **Documented how `BF_cut` is used in `select.explore()` with
-  `alternative = "exhaustive"`**: `BF_cut` is translated into a cutoff for the
-  posterior hypothesis probabilities, `BF_cut / (BF_cut + 1)` (0.75 for the
-  default `BF_cut = 3`), i.e. a hypothesis is selected when its posterior odds
-  against the other two hypotheses combined exceed `BF_cut`. With equal prior
-  probabilities (1/3) this corresponds to a Bayes factor of `2 * BF_cut` against
-  the complement. The `prob` field of the returned object reports this cutoff.
 - **Corrected the `select.explore()` exhaustive posterior probabilities**: for
   `alternative = "exhaustive"`, the three-way posterior hypothesis probabilities
   (`post_prob`, and the derived `null_mat`/`pos_mat`/`neg_mat`) were computed with
