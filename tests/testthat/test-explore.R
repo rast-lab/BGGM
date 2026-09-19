@@ -264,7 +264,7 @@ test_that("burnin and thin: storage layout and running summaries", {
 
   # thin = 2 keeps every 2nd draw of the same chain; summaries use all draws
   f1 <- explore(Y, iter = 200, burnin = 50, thin = 1, progress = FALSE, seed = 1)
-  f2 <- explore(Y, iter = 100, burnin = 50, thin = 2, progress = FALSE, seed = 1)
+  f2 <- explore(Y, iter = 200, burnin = 50, thin = 2, progress = FALSE, seed = 1)
   expect_equal(dim(f2$post_samp$pcors)[3], 100)
   expect_equal(f2$post_samp$pcors, f1$post_samp$pcors[, , seq(1, 200, by = 2)])
   expect_equal(f2$post_samp$z_mean, f1$post_samp$z_mean)
@@ -285,6 +285,8 @@ test_that("explore objects that store burn-in draws (earlier versions) still wor
   old$burnin_stored <- NULL
   old$post_samp$pcors    <- abind::abind(array(0, c(5, 5, 50)), fit$post_samp$pcors, along = 3)
   old$post_samp$fisher_z <- abind::abind(array(0, c(5, 5, 50)), fit$post_samp$fisher_z, along = 3)
+  dimnames(old$post_samp$pcors) <- dimnames(old$post_samp$fisher_z) <- NULL
+  old$n_draws <- NULL                    # objects from earlier versions have none
   expect_equal(BGGM:::post_draw_idx(old), 51:150)
   expect_equal(select(old)$BF_10, select(fit)$BF_10)
   expect_equal(summary(old)$dat_results, summary(fit)$dat_results)

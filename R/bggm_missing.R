@@ -155,7 +155,9 @@ combine_imputed_fits <- function(fits) {
     arrs <- lapply(fits, function(f) f$post_samp[[name]][, , post_draw_idx(f), drop = FALSE])
     if (length(burn) > 0)
       arrs <- c(list(fit$post_samp[[name]][, , burn, drop = FALSE]), arrs)
-    abind::abind(arrs, along = 3)
+    out <- abind::abind(arrs, along = 3)
+    dimnames(out) <- NULL          # abind adds dimnames; unpooled draws have none
+    out
   }
 
   fit$post_samp$pcors    <- pool("pcors")
@@ -169,9 +171,16 @@ combine_imputed_fits <- function(fits) {
     if (length(burn) > 0)
       arrs <- c(list(fit$post_samp$thresh[burn, , , drop = FALSE]), arrs)
     fit$post_samp$thresh <- abind::abind(arrs, along = 1)
+    dimnames(fit$post_samp$thresh) <- NULL
   }
 
   fit$iter <- iter * length(fits)
+  # explore() objects (>= 2.1.6.9002) carry n_draws, which post_draw_idx() uses
+  # in preference to iter; it must count the pooled draws, not those of the
+  # first fit.
+  if (!is.null(fit$n_draws))
+    fit$n_draws <- sum(vapply(fits, function(f) length(post_draw_idx(f)),
+                              integer(1)))
   idx      <- post_draw_idx(fit)
 
   pcor_mat <- apply(fit$post_samp$pcors[, , idx, drop = FALSE], 1:2, mean)
