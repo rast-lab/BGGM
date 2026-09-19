@@ -73,7 +73,6 @@ var_estimate <- function(Y,
                          seed = NULL,
                          ...) {
 
-  set.seed(seed)
   ## Random seed unless user provided
   if(!is.null(seed) ) {
     set.seed(seed)

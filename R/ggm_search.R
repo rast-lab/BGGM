@@ -64,7 +64,6 @@ ggm_search <- function(x, n = NULL,
                        progress = TRUE,
                        probabilistic = TRUE, ...){
 
-  set.seed(seed)
   ## Random seed unless user provided
   if(!is.null(seed) ) {
     set.seed(seed)

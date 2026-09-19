@@ -55,6 +55,27 @@
   functions are unchanged.
 
 ### Bug fixes
+- **`explore(iter = )` is now the number of post-burn-in ITERATIONS**, not the
+  number of draws kept after thinning. Previously `explore(iter = i, thin = t)`
+  ran `burnin + i * t` iterations and stored `i` draws, so raising `thin`
+  silently multiplied the run time by `t`; it now runs `burnin + i` iterations
+  and stores `ceiling(i / thin)` of them, returned in the new `n_draws` element.
+  `iter` in the fitted object is the iteration count, `n_draws` the stored-draw
+  count, and `post_draw_idx()` uses `n_draws` (falling back to `iter` for
+  objects from earlier versions, where `thin` was always 1). With the default
+  `thin = 1` nothing changes. The running posterior summaries continue to use
+  all `iter` post-burn-in iterations, so they do not depend on `thin`.
+- **`seed = NULL` no longer re-seeds the RNG**: `explore()`, `confirm()`,
+  `ggm_compare_confirm()`, `ggm_search()` and `var_estimate()` called
+  `set.seed(seed)` unconditionally before the guarded
+  `if (!is.null(seed)) set.seed(seed)`. With the default `seed = NULL` this
+  first call is `set.seed(NULL)`, which re-initialises the RNG from the
+  current time and process ID. Any seed set by the user before the call was
+  therefore discarded, and repeated calls on the same data gave different
+  results even inside `set.seed()`. The unguarded call has been removed, so
+  with `seed = NULL` the functions now use the ambient RNG stream and are
+  reproducible under `set.seed()`, as `estimate()` already was. Results of
+  existing scripts that relied on the implicit re-seeding will change.
 - **`bggm_missing()` now pools the posterior draws of the imputed data sets
   correctly**: it stacked all draws of each fit, including their 50 burn-in
   draws, and set `iter` to `iter * m + 50`, so the methods that use draws

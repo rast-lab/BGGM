@@ -25,8 +25,11 @@
 #' @param prior_sd Scale of the prior distribution, approximately the standard deviation
 #'                 of a beta distribution (defaults to 0.5).
 #'
-#' @param iter Number of posterior draws that are kept (after burn-in and
-#'        thinning; defaults to 5000).
+#' @param iter Integer. Number of post-burn-in iterations of the sampler
+#'        (defaults to 5000). This is the actual number of draws taken after
+#'        the burn-in, irrespective of \code{thin}; with \code{thin > 1} only
+#'        every \code{thin}-th of them is stored, so \code{ceiling(iter / thin)}
+#'        draws are kept (returned as \code{n_draws}).
 #'
 #' @param impute Logicial. Should the missing values (\code{NA})
 #'               be imputed during model fitting (defaults to \code{TRUE}) ?
@@ -38,12 +41,14 @@
 #' @param burnin Integer. Number of burn-in iterations that are discarded
 #'        (defaults to \code{50}).
 #'
-#' @param thin Integer. Thinning interval (defaults to \code{1}): after the
-#'        burn-in, \code{iter * thin} iterations are run and every
-#'        \code{thin}-th draw is stored, so that \code{iter} draws are kept.
-#'        The running posterior summaries (see \code{store_post_draws}) use all
-#'        \code{iter * thin} post-burn-in iterations. Thinning reduces memory
-#'        use when the draws are stored; it does not improve mixing.
+#' @param thin Integer. Thinning interval (defaults to \code{1}): of the
+#'        \code{iter} post-burn-in iterations, every \code{thin}-th draw is
+#'        stored, so \code{ceiling(iter / thin)} draws are kept. Thinning does
+#'        NOT change how long the sampler runs, and it does not improve mixing;
+#'        it only reduces memory use when the draws are stored. The running
+#'        posterior summaries (see \code{store_post_draws}) always use all
+#'        \code{iter} post-burn-in iterations, so they are unaffected by
+#'        \code{thin}.
 #'
 #' @param store_post_draws Logical. Should the posterior draws of the partial
 #'        correlations be stored (default \code{TRUE})? With \code{FALSE}, only
@@ -224,6 +229,9 @@ explore <- function(Y,
   }
   burnin <- as.integer(burnin)
   thin   <- as.integer(thin)
+  # draws kept: every thin-th of the iter post-burn-in iterations. Must match
+  # n_draw_slots() in src/bggm_fast.cpp.
+  n_draws <- as.integer(ceiling(iter / thin))
 
   # Temporarily, if the type is not in an allowed set.
   if (!type %in% c("continuous", "mixed")) {
@@ -237,7 +245,6 @@ explore <- function(Y,
     }
   }
 
-  set.seed(seed)
   ## Random seed unless user provided
   if(!is.null(seed) ) {
     set.seed(seed)
@@ -310,7 +317,7 @@ explore <- function(Y,
           '_BGGM_Theta_continuous',
           PACKAGE = 'BGGM',
           Y = Y,
-          iter = burnin + iter * thin,
+          iter = burnin + iter,
           delta = delta,
           epsilon = eps,
           prior_only = 0,
@@ -354,7 +361,7 @@ explore <- function(Y,
           X = X,
           delta = delta,
           epsilon = eps,
-          iter = burnin + iter * thin,
+          iter = burnin + iter,
           start = start,
           progress = progress,
           store = store_post_draws,
@@ -416,7 +423,7 @@ explore <- function(Y,
         X = X,
         delta = delta,
         epsilon = eps,
-        iter = burnin + iter * thin,
+        iter = burnin + iter,
         beta_prior = 0.1,
         cutpoints = c(-Inf, 0, Inf),
         start = start,
@@ -482,7 +489,7 @@ explore <- function(Y,
       "_BGGM_mv_ordinal_albert",
       Y = Y,
       X = X,
-      iter = burnin + iter * thin,
+      iter = burnin + iter,
       delta = delta,
       epsilon = eps,
       K = K,
@@ -546,7 +553,7 @@ explore <- function(Y,
         z0_start = rank_vars$z0_start,
         Sigma_start = cov(rank_vars$z0_start),
         levels = rank_vars$levels,
-        iter_missing = burnin + iter * thin,
+        iter_missing = burnin + iter,
         progress_impute = TRUE,
         K = rank_vars$K,
         idx = idx,
@@ -566,7 +573,7 @@ explore <- function(Y,
       levels = rank_vars$levels,
       K = rank_vars$K,
       Sigma_start = rank_vars$Sigma_start,
-      iter = burnin + iter * thin,
+      iter = burnin + iter,
       delta = delta,
       epsilon = eps,
       idx = idx,
@@ -636,7 +643,8 @@ explore <- function(Y,
       prior_samp = prior_samp,
       delta = delta,
       type = type,
-      iter = iter,
+      iter = iter,                      # post-burn-in sampler iterations
+      n_draws = n_draws,                # draws actually stored (iter / thin)
       Y = Y,
       call = match.call(),
       p = p,
@@ -777,7 +785,9 @@ print_explore <- function(x,...){
   cat("Analytic:", x$analytic, "\n")
   cat("Formula:", paste(as.character(x$formula), collapse = " "), "\n")
   # number of iterations
-  cat("Posterior Samples:", x$iter, "\n")
+  cat("Posterior Samples:", x$iter,
+      if (!is.null(x$thin) && x$thin > 1)
+        paste0(" iterations (", x$n_draws, " stored, thin = ", x$thin, ")"), "\n")
   # number of observations
   cat("Observations (n):", x$n,  "\n")
   # number of variables

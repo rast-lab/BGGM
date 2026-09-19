@@ -57,8 +57,8 @@ posterior_samples <- function(object, ...){
     # identity matrix
     I_p <- diag(p)
 
-    # iterations
-    iter <- object$iter
+    # stored draws (iter / thin; equals iter when thin = 1)
+    iter <- length(post_draw_idx(object))
 
     # pcor samples
     pcor_samples <-

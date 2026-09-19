@@ -354,7 +354,6 @@ ggm_compare_confirm <- function(...,
     }
   }
 
-  set.seed(seed)
   ## Random seed unless user provided
   if(!is.null(seed) ) {
     set.seed(seed)

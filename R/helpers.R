@@ -355,7 +355,12 @@ eps_default <- function(p) {
 # explore() objects from earlier versions, store 50 burn-in draws first.
 post_draw_idx <- function(object) {
   n_burn <- if (isFALSE(object$burnin_stored)) 0 else 50
-  n_burn + seq_len(object$iter)
+  # number of STORED draws. Since BGGM >= 2.1.6.9002 explore() reports `iter` as
+  # the number of post-burn-in sampler ITERATIONS and `n_draws` as the number of
+  # draws kept (iter / thin); older objects have no n_draws and thin = 1, where
+  # the two coincide.
+  n_keep <- if (!is.null(object$n_draws)) object$n_draws else object$iter
+  n_burn + seq_len(n_keep)
 }
 
 # Stop with a clear message when a function needs the posterior draws of an
