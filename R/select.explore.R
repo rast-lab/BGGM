@@ -22,15 +22,22 @@
 #'        based on the median of this mixture.
 #'        }
 #'
-#' @param BF_cut Numeric. Bayes factor threshold for including an edge when
-#'        \code{method = "BF_cut"} (defaults to 3). 
+#' @param BF_cut Numeric. Evidence threshold for including an edge when
+#'        \code{method = "BF_cut"} (defaults to 3). An edge is selected when
+#'        the posterior probability of the hypothesis exceeds
+#'        \code{BF_cut / (BF_cut + 1)}. With the default
+#'        \code{prior.prob.H0 = 0.5} this is equivalent to a Bayes factor of
+#'        \code{BF_cut} against the competing hypothesis; for other values of
+#'        \code{prior.prob.H0} it is a cutoff on the posterior probability.
 #'
 #' @param prior.prob.H0 Numeric between 0 and 1. Prior probability assigned
-#'        to the null hypothesis for each edge (defaults to \code{0.5}). With
-#'        \code{method = "BMA"} it is used for model averaging and the edge
-#'        inclusion probabilities. With \code{method = "BF_cut"} it only affects
-#'        the reported edge inclusion probabilities (\code{incl_prob}), not the
-#'        selected graph, and it is not used for \code{alternative = "exhaustive"}.
+#'        to the null hypothesis for each edge (defaults to \code{0.5}). It is
+#'        used for the posterior hypothesis probabilities and the edge
+#'        inclusion probabilities under both \code{method = "BF_cut"} and
+#'        \code{method = "BMA"}. For \code{alternative = "exhaustive"} the
+#'        remaining \code{1 - prior.prob.H0} is split equally over the positive
+#'        and the negative hypothesis, so that splitting the alternative by
+#'        sign leaves \eqn{P(H_0 \mid Y)} unchanged.
 #'
 #' @param alternative A character string specifying the alternative hypothesis. It
 #'                    must be one of "two.sided" (default), "greater", "less",
@@ -44,16 +51,24 @@
 #' @details Exhaustive provides the posterior hypothesis probabilities for
 #' a positive, negative, or null relation \insertCite{@see Table 3 in @Williams2019_bf}{BGGM}.
 #'
-#' \code{method = "BF_cut"} performs edge selection using Bayes factor
-#' thresholding. For \code{alternative = "exhaustive"}, \code{BF_cut} is
-#' translated into a cutoff for the posterior hypothesis probabilities: a
-#' hypothesis (null, positive, negative) is selected when its posterior odds
-#' against the other two hypotheses combined exceed \code{BF_cut}, i.e. when
-#' its posterior probability exceeds \code{BF_cut / (BF_cut + 1)} (0.75 for
-#' \code{BF_cut = 3}). The three hypotheses have equal prior probabilities
-#' (\code{1/3}), so the prior odds against the complement are \code{1:2} and this
-#' cutoff corresponds to a Bayes factor of \code{2 * BF_cut} against the complement.
-#' An edge can be assigned to none of the three hypotheses.
+#' \code{method = "BF_cut"} selects an edge when its posterior inclusion
+#' probability exceeds \code{BF_cut / (BF_cut + 1)} (0.75 for
+#' \code{BF_cut = 3}), and calls an edge null when the posterior probability of
+#' the null hypothesis exceeds that same cutoff. With the default
+#' \code{prior.prob.H0 = 0.5} this is the Bayes factor threshold of
+#' \insertCite{Williams2019_bf}{BGGM}: \code{BF_cut = 3} selects the edges with
+#' a Bayes factor larger than 3. For \code{alternative = "exhaustive"} the
+#' inclusion probability is \eqn{1 - P(H_0 \mid Y) = P(H_+ \mid Y) + P(H_- \mid Y)},
+#' which equals the inclusion probability of \code{alternative = "two.sided"},
+#' so both give the same selected edges; a selected edge is labelled positive
+#' or negative according to the larger of the two directional probabilities,
+#' which are reported in addition. An edge can be assigned to none of the three
+#' hypotheses.
+#'
+#' \code{method = "BMA"} does not use \code{BF_cut}: an edge is selected when
+#' the median of the model-averaged mixture is nonzero, which corresponds to an
+#' inclusion probability above 0.5, so it selects more edges than
+#' \code{method = "BF_cut"} with the default \code{BF_cut = 3}.
 #'
 #' \code{method = "BMA"} performs Bayesian model averaging using a
 #' spike-and-slab style mixture distribution for each edge. The spike
@@ -148,8 +163,10 @@
 #'  \item \code{pcor_mat} Partial correlation matrix (posterior mean). The weighted adjacency
 #'  matrices can be computed by multiplying \code{pcor_mat} with an adjacency matrix.
 #'
-#'  \item \code{pcor_mat_zero} (\code{method = "BMA"} only) Model-averaged
-#'  partial-correlation matrix. For each edge this is the posterior median of the
+#'  \item \code{pcor_mat_zero} Selected partial correlation matrix (weighted
+#'  adjacency). For \code{method = "BF_cut"} this is the posterior mean of the
+#'  selected edges and zero elsewhere; for \code{method = "BMA"} it is the
+#'  model-averaged matrix, i.e. for each edge the posterior median of the
 #'  three-state mixture over the null, positive, and negative hypotheses.
 #'
 #' }
@@ -207,30 +224,12 @@ select.explore <- function(object,
   post_dens  <- dnorm(0, post_mean, post_sd)
   prior_dens <- dnorm(0, 0, .prior_sd_z(x))
 
-  # With method = "BF_cut", prior.prob.H0 does not affect edge selection
-  # (which is driven by BF_cut). For "two.sided", "greater" and "less" it is
-  # still used for the reported edge inclusion probabilities (incl_prob); for
-  # "exhaustive" (fixed equal 1/3 priors) it is not used at all.
-  if (method == "BF_cut" && "prior.prob.H0" %in% names(match.call())) {
-    if (alternative == "exhaustive") {
-      warning(
-        paste0(
-          "'prior.prob.H0' is ignored when method = \"BF_cut\" and ",
-          "alternative = \"exhaustive\": the three hypotheses have equal prior ",
-          "probabilities. Use method = \"BMA\" for 'prior.prob.H0' to take effect."
-        ),
-        call. = FALSE
-      )
-    } else {
-      message(
-        "'prior.prob.H0' only affects the edge inclusion probabilities ",
-        "('incl_prob') when method = \"BF_cut\"; edge selection is based on ",
-        "BF_cut = ", BF_cut, "."
-      )
-    }
-  }
-
   if (method == "BF_cut") {
+
+    # Selection threshold on the posterior probability of a hypothesis.
+    # With the default prior.prob.H0 = 0.5 this is equivalent to a Bayes
+    # factor of BF_cut against the competing hypothesis.
+    hyp_prob <- BF_cut / (BF_cut + 1)
 
     if (alternative == "two.sided") {
 
@@ -239,8 +238,10 @@ select.explore <- function(object,
       diag(BF_01_mat) <- 0
       diag(BF_10_mat) <- 0
 
-      Adj_10 <- ifelse(BF_10_mat > BF_cut, 1, 0)
-      Adj_01 <- ifelse(BF_10_mat < 1 / BF_cut, 1, 0)
+      incl_prob_mat <- .incl_prob(BF_10_mat, prior.prob.H0)
+
+      Adj_10 <- ifelse(incl_prob_mat     > hyp_prob, 1, 0)
+      Adj_01 <- ifelse(1 - incl_prob_mat > hyp_prob, 1, 0)
       diag(Adj_01) <- 0
       diag(Adj_10) <- 0
 
@@ -253,7 +254,7 @@ select.explore <- function(object,
         BF_10          = BF_10_mat,
         BF_01          = BF_01_mat,
         BF_cut         = BF_cut,
-        incl_prob      = .incl_prob(BF_10_mat, prior.prob.H0),
+        incl_prob      = incl_prob_mat,
         prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
@@ -272,8 +273,10 @@ select.explore <- function(object,
       diag(BF_02_mat) <- 0
       diag(BF_20_mat) <- 0
 
-      Adj_20 <- ifelse(BF_20_mat > BF_cut, 1, 0)
-      Adj_02 <- ifelse(BF_02_mat > BF_cut, 1, 0)
+      incl_prob_mat <- .incl_prob(BF_20_mat, prior.prob.H0)
+
+      Adj_20 <- ifelse(incl_prob_mat     > hyp_prob, 1, 0)
+      Adj_02 <- ifelse(1 - incl_prob_mat > hyp_prob, 1, 0)
       diag(Adj_02) <- 0
       diag(Adj_20) <- 0
 
@@ -286,7 +289,7 @@ select.explore <- function(object,
         BF_20          = BF_20_mat,
         BF_02          = BF_02_mat,
         BF_cut         = BF_cut,
-        incl_prob      = .incl_prob(BF_20_mat, prior.prob.H0),
+        incl_prob      = incl_prob_mat,
         prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
@@ -305,8 +308,10 @@ select.explore <- function(object,
       diag(BF_02_mat) <- 0
       diag(BF_20_mat) <- 0
 
-      Adj_20 <- ifelse(BF_20_mat > BF_cut, 1, 0)
-      Adj_02 <- ifelse(BF_02_mat > BF_cut, 1, 0)
+      incl_prob_mat <- .incl_prob(BF_20_mat, prior.prob.H0)
+
+      Adj_20 <- ifelse(incl_prob_mat     > hyp_prob, 1, 0)
+      Adj_02 <- ifelse(1 - incl_prob_mat > hyp_prob, 1, 0)
       diag(Adj_02) <- 0
       diag(Adj_20) <- 0
 
@@ -319,7 +324,7 @@ select.explore <- function(object,
         BF_20          = BF_20_mat,
         BF_02          = BF_02_mat,
         BF_cut         = BF_cut,
-        incl_prob      = .incl_prob(BF_20_mat, prior.prob.H0),
+        incl_prob      = incl_prob_mat,
         prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
@@ -348,16 +353,22 @@ select.explore <- function(object,
       # (Eq. 6), while BF_1u / BF_2u are the one-sided-vs-unrestricted ratios
       # (Eq. 8) -- these must NOT be multiplied by the two-sided BF_10, which
       # would put them on the vs-H0 baseline and double-count the two-sided
-      # evidence. method = "BF_cut" assigns equal prior probabilities (1/3)
-      # to each hypothesis, which cancel in the normalisation below.
+      # evidence. The null hypothesis has prior probability prior.prob.H0 and
+      # the two directional hypotheses split the remainder equally. Because
+      # BF_1u + BF_2u = 2 for every edge, P(H0 | Y) is then the same as for
+      # alternative = "two.sided": splitting the alternative by sign does not
+      # change the evidence for the null.
       BF_0u <- post_dens / prior_dens
       BF_1u <- (1 - pnorm(0, post_mean, post_sd)) * 2
       BF_2u <- pnorm(0, post_mean, post_sd) * 2
 
-      denom        <- BF_0u + BF_1u + BF_2u
-      prob_null    <- BF_0u / denom
-      prob_greater <- BF_1u / denom
-      prob_less    <- BF_2u / denom
+      prior_H0 <- prior.prob.H0
+      prior_H1 <- prior_H2 <- (1 - prior.prob.H0) / 2
+
+      denom        <- prior_H0 * BF_0u + prior_H1 * BF_1u + prior_H2 * BF_2u
+      prob_null    <- prior_H0 * BF_0u / denom
+      prob_greater <- prior_H1 * BF_1u / denom
+      prob_less    <- prior_H2 * BF_2u / denom
 
       # diagonal: post_sd = 0 gives Inf/NaN; not an edge
       diag(prob_null) <- diag(prob_greater) <- diag(prob_less) <- 0
@@ -370,20 +381,23 @@ select.explore <- function(object,
       )
       row.names(prob_dat) <- c()
 
-      # Selection: a hypothesis is selected when its posterior odds against
-      # the other two hypotheses combined exceed BF_cut, i.e. when
-      # P(H_k|Y) > BF_cut / (BF_cut + 1) (0.75 for BF_cut = 3). With equal
-      # prior probabilities (1/3) the prior odds against the complement are
-      # 1:2, so this corresponds to a Bayes factor of 2 * BF_cut against the
-      # complement.
-      hyp_prob <- BF_cut / (BF_cut + 1)
+      # Selection is based on the posterior edge inclusion probability
+      # 1 - P(H0 | Y) = P(H+ | Y) + P(H- | Y), exactly as for
+      # alternative = "two.sided": an edge is selected when it exceeds
+      # hyp_prob, and is labelled positive or negative according to the
+      # direction holding the larger share of the posterior probability. An
+      # edge is called null when P(H0 | Y) exceeds hyp_prob. Edges that pass
+      # neither cutoff are assigned to none of the three matrices.
+      incl_prob_mat <- .incl_prob_exhaustive(prob_null)
+      selected      <- incl_prob_mat > hyp_prob
 
-      null_mat <- ifelse(prob_null    > hyp_prob, 1, 0)
-      pos_mat  <- ifelse(prob_greater > hyp_prob, 1, 0)
-      neg_mat  <- ifelse(prob_less    > hyp_prob, 1, 0)
+      pos_mat  <- 1 * (selected & prob_greater >= prob_less)
+      neg_mat  <- 1 * (selected & prob_less > prob_greater)
+      null_mat <- 1 * (prob_null > hyp_prob)
 
       returned_object <- list(
         post_prob      = prob_dat,
+        pcor_mat_zero  = tanh(post_mean) * (pos_mat + neg_mat),
         neg_mat        = neg_mat,
         pos_mat        = pos_mat,
         null_mat       = null_mat,
@@ -393,7 +407,7 @@ select.explore <- function(object,
         call           = match.call(),
         # posterior-probability threshold used for selection
         prob           = hyp_prob,
-        incl_prob      = .incl_prob_exhaustive(prob_null),
+        incl_prob      = incl_prob_mat,
         method         = method,
         type           = x$type,
         formula        = x$formula,

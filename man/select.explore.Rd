@@ -31,15 +31,22 @@
        based on the median of this mixture.
        }}
 
-\item{BF_cut}{Numeric. Bayes factor threshold for including an edge when
-\code{method = "BF_cut"} (defaults to 3).}
+\item{BF_cut}{Numeric. Evidence threshold for including an edge when
+\code{method = "BF_cut"} (defaults to 3). An edge is selected when
+the posterior probability of the hypothesis exceeds
+\code{BF_cut / (BF_cut + 1)}. With the default
+\code{prior.prob.H0 = 0.5} this is equivalent to a Bayes factor of
+\code{BF_cut} against the competing hypothesis; for other values of
+\code{prior.prob.H0} it is a cutoff on the posterior probability.}
 
 \item{prior.prob.H0}{Numeric between 0 and 1. Prior probability assigned
-to the null hypothesis for each edge (defaults to \code{0.5}). With
-\code{method = "BMA"} it is used for model averaging and the edge
-inclusion probabilities. With \code{method = "BF_cut"} it only affects
-the reported edge inclusion probabilities (\code{incl_prob}), not the
-selected graph, and it is not used for \code{alternative = "exhaustive"}.}
+to the null hypothesis for each edge (defaults to \code{0.5}). It is
+used for the posterior hypothesis probabilities and the edge
+inclusion probabilities under both \code{method = "BF_cut"} and
+\code{method = "BMA"}. For \code{alternative = "exhaustive"} the
+remaining \code{1 - prior.prob.H0} is split equally over the positive
+and the negative hypothesis, so that splitting the alternative by
+sign leaves \eqn{P(H_0 \mid Y)} unchanged.}
 
 \item{alternative}{A character string specifying the alternative hypothesis. It
 must be one of "two.sided" (default), "greater", "less",
@@ -114,8 +121,10 @@ The returned object of class \code{select.explore} contains a lot of information
  \item \code{pcor_mat} Partial correlation matrix (posterior mean). The weighted adjacency
  matrices can be computed by multiplying \code{pcor_mat} with an adjacency matrix.
 
- \item \code{pcor_mat_zero} (\code{method = "BMA"} only) Model-averaged
- partial-correlation matrix. For each edge this is the posterior median of the
+ \item \code{pcor_mat_zero} Selected partial correlation matrix (weighted
+ adjacency). For \code{method = "BF_cut"} this is the posterior mean of the
+ selected edges and zero elsewhere; for \code{method = "BMA"} it is the
+ model-averaged matrix, i.e. for each edge the posterior median of the
  three-state mixture over the null, positive, and negative hypotheses.
 
 }
@@ -128,16 +137,24 @@ Provides the selected graph based on the Bayes factor
 Exhaustive provides the posterior hypothesis probabilities for
 a positive, negative, or null relation \insertCite{@see Table 3 in @Williams2019_bf}{BGGM}.
 
-\code{method = "BF_cut"} performs edge selection using Bayes factor
-thresholding. For \code{alternative = "exhaustive"}, \code{BF_cut} is
-translated into a cutoff for the posterior hypothesis probabilities: a
-hypothesis (null, positive, negative) is selected when its posterior odds
-against the other two hypotheses combined exceed \code{BF_cut}, i.e. when
-its posterior probability exceeds \code{BF_cut / (BF_cut + 1)} (0.75 for
-\code{BF_cut = 3}). The three hypotheses have equal prior probabilities
-(\code{1/3}), so the prior odds against the complement are \code{1:2} and this
-cutoff corresponds to a Bayes factor of \code{2 * BF_cut} against the complement.
-An edge can be assigned to none of the three hypotheses.
+\code{method = "BF_cut"} selects an edge when its posterior inclusion
+probability exceeds \code{BF_cut / (BF_cut + 1)} (0.75 for
+\code{BF_cut = 3}), and calls an edge null when the posterior probability of
+the null hypothesis exceeds that same cutoff. With the default
+\code{prior.prob.H0 = 0.5} this is the Bayes factor threshold of
+\insertCite{Williams2019_bf}{BGGM}: \code{BF_cut = 3} selects the edges with
+a Bayes factor larger than 3. For \code{alternative = "exhaustive"} the
+inclusion probability is \eqn{1 - P(H_0 \mid Y) = P(H_+ \mid Y) + P(H_- \mid Y)},
+which equals the inclusion probability of \code{alternative = "two.sided"},
+so both give the same selected edges; a selected edge is labelled positive
+or negative according to the larger of the two directional probabilities,
+which are reported in addition. An edge can be assigned to none of the three
+hypotheses.
+
+\code{method = "BMA"} does not use \code{BF_cut}: an edge is selected when
+the median of the model-averaged mixture is nonzero, which corresponds to an
+inclusion probability above 0.5, so it selects more edges than
+\code{method = "BF_cut"} with the default \code{BF_cut = 3}.
 
 \code{method = "BMA"} performs Bayesian model averaging using a
 spike-and-slab style mixture distribution for each edge. The spike

@@ -45,7 +45,7 @@ test_that("select.explore returns expected structure for exhaustive alternative"
   result <- select.explore(fit, alternative = "exhaustive")
 
   expect_s3_class(result, "select.explore")
-  expect_named(result, c("post_prob", "neg_mat", "pos_mat", "null_mat", "alternative", "pcor_mat", "pcor_sd_fisher", "call", "prob", "incl_prob", "method", "type", "formula", "analytic", "object"))
+  expect_named(result, c("post_prob", "pcor_mat_zero", "neg_mat", "pos_mat", "null_mat", "alternative", "pcor_mat", "pcor_sd_fisher", "call", "prob", "incl_prob", "method", "type", "formula", "analytic", "object"))
   expect_true(is.data.frame(result$post_prob))
   expect_true(is.matrix(result$neg_mat))
   expect_true(is.matrix(result$pos_mat))
@@ -374,27 +374,42 @@ test_that("exhaustive BF_cut selection thresholds posterior probabilities", {
   pl <- sel$post_prob$prob_less
   cut <- BF_cut / (BF_cut + 1)
 
+  incl <- 1 - pn
+
   expect_equal(sel$null_mat[upper.tri(sel$null_mat)], as.numeric(pn > cut))
-  expect_equal(sel$pos_mat[upper.tri(sel$pos_mat)],   as.numeric(pg > cut))
-  expect_equal(sel$neg_mat[upper.tri(sel$neg_mat)],   as.numeric(pl > cut))
+  expect_equal(sel$pos_mat[upper.tri(sel$pos_mat)],   as.numeric(incl > cut & pg >= pl))
+  expect_equal(sel$neg_mat[upper.tri(sel$neg_mat)],   as.numeric(incl > cut & pl > pg))
 })
 
-test_that("exhaustive BF_cut ignores prior.prob.H0 (equal 1/3 priors)", {
+test_that("exhaustive and two.sided select the same edges (BF_cut)", {
   set.seed(123)
   Y <- BGGM::bfi[1:100, 1:5]
   fit <- explore(Y, iter = 100, progress = FALSE)
-  # prior.prob.H0 is a BMA argument; under BF_cut it must not affect the
-  # result and it must warn the user that it is being ignored.
-  expect_warning(
-    select(fit, BF_cut = 3, alternative = "exhaustive", prior.prob.H0 = 0.9),
-    "ignored when method = \"BF_cut\""
-  )
-  a <- suppressWarnings(
-    select(fit, BF_cut = 3, alternative = "exhaustive", prior.prob.H0 = 0.5))
-  b <- suppressWarnings(
-    select(fit, BF_cut = 3, alternative = "exhaustive", prior.prob.H0 = 0.9))
-  expect_equal(a$post_prob, b$post_prob)
-  expect_equal(a$null_mat, b$null_mat)
+  ex <- select(fit, BF_cut = 3, alternative = "exhaustive")
+  ts <- select(fit, BF_cut = 3, alternative = "two.sided")
+
+  expect_equal(ex$incl_prob, ts$incl_prob)
+  expect_equal(ex$pos_mat + ex$neg_mat, ts$Adj_10)
+  expect_equal(ex$null_mat, ts$Adj_01)
+})
+
+test_that("exhaustive BF_cut uses prior.prob.H0", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+
+  a <- select(fit, BF_cut = 3, alternative = "exhaustive", prior.prob.H0 = 0.5)
+  b <- select(fit, BF_cut = 3, alternative = "exhaustive", prior.prob.H0 = 0.9)
+
+  # no warning or message: prior.prob.H0 is used, not ignored
+  expect_silent(select(fit, BF_cut = 3, alternative = "exhaustive",
+                       prior.prob.H0 = 0.9))
+  # a larger prior probability of H0 lowers the inclusion probabilities
+  expect_false(isTRUE(all.equal(a$post_prob, b$post_prob)))
+  expect_true(all(b$incl_prob <= a$incl_prob + 1e-12))
+  # the three hypothesis probabilities still sum to one
+  expect_equal(b$post_prob$prob_zero + b$post_prob$prob_greater +
+                 b$post_prob$prob_less, rep(1, nrow(b$post_prob)))
 })
 
 # ---- Edge inclusion probabilities ----
@@ -413,17 +428,38 @@ test_that("incl_prob matches q*BF10 / (q*BF10 + 1 - q) for two.sided", {
   }
 })
 
-test_that("incl_prob does not change BF_cut selection and gives a message", {
+test_that("BF_cut selection follows incl_prob and prior.prob.H0", {
   set.seed(123)
   Y <- BGGM::bfi[1:100, 1:5]
   fit <- explore(Y, iter = 100, progress = FALSE)
-  expect_message(select(fit, alternative = "two.sided", prior.prob.H0 = 0.8),
-                 "only affects the edge inclusion probabilities")
-  a <- select(fit, alternative = "two.sided")
-  b <- suppressMessages(select(fit, alternative = "two.sided", prior.prob.H0 = 0.8))
-  expect_equal(a$Adj_10, b$Adj_10)
-  expect_true(all(b$incl_prob[upper.tri(b$incl_prob)] <=
-                  a$incl_prob[upper.tri(a$incl_prob)] + 1e-12))
+  BF_cut <- 3
+  cut <- BF_cut / (BF_cut + 1)
+
+  expect_silent(select(fit, alternative = "two.sided", prior.prob.H0 = 0.8))
+
+  a <- select(fit, BF_cut = BF_cut, alternative = "two.sided")
+  b <- select(fit, BF_cut = BF_cut, alternative = "two.sided", prior.prob.H0 = 0.8)
+
+  off <- upper.tri(a$Adj_10)
+  expect_equal(a$Adj_10[off], as.numeric(a$incl_prob[off] > cut))
+  expect_equal(b$Adj_10[off], as.numeric(b$incl_prob[off] > cut))
+  # a larger prior probability of H0 cannot select more edges
+  expect_true(all(b$Adj_10[off] <= a$Adj_10[off]))
+  expect_true(all(b$incl_prob[off] <= a$incl_prob[off] + 1e-12))
+})
+
+test_that("default BF_cut selection equals the Bayes factor rule", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+
+  for (alt in c("two.sided", "greater", "less")) {
+    sel <- select(fit, BF_cut = 3, alternative = alt)
+    BF  <- if (alt == "two.sided") sel$BF_10 else sel$BF_20
+    Adj <- if (alt == "two.sided") sel$Adj_10 else sel$Adj_20
+    off <- upper.tri(BF)
+    expect_equal(Adj[off], as.numeric(BF[off] > 3))
+  }
 })
 
 test_that("incl_prob handles BF10 = Inf", {
@@ -777,16 +813,22 @@ test_that("exhaustive posterior probs follow Eq. 9 (Bayes factors vs H_u)", {
   # terms are 2*Pr(rho>0|Y) and 2*Pr(rho<0|Y) -- NOT multiplied by the
   # two-sided BF_10 (which would double-count the two-sided evidence and give
   # P(H0) = 1/(1 + 2 BF_10^2) instead of the correct 1/(1 + 2 BF_10)).
-  # method = "BF_cut" uses equal 1/3 priors, which cancel.
+  # The null keeps prior.prob.H0 and the two directional hypotheses split the
+  # remainder, so with the default 0.5 the prior weights are (0.5, 0.25, 0.25).
   d <- .se_dens(fit)
   BF_0u <- 1 / d$BF_10                                    # = post_dens / prior_dens
   BF_1u <- (1 - pnorm(0, d$post_mean, d$post_sd)) * 2
   BF_2u <- pnorm(0, d$post_mean, d$post_sd) * 2
-  denom <- BF_0u + BF_1u + BF_2u
+  q0    <- 0.5
+  q1    <- (1 - q0) / 2
+  denom <- q0 * BF_0u + q1 * BF_1u + q1 * BF_2u
 
-  expect_equal(sel$post_prob$prob_zero,    (BF_0u / denom)[upper.tri(BF_0u)])
-  expect_equal(sel$post_prob$prob_greater, (BF_1u / denom)[upper.tri(BF_1u)])
-  expect_equal(sel$post_prob$prob_less,    (BF_2u / denom)[upper.tri(BF_2u)])
+  expect_equal(sel$post_prob$prob_zero,    (q0 * BF_0u / denom)[upper.tri(BF_0u)])
+  expect_equal(sel$post_prob$prob_greater, (q1 * BF_1u / denom)[upper.tri(BF_1u)])
+  expect_equal(sel$post_prob$prob_less,    (q1 * BF_2u / denom)[upper.tri(BF_2u)])
+
+  # Because BF_1u + BF_2u = 2, this is the two-sided P(H0 | Y) = 1 / (1 + BF_10)
+  expect_equal(sel$post_prob$prob_zero, (1 / (1 + d$BF_10))[upper.tri(BF_0u)])
 })
 
 test_that("exhaustive prob_zero is NOT the double-counted (vs-H0) form", {

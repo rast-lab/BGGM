@@ -1,12 +1,30 @@
 # BGGM 2.1.6.9001 (development)
 
 ### New features
+- **`select.explore(method = "BF_cut")` now selects on posterior probabilities**:
+  an edge is selected when its posterior inclusion probability exceeds
+  `BF_cut / (BF_cut + 1)`, and is called null when the posterior probability of
+  the null hypothesis exceeds that cutoff. With the default
+  `prior.prob.H0 = 0.5` this is identical to the previous Bayes factor rule
+  (`BF > BF_cut`) for `"two.sided"`, `"greater"` and `"less"`; for other values
+  of `prior.prob.H0` the prior now also affects the selected graph.
+  For `alternative = "exhaustive"` the three hypotheses no longer have fixed
+  equal prior probabilities: the null keeps `prior.prob.H0` and the two
+  directional hypotheses split the remainder. Because `BF_1u + BF_2u = 2`, the
+  inclusion probability then equals the one of `"two.sided"`, so both
+  alternatives select the same edges, with `"exhaustive"` adding the posterior
+  probabilities of a positive and a negative relation and labelling each
+  selected edge by the larger of the two. Previously `"exhaustive"` used equal
+  1/3 priors and thresholded each hypothesis separately, which made
+  `BF_cut = 3` correspond to a two-sided Bayes factor of 1.5.
+  `alternative = "exhaustive"` with `method = "BF_cut"` now also returns
+  `pcor_mat_zero`.
 - **`select.explore()` returns edge inclusion probabilities (`incl_prob`)**:
   a matrix of posterior edge inclusion probabilities, `q * BF / (q * BF + 1 - q)`
   with prior inclusion probability `q = 1 - prior.prob.H0` (`BF_10` for
   `"two.sided"`, `BF_20` for `"greater"`/`"less"`), and `1 - P(H0 | Y)` for
-  `"exhaustive"`. With `method = "BF_cut"`, `prior.prob.H0` now affects these
-  probabilities (and `summary()`) but not the selected graph.
+  `"exhaustive"`. With `method = "BF_cut"`, `prior.prob.H0` affects these
+  probabilities, `summary()` and the selected graph.
 - **`select.explore()` with `method = "BMA"` is now deterministic**: the
   model-averaged partial correlations (`pcor_mat_zero`) are the exact median of
   the spike-and-slab mixture, with the slab(s) given by the normal
