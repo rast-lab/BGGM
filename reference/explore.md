@@ -22,6 +22,10 @@ explore(
   progress = TRUE,
   impute = FALSE,
   seed = NULL,
+  burnin = 50,
+  thin = 1,
+  store_post_draws = TRUE,
+  store_prior_draws = FALSE,
   ...
 )
 ```
@@ -64,7 +68,11 @@ explore(
 
 - iter:
 
-  Number of iterations (posterior samples; defaults to 5000).
+  Integer. Number of post-burn-in iterations of the sampler (defaults to
+  5000). This is the actual number of draws taken after the burn-in,
+  irrespective of `thin`; with `thin > 1` only every `thin`-th of them
+  is stored, so `ceiling(iter / thin)` draws are kept (returned as
+  `n_draws`).
 
 - progress:
 
@@ -79,6 +87,43 @@ explore(
 
   An integer for the random seed.
 
+- burnin:
+
+  Integer. Number of burn-in iterations that are discarded (defaults to
+  `50`).
+
+- thin:
+
+  Integer. Thinning interval (defaults to `1`): of the `iter`
+  post-burn-in iterations, every `thin`-th draw is stored, so
+  `ceiling(iter / thin)` draws are kept. Thinning does NOT change how
+  long the sampler runs, and it does not improve mixing; it only reduces
+  memory use when the draws are stored. The running posterior summaries
+  (see `store_post_draws`) always use all `iter` post-burn-in
+  iterations, so they are unaffected by `thin`.
+
+- store_post_draws:
+
+  Logical. Should the posterior draws of the partial correlations be
+  stored (default `TRUE`)? With `FALSE`, only running posterior
+  summaries are stored (posterior mean and standard deviation of the
+  partial correlations and of their Fisher-z transformations), which
+  reduces memory use from `p x p x iter` to `p x p` arrays. This is
+  sufficient for
+  [`select.explore`](https://rast-lab.github.io/BGGM/reference/select.explore.md),
+  but functions that need the draws (e.g.,
+  [`posterior_samples`](https://rast-lab.github.io/BGGM/reference/posterior_samples.md))
+  are then not available.
+
+- store_prior_draws:
+
+  Logical. Should draws from the (joint) prior distribution of the
+  partial correlations be returned (default `FALSE`)? These draws are
+  not needed for hypothesis testing, which uses the analytic prior
+  standard deviation of the Fisher-z transformed partial correlations,
+  but they retain the dependence between the partial correlations. Prior
+  draws cost about as much memory as posterior draws.
+
 - ...:
 
   Currently ignored (leave empty).
@@ -91,7 +136,16 @@ that is used for printing and plotting the results. For users of
 
 - `pcor_mat` partial correltion matrix (posterior mean).
 
-- `post_samp` an object containing the posterior samples.
+- `post_samp` an object containing the posterior samples (`pcors`,
+  `fisher_z`: `p x p x iter` arrays of the post-burn-in, thinned draws;
+  only when `store_post_draws = TRUE`) and posterior summaries
+  (`pcor_mat`, `pcor_sd`, `z_mean`, `z_sd`).
+
+- `prior_samp` an object containing the prior samples (only when
+  `store_prior_draws = TRUE`; otherwise `NULL`).
+
+- `prior_sd_z` prior standard deviation of the Fisher-z transformed
+  partial correlations (used for the Bayes factors).
 
 ## Details
 

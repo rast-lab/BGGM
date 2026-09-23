@@ -120,7 +120,6 @@ fit <- prior_belief_var(y,
 #> 
 #> testing contemporanenous relations
 #> BGGM: Posterior Sampling 
-#> BGGM: Prior Sampling 
 #> BGGM: Finished
 # }
 ```

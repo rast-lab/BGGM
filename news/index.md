@@ -1,5 +1,216 @@
 # Changelog
 
+## BGGM 2.1.6.9001 (development)
+
+#### New features
+
+- **`select.explore(method = "BF_cut")` now selects on posterior
+  probabilities**: an edge is selected when its posterior inclusion
+  probability exceeds `BF_cut / (BF_cut + 1)`, and is called null when
+  the posterior probability of the null hypothesis exceeds that cutoff.
+  With the default `prior.prob.H0 = 0.5` this is identical to the
+  previous Bayes factor rule (`BF > BF_cut`) for `"two.sided"`,
+  `"greater"` and `"less"`; for other values of `prior.prob.H0` the
+  prior now also affects the selected graph. For
+  `alternative = "exhaustive"` the three hypotheses no longer have fixed
+  equal prior probabilities: the null keeps `prior.prob.H0` and the two
+  directional hypotheses split the remainder. Because
+  `BF_1u + BF_2u = 2`, the inclusion probability then equals the one of
+  `"two.sided"`, so both alternatives select the same edges, with
+  `"exhaustive"` adding the posterior probabilities of a positive and a
+  negative relation and labelling each selected edge by the larger of
+  the two. Previously `"exhaustive"` used equal 1/3 priors and
+  thresholded each hypothesis separately, which made `BF_cut = 3`
+  correspond to a two-sided Bayes factor of 1.5.
+  `alternative = "exhaustive"` with `method = "BF_cut"` now also returns
+  `pcor_mat_zero`.
+
+- **[`select.explore()`](https://rast-lab.github.io/BGGM/reference/select.explore.md)
+  returns edge inclusion probabilities (`incl_prob`)**: a matrix of
+  posterior edge inclusion probabilities, `q * BF / (q * BF + 1 - q)`
+  with prior inclusion probability `q = 1 - prior.prob.H0` (`BF_10` for
+  `"two.sided"`, `BF_20` for `"greater"`/`"less"`), and `1 - P(H0 | Y)`
+  for `"exhaustive"`. With `method = "BF_cut"`, `prior.prob.H0` affects
+  these probabilities,
+  [`summary()`](https://rdrr.io/r/base/summary.html) and the selected
+  graph.
+
+- **[`select.explore()`](https://rast-lab.github.io/BGGM/reference/select.explore.md)
+  with `method = "BMA"` is now deterministic**: the model-averaged
+  partial correlations (`pcor_mat_zero`) are the exact median of the
+  spike-and-slab mixture, with the slab(s) given by the normal
+  approximation of the posterior of the Fisher-z partial correlation
+  (truncated at 0 for one-sided hypotheses), instead of the median of
+  simulated mixture draws. Results change slightly and no longer depend
+  on the random seed.
+
+- **[`explore()`](https://rast-lab.github.io/BGGM/reference/explore.md)
+  no longer samples the prior**: the Bayes factors only need the prior
+  sd of the Fisher-z partial correlations, which is now computed by
+  numerical integration from the marginal prior
+  `rho ~ 2 * Beta(delta/2, delta/2) - 1` (independent of `p`) and stored
+  as `prior_sd_z`. Draws from the joint prior (`prior_samp`) are now
+  only returned with the new argument `store_prior_draws = TRUE`
+  (default `FALSE`), which halves time and memory use for large networks
+  by default.
+  [`select.explore()`](https://rast-lab.github.io/BGGM/reference/select.explore.md),
+  [`ggm_compare_explore()`](https://rast-lab.github.io/BGGM/reference/ggm_compare_explore.md)
+  and
+  [`bggm_missing()`](https://rast-lab.github.io/BGGM/reference/bggm_missing.md)
+  use `prior_sd_z` (older `explore` objects still work in
+  [`select()`](https://rast-lab.github.io/BGGM/reference/select.md)).
+  Bayes factors change slightly, because the sampled prior sd was
+  affected by the matrix-F approximation (e.g. about 0.69-0.70 instead
+  of 0.684 for `prior_sd = 0.5`).
+
+- **[`explore()`](https://rast-lab.github.io/BGGM/reference/explore.md)
+  gains `store_post_draws` (default `TRUE`)**: all samplers used by
+  [`explore()`](https://rast-lab.github.io/BGGM/reference/explore.md)
+  now keep running posterior summaries of the partial correlations
+  (`post_samp$pcor_mat`, `pcor_sd`, `z_mean`, `z_sd`, the latter two for
+  the Fisher-z transformation). With `store_post_draws = FALSE` the
+  `p x p x iter` arrays `post_samp$pcors` and `post_samp$fisher_z` are
+  not stored, so memory use no longer grows with the number of
+  iterations. `post_samp$pcor_mat` is now computed from these running
+  sums.
+  [`select()`](https://rast-lab.github.io/BGGM/reference/select.md) (all
+  methods and alternatives) and
+  [`summary()`](https://rdrr.io/r/base/summary.html) work from these
+  summaries when the draws are not stored; functions that need the draws
+  ([`posterior_samples()`](https://rast-lab.github.io/BGGM/reference/posterior_samples.md),
+  [`convergence()`](https://rast-lab.github.io/BGGM/reference/convergence.md),
+  [`coef()`](https://rdrr.io/r/stats/coef.html),
+  [`pcor_to_cor()`](https://rast-lab.github.io/BGGM/reference/pcor_to_cor.md),
+  [`predict()`](https://rdrr.io/r/stats/predict.html),
+  [`predictability()`](https://rast-lab.github.io/BGGM/reference/predictability.md),
+  [`posterior_predict()`](https://rast-lab.github.io/BGGM/reference/posterior_predict.md),
+  [`constrained_posterior()`](https://rast-lab.github.io/BGGM/reference/constrained_posterior.md))
+  stop with an informative error, and
+  [`bggm_missing()`](https://rast-lab.github.io/BGGM/reference/bggm_missing.md)
+  always stores the draws.
+
+- **[`explore()`](https://rast-lab.github.io/BGGM/reference/explore.md)
+  gains `burnin` (default 50) and `thin` (default 1)**: after `burnin`
+  iterations, `iter * thin` iterations are run and every `thin`-th draw
+  is stored, so `iter` draws are kept; the running posterior summaries
+  use all post-burn-in iterations.
+  [`explore()`](https://rast-lab.github.io/BGGM/reference/explore.md)
+  objects no longer store the burn-in draws: `post_samp$pcors`,
+  `fisher_z`, `beta` and `thresh` now contain only the `iter` kept draws
+  (previously `iter + 50`, including 50 burn-in draws). The functions
+  that use the draws
+  ([`select()`](https://rast-lab.github.io/BGGM/reference/select.md),
+  [`summary()`](https://rdrr.io/r/base/summary.html),
+  [`posterior_samples()`](https://rast-lab.github.io/BGGM/reference/posterior_samples.md),
+  [`pcor_to_cor()`](https://rast-lab.github.io/BGGM/reference/pcor_to_cor.md),
+  [`coef()`](https://rdrr.io/r/stats/coef.html),
+  [`predict()`](https://rdrr.io/r/stats/predict.html),
+  [`predictability()`](https://rast-lab.github.io/BGGM/reference/predictability.md),
+  [`posterior_predict()`](https://rast-lab.github.io/BGGM/reference/posterior_predict.md),
+  [`bggm_missing()`](https://rast-lab.github.io/BGGM/reference/bggm_missing.md),
+  [`ggm_compare_explore()`](https://rast-lab.github.io/BGGM/reference/ggm_compare_explore.md))
+  locate the post-burn-in draws with an internal helper, so objects
+  created with earlier versions (which store the burn-in draws) keep
+  working. Objects from
+  [`estimate()`](https://rast-lab.github.io/BGGM/reference/estimate.md),
+  [`confirm()`](https://rast-lab.github.io/BGGM/reference/confirm.md)
+  and the other functions are unchanged.
+
+#### Bug fixes
+
+- **`explore(iter = )` is now the number of post-burn-in ITERATIONS**,
+  not the number of draws kept after thinning. Previously
+  `explore(iter = i, thin = t)` ran `burnin + i * t` iterations and
+  stored `i` draws, so raising `thin` silently multiplied the run time
+  by `t`; it now runs `burnin + i` iterations and stores
+  `ceiling(i / thin)` of them, returned in the new `n_draws` element.
+  `iter` in the fitted object is the iteration count, `n_draws` the
+  stored-draw count, and `post_draw_idx()` uses `n_draws` (falling back
+  to `iter` for objects from earlier versions, where `thin` was always
+  1). With the default `thin = 1` nothing changes. The running posterior
+  summaries continue to use all `iter` post-burn-in iterations, so they
+  do not depend on `thin`.
+- **`seed = NULL` no longer re-seeds the RNG**:
+  [`explore()`](https://rast-lab.github.io/BGGM/reference/explore.md),
+  [`confirm()`](https://rast-lab.github.io/BGGM/reference/confirm.md),
+  [`ggm_compare_confirm()`](https://rast-lab.github.io/BGGM/reference/ggm_compare_confirm.md),
+  [`ggm_search()`](https://rast-lab.github.io/BGGM/reference/ggm_search.md)
+  and
+  [`var_estimate()`](https://rast-lab.github.io/BGGM/reference/var_estimate.md)
+  called `set.seed(seed)` unconditionally before the guarded
+  `if (!is.null(seed)) set.seed(seed)`. With the default `seed = NULL`
+  this first call is `set.seed(NULL)`, which re-initialises the RNG from
+  the current time and process ID. Any seed set by the user before the
+  call was therefore discarded, and repeated calls on the same data gave
+  different results even inside
+  [`set.seed()`](https://rdrr.io/r/base/Random.html). The unguarded call
+  has been removed, so with `seed = NULL` the functions now use the
+  ambient RNG stream and are reproducible under
+  [`set.seed()`](https://rdrr.io/r/base/Random.html), as
+  [`estimate()`](https://rast-lab.github.io/BGGM/reference/estimate.md)
+  already was. Results of existing scripts that relied on the implicit
+  re-seeding will change.
+- **[`bggm_missing()`](https://rast-lab.github.io/BGGM/reference/bggm_missing.md)
+  now pools the posterior draws of the imputed data sets correctly**: it
+  stacked all draws of each fit, including their 50 burn-in draws, and
+  set `iter` to `iter * m + 50`, so the methods that use draws
+  `51:(iter + 50)` included the burn-in draws of imputations 2 to m and
+  indexed beyond the stored draws. The pooled object now contains the 50
+  burn-in draws of the first fit followed by the post-burn-in draws of
+  all fits, with `iter = iter * m`. `beta` and `thresh` are pooled
+  whenever present, and `pcor_mat` (and, for `explore`, the posterior
+  summaries) are recomputed from the pooled draws; previously they came
+  from the first imputation only. Also works for `m = 1`.
+- **[`explore()`](https://rast-lab.github.io/BGGM/reference/explore.md)
+  for large or n \< p networks**: the starting value is regularized
+  (`solve(cov(Y) + 0.1 I)`), and the matrix-F prior now uses
+  `epsilon = min(0.01, 1 / (10 p))` instead of a fixed 0.01, so that
+  `nu = 1 / epsilon` stays well above `p - 1` (required for a proper
+  prior, Williams & Mulder, 2020). Results change slightly for `p > 10`.
+- **C++ samplers no longer truncate the matrix-F degrees of freedom** to
+  integers (non-integer `delta` from `prior_sd`).
+- **[`select.explore()`](https://rast-lab.github.io/BGGM/reference/select.explore.md)
+  with `alternative = "exhaustive"` and `method = "BF_cut"` again
+  selects on posterior probabilities** (reverts the
+  Bayes-factor-against- the-complement rule introduced in 2.1.6.9000):
+  `BF_cut` is translated into a cutoff for the posterior hypothesis
+  probabilities, `BF_cut / (BF_cut + 1)` (0.75 for the default
+  `BF_cut = 3`), i.e. a hypothesis is selected when its posterior odds
+  against the other two hypotheses combined exceed `BF_cut`. With equal
+  prior probabilities (1/3) this corresponds to a Bayes factor of
+  `2 * BF_cut` against the complement. The `prob` field of the returned
+  object reports this cutoff.
+- **[`select.explore()`](https://rast-lab.github.io/BGGM/reference/select.explore.md)
+  now uses all post-burn-in draws**: the draws used for the posterior
+  mean/sd were `51:iter`, which dropped the last 50 of the `iter + 50`
+  stored draws; now `51:(iter + 50)`, as in
+  [`summary()`](https://rdrr.io/r/base/summary.html) for `explore`
+  objects.
+- **[`select.explore()`](https://rast-lab.github.io/BGGM/reference/select.explore.md)
+  exhaustive `method = "BF_cut"` no longer returns `NA` on the
+  diagonal** of `null_mat`/`pos_mat`/`neg_mat` (the posterior sd is 0
+  there).
+
+#### Performance
+
+- **Removed unused posterior arrays from the C++ samplers used by
+  [`explore()`](https://rast-lab.github.io/BGGM/reference/explore.md)**
+  (also used by
+  [`estimate()`](https://rast-lab.github.io/BGGM/reference/estimate.md),
+  [`confirm()`](https://rast-lab.github.io/BGGM/reference/confirm.md)
+  and the `ggm_compare_*()` functions) and by
+  [`var_estimate()`](https://rast-lab.github.io/BGGM/reference/var_estimate.md):
+  `Theta_mcmc`, `cors_mcmc` and `Sigma_mcmc` (each p x p x iter) were
+  allocated but never filled or returned in `Theta_continuous`,
+  `sample_prior`, `mv_continuous`, `mv_binary`, `mv_ordinal_albert`,
+  `copula` and `var`; `copula` also allocated an unused n x p x iter
+  array of latent data. This reduces memory use substantially for large
+  networks (e.g. `mv_continuous`, used with `formula`, allocated five p
+  x p x iter arrays and now two).
+- **`missing_copula` (mixed data with `impute = TRUE`) no longer returns
+  `post_samp$Y_collect`**: this n x p x iter array was never filled (all
+  zeros) and was not used anywhere in BGGM.
+
 ## BGGM 2.1.6.9000 (development)
 
 #### New features
@@ -13,14 +224,72 @@
   P(H0\|data) \> 0.5. The new `prior.prob.H0` argument (default 0.5)
   controls the prior probability assigned to the null (zero-edge)
   hypothesis; setting `prior.prob.H0 = 0.75` approximately recovers the
-  selection threshold of `BF_cut = 3`. One-sided alternatives
-  (`"greater"`, `"less"`) are supported; `"exhaustive"` is not (stops
-  with an informative error).
+  selection threshold of `BF_cut = 3`. All alternatives are supported,
+  including `"exhaustive"` (see below).
+- **`method = "BMA"` now supports `alternative = "exhaustive"`**:
+  genuine three-state Bayesian model averaging for the three-way test
+  (null / positive / negative). For each edge a spike-and-slab mixture
+  is drawn with a spike at zero (H0), a positive slab (H+), and a
+  negative slab (H-), mixed by the posterior hypothesis probabilities;
+  the model-averaged partial correlations (the per-edge posterior median
+  of the mixture) are returned in `pcor_mat_zero`, and
+  `null_mat`/`pos_mat`/`neg_mat` classify each edge by the sign of that
+  median. This differs from `method = "BF_cut"` in two ways: (i) the
+  prior hypothesis probabilities are `prior.prob.H0` for the null and
+  `(1 - prior.prob.H0)/2` for each direction (so the default
+  0.5/0.25/0.25 matches the two-sided default, rather than the fixed
+  1/3-1/3-1/3 of `BF_cut`); and (ii) classification is by the sign of
+  the model-averaged median rather than a hard hypothesis test, so every
+  edge belongs to exactly one of null, positive, or negative — whereas
+  `BF_cut` can leave an edge in none. Note that, like the other BMA
+  alternatives, the result is stochastic. Thanks to Joris Mulder for the
+  suggestion.
 - **`truncnorm` added to `Imports`**: required for the truncated-normal
-  draws used in one-sided BMA alternatives.
-
-#### Bug fixes
-
+  draws used in one-sided BMA alternatives. \### Bug fixes
+- **Fixed
+  [`bggm_missing()`](https://rast-lab.github.io/BGGM/reference/bggm_missing.md)
+  dropping the wrong column with `mice` \>= 3.17.0**
+  ([\#2](https://github.com/rast-lab/BGGM/issues/2)):
+  [`bggm_missing()`](https://rast-lab.github.io/BGGM/reference/bggm_missing.md)
+  removed the `.id` column from `mice::complete(action = "long")` by
+  position (column 2), which was correct only before `mice` 3.17.0.
+  Since `mice` 3.17.0 places `.imp`/`.id` in the last two columns, this
+  stripped a real data column and let `.id` leak into the model,
+  corrupting the data passed to
+  [`estimate()`](https://rast-lab.github.io/BGGM/reference/estimate.md)/[`explore()`](https://rast-lab.github.io/BGGM/reference/explore.md).
+  The column is now removed by name, which is robust to `mice`’s column
+  order. Reported by [@LilyTeesson](https://github.com/LilyTeesson).
+- **Corrected the
+  [`select.explore()`](https://rast-lab.github.io/BGGM/reference/select.explore.md)
+  exhaustive posterior probabilities**: for
+  `alternative = "exhaustive"`, the three-way posterior hypothesis
+  probabilities (`post_prob`, and the derived
+  `null_mat`/`pos_mat`/`neg_mat`) were computed with the
+  positive/negative Bayes factors referenced to the null model `H0`
+  instead of the unrestricted model `Hu`, i.e. each carried an extra
+  factor of the two-sided Bayes factor. This double-counted the
+  two-sided evidence and yielded `P(H0) = 1/(1 + 2*BF10^2)` rather than
+  the correct `1/(1 + 2*BF10)` from Eq. 9 of Williams & Mulder (2019);
+  it inflated the null probability for weak edges and deflated it for
+  strong ones (the two agreed only at `BF10 = 1`). All three Bayes
+  factors are now referenced to `Hu` per Williams and Mulder (2019).
+  Affects both `method = "BF_cut"` and `method = "BMA"`.
+- **Fixed the prior density in the `"greater"` and
+  `"less"`/`"exhaustive"` selection branches of
+  [`select.explore()`](https://rast-lab.github.io/BGGM/reference/select.explore.md)**:
+  the `"greater"` branches averaged a hardcoded 3x3 prior mask
+  (`upper.tri(diag(3))`), giving wrong Bayes factors whenever the number
+  of variables was not 3; the `"less"` and `"exhaustive"` branches
+  averaged the (near-zero) matrix diagonal into the prior standard
+  deviation. All branches now average only the off-diagonal (edge) prior
+  SDs, matching the `"two.sided"` branch.
+- **Fixed a crash in [`summary()`](https://rdrr.io/r/base/summary.html)
+  for
+  [`select.explore()`](https://rast-lab.github.io/BGGM/reference/select.explore.md)
+  with `alternative = "less"`**: the `"less"` summary branch produced an
+  empty `Relation` column (`mat_names[upper.tri(mat_names)]` on an
+  already-flattened vector), causing a “differing number of rows” error.
+  The greater/less summaries now share one correct branch.
 - **Fixed `rref_ei` not found error**: Added `simple_rref()` function in
   `helpers.R` to replace commented-out
   [`pracma::rref()`](https://rdrr.io/pkg/pracma/man/rref.html) call.

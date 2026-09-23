@@ -17,7 +17,7 @@ then plotted with plot.select."><meta property="og:image" content="https://rast-
 
     <a class="navbar-brand me-2" href="../index.html">BGGM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2.1.6.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">2.1.6.9002</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -65,6 +65,10 @@ then plotted with <code><a href="plot.select.html">plot.select</a></code>.</p>
 <span>  progress <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  impute <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  burnin <span class="op">=</span> <span class="fl">50</span>,</span>
+<span>  thin <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  store_post_draws <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  store_prior_draws <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -104,7 +108,11 @@ of a beta distribution (defaults to 0.5).</p></dd>
 
 
 <dt id="arg-iter">iter<a class="anchor" aria-label="anchor" href="#arg-iter"></a></dt>
-<dd><p>Number of iterations (posterior samples; defaults to 5000).</p></dd>
+<dd><p>Integer. Number of post-burn-in iterations of the sampler
+(defaults to 5000). This is the actual number of draws taken after
+the burn-in, irrespective of <code>thin</code>; with <code>thin &gt; 1</code> only
+every <code>thin</code>-th of them is stored, so <code>ceiling(iter / thin)</code>
+draws are kept (returned as <code>n_draws</code>).</p></dd>
 
 
 <dt id="arg-progress">progress<a class="anchor" aria-label="anchor" href="#arg-progress"></a></dt>
@@ -120,6 +128,43 @@ be imputed during model fitting (defaults to <code>TRUE</code>) ?</p></dd>
 <dd><p>An integer for the random seed.</p></dd>
 
 
+<dt id="arg-burnin">burnin<a class="anchor" aria-label="anchor" href="#arg-burnin"></a></dt>
+<dd><p>Integer. Number of burn-in iterations that are discarded
+(defaults to <code>50</code>).</p></dd>
+
+
+<dt id="arg-thin">thin<a class="anchor" aria-label="anchor" href="#arg-thin"></a></dt>
+<dd><p>Integer. Thinning interval (defaults to <code>1</code>): of the
+<code>iter</code> post-burn-in iterations, every <code>thin</code>-th draw is
+stored, so <code>ceiling(iter / thin)</code> draws are kept. Thinning does
+NOT change how long the sampler runs, and it does not improve mixing;
+it only reduces memory use when the draws are stored. The running
+posterior summaries (see <code>store_post_draws</code>) always use all
+<code>iter</code> post-burn-in iterations, so they are unaffected by
+<code>thin</code>.</p></dd>
+
+
+<dt id="arg-store-post-draws">store_post_draws<a class="anchor" aria-label="anchor" href="#arg-store-post-draws"></a></dt>
+<dd><p>Logical. Should the posterior draws of the partial
+correlations be stored (default <code>TRUE</code>)? With <code>FALSE</code>, only
+running posterior summaries are stored (posterior mean and standard
+deviation of the partial correlations and of their Fisher-z
+transformations), which reduces memory use from
+<code>p x p x iter</code> to <code>p x p</code> arrays. This is sufficient for
+<code><a href="select.explore.html">select.explore</a></code>, but functions that need the draws
+(e.g., <code><a href="posterior_samples.html">posterior_samples</a></code>) are then not available.</p></dd>
+
+
+<dt id="arg-store-prior-draws">store_prior_draws<a class="anchor" aria-label="anchor" href="#arg-store-prior-draws"></a></dt>
+<dd><p>Logical. Should draws from the (joint) prior distribution
+of the partial correlations be returned (default <code>FALSE</code>)? These
+draws are not needed for hypothesis testing, which uses the analytic
+prior standard deviation of the Fisher-z transformed partial
+correlations, but they retain the dependence between the partial
+correlations. Prior draws cost about as much memory as posterior
+draws.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Currently ignored (leave empty).</p></dd>
 
@@ -130,7 +175,15 @@ be imputed during model fitting (defaults to <code>TRUE</code>) ?</p></dd>
         is used for printing and plotting the results. For users of <strong>BGGM</strong>, the following
         are the useful objects:</p>
 <ul><li><p><code>pcor_mat</code> partial correltion matrix (posterior mean).</p></li>
-<li><p><code>post_samp</code> an object containing the posterior samples.</p></li>
+<li><p><code>post_samp</code> an object containing the posterior samples
+(<code>pcors</code>, <code>fisher_z</code>: <code>p x p x iter</code> arrays of the
+post-burn-in, thinned draws; only when <code>store_post_draws = TRUE</code>)
+and posterior summaries (<code>pcor_mat</code>, <code>pcor_sd</code>, <code>z_mean</code>,
+<code>z_sd</code>).</p></li>
+<li><p><code>prior_samp</code> an object containing the prior samples
+(only when <code>store_prior_draws = TRUE</code>; otherwise <code>NULL</code>).</p></li>
+<li><p><code>prior_sd_z</code> prior standard deviation of the Fisher-z
+transformed partial correlations (used for the Bayes factors).</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

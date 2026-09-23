@@ -74,12 +74,12 @@ select(fit, cred = 0.95)
 #> Partial Correlations: 
 #> 
 #>               interested disinterested excited upset strong stressed steps
-#> interested         0.000             0   0.381 0.000  0.330    0.280     0
+#> interested         0.000             0   0.380 0.000  0.327    0.270     0
 #> disinterested      0.000             0   0.000 0.000  0.000    0.000     0
-#> excited            0.381             0   0.000 0.000  0.492    0.000     0
-#> upset              0.000             0   0.000 0.000  0.000    0.357     0
-#> strong             0.330             0   0.492 0.000  0.000    0.000     0
-#> stressed           0.280             0   0.000 0.357  0.000    0.000     0
+#> excited            0.380             0   0.000 0.000  0.491    0.000     0
+#> upset              0.000             0   0.000 0.000  0.000    0.347     0
+#> strong             0.327             0   0.491 0.000  0.000    0.000     0
+#> stressed           0.270             0   0.000 0.347  0.000    0.000     0
 #> steps              0.000             0   0.000 0.000  0.000    0.000     0
 #> --- 
 #> Coefficients: 
@@ -88,7 +88,7 @@ select(fit, cred = 0.95)
 #> interested.l1             0         0.000       0 0.000      0    0.000     0
 #> disinterested.l1          0         0.000       0 0.000      0    0.000     0
 #> excited.l1                0         0.000       0 0.000      0    0.000     0
-#> upset.l1                  0         0.258       0 0.429      0    0.315     0
+#> upset.l1                  0         0.257       0 0.426      0    0.316     0
 #> strong.l1                 0         0.000       0 0.000      0    0.000     0
 #> stressed.l1               0         0.000       0 0.000      0    0.000     0
 #> steps.l1                  0         0.000       0 0.000      0    0.000     0
