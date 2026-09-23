@@ -15,6 +15,10 @@ explore(
   progress = TRUE,
   impute = FALSE,
   seed = NULL,
+  burnin = 50,
+  thin = 1,
+  store_post_draws = TRUE,
+  store_prior_draws = FALSE,
   ...
 )
 }
@@ -37,7 +41,11 @@ when \code{type = "mixed"} and \code{NULL} otherwise. See note for further detai
 \item{prior_sd}{Scale of the prior distribution, approximately the standard deviation
 of a beta distribution (defaults to 0.5).}
 
-\item{iter}{Number of iterations (posterior samples; defaults to 5000).}
+\item{iter}{Integer. Number of post-burn-in iterations of the sampler
+(defaults to 5000). This is the actual number of draws taken after
+the burn-in, irrespective of \code{thin}; with \code{thin > 1} only
+every \code{thin}-th of them is stored, so \code{ceiling(iter / thin)}
+draws are kept (returned as \code{n_draws}).}
 
 \item{progress}{Logical. Should a progress bar be included (defaults to \code{TRUE}) ?}
 
@@ -45,6 +53,35 @@ of a beta distribution (defaults to 0.5).}
 be imputed during model fitting (defaults to \code{TRUE}) ?}
 
 \item{seed}{An integer for the random seed.}
+
+\item{burnin}{Integer. Number of burn-in iterations that are discarded
+(defaults to \code{50}).}
+
+\item{thin}{Integer. Thinning interval (defaults to \code{1}): of the
+\code{iter} post-burn-in iterations, every \code{thin}-th draw is
+stored, so \code{ceiling(iter / thin)} draws are kept. Thinning does
+NOT change how long the sampler runs, and it does not improve mixing;
+it only reduces memory use when the draws are stored. The running
+posterior summaries (see \code{store_post_draws}) always use all
+\code{iter} post-burn-in iterations, so they are unaffected by
+\code{thin}.}
+
+\item{store_post_draws}{Logical. Should the posterior draws of the partial
+correlations be stored (default \code{TRUE})? With \code{FALSE}, only
+running posterior summaries are stored (posterior mean and standard
+deviation of the partial correlations and of their Fisher-z
+transformations), which reduces memory use from
+\code{p x p x iter} to \code{p x p} arrays. This is sufficient for
+\code{\link{select.explore}}, but functions that need the draws
+(e.g., \code{\link{posterior_samples}}) are then not available.}
+
+\item{store_prior_draws}{Logical. Should draws from the (joint) prior distribution
+of the partial correlations be returned (default \code{FALSE})? These
+draws are not needed for hypothesis testing, which uses the analytic
+prior standard deviation of the Fisher-z transformed partial
+correlations, but they retain the dependence between the partial
+correlations. Prior draws cost about as much memory as posterior
+draws.}
 
 \item{...}{Currently ignored (leave empty).}
 }
@@ -57,7 +94,17 @@ The returned object of class \code{explore} contains a lot of information that
 
 \item \code{pcor_mat} partial correltion matrix (posterior mean).
 
-\item \code{post_samp} an object containing the posterior samples.
+\item \code{post_samp} an object containing the posterior samples
+(\code{pcors}, \code{fisher_z}: \code{p x p x iter} arrays of the
+post-burn-in, thinned draws; only when \code{store_post_draws = TRUE})
+and posterior summaries (\code{pcor_mat}, \code{pcor_sd}, \code{z_mean},
+\code{z_sd}).
+
+\item \code{prior_samp} an object containing the prior samples
+(only when \code{store_prior_draws = TRUE}; otherwise \code{NULL}).
+
+\item \code{prior_sd_z} prior standard deviation of the Fisher-z
+transformed partial correlations (used for the Bayes factors).
 
 }
 }

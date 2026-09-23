@@ -1,7 +1,7 @@
 Package: BGGM
 Type: Package
 Title: Bayesian Gaussian Graphical Models
-Version: 2.1.6.9000
+Version: 2.1.6.9002
 Date: 2026-05-19
 Authors@R: c(person("Donald", "Williams", email = "drwwilliams@ucdavis.edu", role = "aut"),
              person("Joris", "Mulder", email = "J.Mulder3@uvt.nl", role = "aut"),
@@ -60,3 +60,4 @@ BugReports: https://github.com/rast-lab/BGGM/issues
 Config/testthat/edition: 3
 URL: https://rast-lab.github.io/BGGM/
 Config/roxygen2/version: 8.0.0
+RoxygenNote: 7.3.3

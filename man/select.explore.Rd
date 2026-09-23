@@ -25,24 +25,32 @@
        \insertCite{Williams2019_bf}{BGGM}.
 
        \item \code{"BMA"}: Bayesian model averaging based on posterior model
-       probabilities. For each edge, posterior draws are generated from a
-       mixture distribution placing mass at zero under the null model and
-       using posterior draws from the alternative model otherwise.
-       Reported edges are based on the posterior median of these draws.
+       probabilities. For each edge, the posterior is a mixture
+       distribution placing mass at zero under the null model and using the
+       posterior under the alternative model otherwise. Reported edges are
+       based on the median of this mixture.
        }}
 
-\item{BF_cut}{Numeric. Bayes factor threshold for including an edge when
-\code{method = "BF_cut"} (defaults to 3).}
+\item{BF_cut}{Numeric. Evidence threshold for including an edge when
+\code{method = "BF_cut"} (defaults to 3). An edge is selected when
+the posterior probability of the hypothesis exceeds
+\code{BF_cut / (BF_cut + 1)}. With the default
+\code{prior.prob.H0 = 0.5} this is equivalent to a Bayes factor of
+\code{BF_cut} against the competing hypothesis; for other values of
+\code{prior.prob.H0} it is a cutoff on the posterior probability.}
 
 \item{prior.prob.H0}{Numeric between 0 and 1. Prior probability assigned
-to the null hypothesis for each edge when
-\code{method = "BMA"} (defaults to \code{0.5}).}
+to the null hypothesis for each edge (defaults to \code{0.5}). It is
+used for the posterior hypothesis probabilities and the edge
+inclusion probabilities under both \code{method = "BF_cut"} and
+\code{method = "BMA"}. For \code{alternative = "exhaustive"} the
+remaining \code{1 - prior.prob.H0} is split equally over the positive
+and the negative hypothesis, so that splitting the alternative by
+sign leaves \eqn{P(H_0 \mid Y)} unchanged.}
 
 \item{alternative}{A character string specifying the alternative hypothesis. It
 must be one of "two.sided" (default), "greater", "less",
-or "exhaustive". See note for further details.
-Note that \code{alternative = "exhaustive"} is not supported
-for \code{method = "BMA"}.}
+or "exhaustive". See note for further details.}
 
 \item{...}{Currently ignored.}
 }
@@ -64,6 +72,10 @@ The returned object of class \code{select.explore} contains a lot of information
 
  \item \code{Adj_01} Adjacency matrix for which there was
                      evidence for the null hypothesis.
+
+ \item \code{incl_prob} Matrix of posterior edge inclusion probabilities,
+ \eqn{P(H_1 \mid Y)}, based on \code{BF_10} and prior inclusion probability
+ \code{1 - prior.prob.H0}.
  }
 
 \code{alternative = "greater"} and \code{"less"}
@@ -78,23 +90,42 @@ The returned object of class \code{select.explore} contains a lot of information
 
  \item \code{Adj_02} Adjacency matrix for which there was
                      evidence for the null hypothesis (see note).
+
+ \item \code{incl_prob} Matrix of posterior probabilities of the
+ one-sided hypothesis against the null, based on \code{BF_20} and prior
+ probability \code{1 - prior.prob.H0}.
  }
 
 \code{alternative = "exhaustive"}
 
 \itemize{
 
-\item \code{post_prob} A data frame that included the posterior hypothesis probabilities.
+\item \code{post_prob} A data frame of the posterior hypothesis probabilities
+                       \eqn{P(H_0 \mid Y)}, \eqn{P(H_+ \mid Y)}, and
+                       \eqn{P(H_- \mid Y)} for each relation (a null, positive,
+                       or negative partial correlation).
 
-\item \code{neg_mat} Adjacency matrix for which there was evidence for negative edges.
+ For \code{method = "BF_cut"} the following are hard hypothesis assignments;
+ for \code{method = "BMA"} they classify the sign of the model-averaged
+ posterior median (\code{pcor_mat_zero}), not the most probable hypothesis:
 
-\item \code{pos_mat} Adjacency matrix for which there was evidence for positive edges.
+\item \code{pos_mat} Adjacency matrix for positive edges.
 
-\item \code{neg_mat} Adjacency matrix for which there was
-                     evidence for the null hypothesis (see note).
+\item \code{neg_mat} Adjacency matrix for negative edges.
+
+\item \code{null_mat} Adjacency matrix for null edges (see note).
+
+\item \code{incl_prob} Matrix of posterior edge inclusion probabilities,
+  \eqn{1 - P(H_0 \mid Y)}.
 
  \item \code{pcor_mat} Partial correlation matrix (posterior mean). The weighted adjacency
  matrices can be computed by multiplying \code{pcor_mat} with an adjacency matrix.
+
+ \item \code{pcor_mat_zero} Selected partial correlation matrix (weighted
+ adjacency). For \code{method = "BF_cut"} this is the posterior mean of the
+ selected edges and zero elsewhere; for \code{method = "BMA"} it is the
+ model-averaged matrix, i.e. for each edge the posterior median of the
+ three-state mixture over the null, positive, and negative hypotheses.
 
 }
 }
@@ -106,16 +137,41 @@ Provides the selected graph based on the Bayes factor
 Exhaustive provides the posterior hypothesis probabilities for
 a positive, negative, or null relation \insertCite{@see Table 3 in @Williams2019_bf}{BGGM}.
 
-\code{method = "BF_cut"} performs edge selection using Bayes factor
-thresholding.
+\code{method = "BF_cut"} selects an edge when its posterior inclusion
+probability exceeds \code{BF_cut / (BF_cut + 1)} (0.75 for
+\code{BF_cut = 3}), and calls an edge null when the posterior probability of
+the null hypothesis exceeds that same cutoff. With the default
+\code{prior.prob.H0 = 0.5} this is the Bayes factor threshold of
+\insertCite{Williams2019_bf}{BGGM}: \code{BF_cut = 3} selects the edges with
+a Bayes factor larger than 3. For \code{alternative = "exhaustive"} the
+inclusion probability is \eqn{1 - P(H_0 \mid Y) = P(H_+ \mid Y) + P(H_- \mid Y)},
+which equals the inclusion probability of \code{alternative = "two.sided"},
+so both give the same selected edges; a selected edge is labelled positive
+or negative according to the larger of the two directional probabilities,
+which are reported in addition. An edge can be assigned to none of the three
+hypotheses.
 
-\code{method = "BMA"} performs Bayesian model averaging by generating
-posterior draws from a spike-and-slab style mixture distribution for each
-edge. The spike corresponds to the null hypothesis (exactly zero partial
-correlation), whereas the slab corresponds to posterior draws under the
-alternative hypothesis. Posterior model probabilities are computed from the
-Bayes factors and \code{prior.prob.H0}. The selected network is based on
-the posterior median of the resulting draws.
+\code{method = "BMA"} does not use \code{BF_cut}: an edge is selected when
+the median of the model-averaged mixture is nonzero, which corresponds to an
+inclusion probability above 0.5, so it selects more edges than
+\code{method = "BF_cut"} with the default \code{BF_cut = 3}.
+
+\code{method = "BMA"} performs Bayesian model averaging using a
+spike-and-slab style mixture distribution for each edge. The spike
+corresponds to the null hypothesis (exactly zero partial correlation),
+whereas the slab corresponds to the posterior under the alternative
+hypothesis, approximated by a normal distribution for the Fisher-z
+transformed partial correlation (truncated to the positive or negative
+half-line for one-sided hypotheses). Posterior model probabilities are
+computed from the Bayes factors and \code{prior.prob.H0}. The selected
+network is based on the median of this mixture, which is computed exactly
+(no simulation), so the result is deterministic. For
+\code{alternative = "exhaustive"} the mixture has three states -- a spike at
+zero (\eqn{H_0}), a positive slab (\eqn{H_+}), and a negative slab
+(\eqn{H_-}) -- mixed by the posterior hypothesis probabilities. The
+model-averaged partial correlations are returned in \code{pcor_mat_zero}, and
+\code{pos_mat}/\code{neg_mat}/\code{null_mat} classify each edge by the sign
+of that model-averaged median.
 }
 \note{
 Care must be taken with the options \code{alternative = "less"} and
@@ -138,8 +194,13 @@ Y <- bfi[,1:10]
 # fit model
 fit <- explore(Y, progress = FALSE)
 
-# edge set
+# edge set (Bayes factor threshold)
 E <- select(fit,
+            alternative = "exhaustive")
+
+# edge set (Bayesian model averaging), with prior P(H0) = 0.5
+E <- select(fit,
+            method = "BMA",
             alternative = "exhaustive")
 
 }

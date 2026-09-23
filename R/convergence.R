@@ -48,6 +48,8 @@ convergence <- function(object,
                         type = "trace",
                         print_names = FALSE){
 
+  check_post_draws(object, "convergence")
+
   # posterior samples
   samps <- posterior_samples(object)
 

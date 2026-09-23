@@ -134,3 +134,162 @@ test_that("explore handles small datasets", {
   expect_s3_class(result, "explore")
   expect_equal(dim(result$pcor_mat), c(4, 4))
 })
+
+test_that("matrix-F epsilon shrinks with the number of variables", {
+  expect_equal(BGGM:::eps_default(5), 0.01)
+  expect_equal(BGGM:::eps_default(10), 0.01)
+  expect_equal(BGGM:::eps_default(200), 1 / 2000)
+  # nu = 1 / eps must exceed p - 1
+  for (p in c(2, 50, 150, 1000)) expect_gt(1 / BGGM:::eps_default(p), p - 1)
+
+  set.seed(1)
+  Y <- matrix(rnorm(40 * 20), 40, 20)
+  fit <- explore(Y, iter = 50, progress = FALSE)
+  expect_equal(fit$eps, 1 / 200)
+})
+
+test_that("explore runs when n < p", {
+  set.seed(1)
+  Y <- matrix(rnorm(15 * 20), 15, 20)
+  fit <- explore(Y, iter = 50, progress = FALSE)
+  expect_false(any(is.na(fit$pcor_mat)))
+})
+
+test_that("analytic prior sd of Fisher z matches the marginal beta prior", {
+  expect_equal(BGGM:::prior_sd_z(1), pi / 2, tolerance = 1e-6)
+  set.seed(1)
+  r <- 2 * rbeta(2e5, 1.5, 1.5) - 1
+  expect_equal(BGGM:::prior_sd_z(3), sd(atanh(r)), tolerance = 0.01)
+
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 50, progress = FALSE)
+  expect_null(fit$prior_samp)
+  expect_equal(fit$prior_sd_z, BGGM:::prior_sd_z(3))
+})
+
+test_that("store_prior_draws = TRUE returns joint prior draws", {
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 50, progress = FALSE, store_prior_draws = TRUE)
+  expect_equal(dim(fit$prior_samp$fisher_z), c(5, 5, 100))
+  expect_equal(dim(fit$prior_samp$pcors), c(5, 5, 100))
+  # selection still uses the analytic prior sd
+  a <- select(fit)
+  fit$prior_samp <- NULL
+  expect_equal(a$BF_10, select(fit)$BF_10)
+})
+
+test_that("running summaries match the stored draws", {
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 200, progress = FALSE, seed = 1)
+  idx <- 1:200     # explore() stores only the post-burn-in draws
+  expect_equal(fit$post_samp$z_mean,
+               apply(fit$post_samp$fisher_z[,, idx], 1:2, mean), tolerance = 1e-8)
+  expect_equal(fit$post_samp$z_sd,
+               apply(fit$post_samp$fisher_z[,, idx], 1:2, sd), tolerance = 1e-8)
+  expect_equal(fit$post_samp$pcor_sd,
+               apply(fit$post_samp$pcors[,, idx], 1:2, sd), tolerance = 1e-8)
+  expect_equal(fit$pcor_mat,
+               apply(fit$post_samp$pcors[,, idx], 1:2, mean), tolerance = 1e-8)
+})
+
+test_that("store_post_draws = FALSE drops the draws; select() and summary() still work", {
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit_t <- explore(Y, iter = 200, progress = FALSE, seed = 1)
+  fit_f <- explore(Y, iter = 200, progress = FALSE, seed = 1, store_post_draws = FALSE)
+
+  expect_null(fit_f$post_samp$pcors)
+  expect_null(fit_f$post_samp$fisher_z)
+  expect_false(fit_f$store_post_draws)
+  expect_equal(fit_t$pcor_mat, fit_f$pcor_mat)
+
+  for (alt in c("two.sided", "greater", "less", "exhaustive")) {
+    a <- select(fit_t, alternative = alt)
+    b <- select(fit_f, alternative = alt)
+    expect_equal(a$pcor_mat, b$pcor_mat, tolerance = 1e-6)
+    expect_equal(a$incl_prob, b$incl_prob, tolerance = 1e-6)
+    a <- select(fit_t, method = "BMA", alternative = alt)
+    b <- select(fit_f, method = "BMA", alternative = alt)
+    expect_equal(a$pcor_mat_zero, b$pcor_mat_zero, tolerance = 1e-6)
+  }
+  expect_equal(summary(fit_t)$dat_results, summary(fit_f)$dat_results)
+  expect_equal(summary(select(fit_t))$summary, summary(select(fit_f))$summary)
+})
+
+test_that("store_post_draws = FALSE works for other data types", {
+  fit <- explore(test_data_binary, type = "binary", iter = 100,
+                 progress = FALSE, store_post_draws = FALSE)
+  expect_null(fit$post_samp$pcors)
+  expect_s3_class(select(fit), "select.explore")
+
+  fit <- explore(test_data_ordinal, type = "ordinal", iter = 100,
+                 progress = FALSE, store_post_draws = FALSE)
+  expect_null(fit$post_samp$pcors)
+  expect_s3_class(select(fit), "select.explore")
+
+  fit <- explore(test_data_ordinal, type = "mixed", iter = 100,
+                 progress = FALSE, store_post_draws = FALSE)
+  expect_null(fit$post_samp$pcors)
+  expect_s3_class(select(fit), "select.explore")
+
+  dat <- data.frame(test_data_cont[, 1:4], control = rnorm(20))
+  fit <- explore(dat, formula = ~ control, iter = 100,
+                 progress = FALSE, store_post_draws = FALSE)
+  expect_null(fit$post_samp$pcors)
+  expect_false(is.null(fit$post_samp$beta))
+  expect_s3_class(select(fit), "select.explore")
+})
+
+test_that("functions that need draws give a clear error", {
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE, store_post_draws = FALSE)
+  expect_error(posterior_samples(fit), "store_post_draws = TRUE")
+  expect_error(pcor_to_cor(fit), "store_post_draws = TRUE")
+  expect_error(coef(fit), "store_post_draws = TRUE")
+  expect_error(convergence(fit), "store_post_draws = TRUE")
+  expect_error(predictability(fit), "store_post_draws = TRUE")
+  expect_error(predict(fit), "store_post_draws = TRUE")
+})
+
+test_that("burnin and thin: storage layout and running summaries", {
+  Y <- BGGM::bfi[1:100, 1:5]
+
+  # explore() stores only post-burn-in draws; estimate() keeps its layout
+  fit <- explore(Y, iter = 100, burnin = 30, progress = FALSE, seed = 1)
+  expect_equal(dim(fit$post_samp$pcors)[3], 100)
+  expect_equal(BGGM:::post_draw_idx(fit), 1:100)
+  expect_false(fit$burnin_stored)
+  est <- estimate(Y, iter = 100, progress = FALSE, seed = 1)
+  expect_equal(dim(est$post_samp$pcors)[3], 150)
+  expect_equal(BGGM:::post_draw_idx(est), 51:150)
+
+  # thin = 2 keeps every 2nd draw of the same chain; summaries use all draws
+  f1 <- explore(Y, iter = 200, burnin = 50, thin = 1, progress = FALSE, seed = 1)
+  f2 <- explore(Y, iter = 200, burnin = 50, thin = 2, progress = FALSE, seed = 1)
+  expect_equal(dim(f2$post_samp$pcors)[3], 100)
+  expect_equal(f2$post_samp$pcors, f1$post_samp$pcors[, , seq(1, 200, by = 2)])
+  expect_equal(f2$post_samp$z_mean, f1$post_samp$z_mean)
+  expect_equal(f2$pcor_mat, f1$pcor_mat)
+
+  # burn-in: fit with burnin = 80 equals the last draws of a burnin = 50 fit
+  f3 <- explore(Y, iter = 170, burnin = 80, progress = FALSE, seed = 1)
+  expect_equal(f3$post_samp$pcors, f1$post_samp$pcors[, , 31:200])
+
+  expect_error(explore(Y, burnin = 0, progress = FALSE), "burnin")
+  expect_error(explore(Y, thin = 1.5, progress = FALSE), "thin")
+})
+
+test_that("explore objects that store burn-in draws (earlier versions) still work", {
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE, seed = 1)
+  old <- fit
+  old$burnin_stored <- NULL
+  old$post_samp$pcors    <- abind::abind(array(0, c(5, 5, 50)), fit$post_samp$pcors, along = 3)
+  old$post_samp$fisher_z <- abind::abind(array(0, c(5, 5, 50)), fit$post_samp$fisher_z, along = 3)
+  dimnames(old$post_samp$pcors) <- dimnames(old$post_samp$fisher_z) <- NULL
+  old$n_draws <- NULL                    # objects from earlier versions have none
+  expect_equal(BGGM:::post_draw_idx(old), 51:150)
+  expect_equal(select(old)$BF_10, select(fit)$BF_10)
+  expect_equal(summary(old)$dat_results, summary(fit)$dat_results)
+  expect_equal(posterior_samples(old), posterior_samples(fit))
+  expect_equal(pcor_to_cor(old)$R, pcor_to_cor(fit)$R)
+})

@@ -25,7 +25,11 @@
 #' @param prior_sd Scale of the prior distribution, approximately the standard deviation
 #'                 of a beta distribution (defaults to 0.5).
 #'
-#' @param iter Number of iterations (posterior samples; defaults to 5000).
+#' @param iter Integer. Number of post-burn-in iterations of the sampler
+#'        (defaults to 5000). This is the actual number of draws taken after
+#'        the burn-in, irrespective of \code{thin}; with \code{thin > 1} only
+#'        every \code{thin}-th of them is stored, so \code{ceiling(iter / thin)}
+#'        draws are kept (returned as \code{n_draws}).
 #'
 #' @param impute Logicial. Should the missing values (\code{NA})
 #'               be imputed during model fitting (defaults to \code{TRUE}) ?
@@ -33,6 +37,35 @@
 #' @param progress Logical. Should a progress bar be included (defaults to \code{TRUE}) ?
 #'
 #' @param seed An integer for the random seed.
+#'
+#' @param burnin Integer. Number of burn-in iterations that are discarded
+#'        (defaults to \code{50}).
+#'
+#' @param thin Integer. Thinning interval (defaults to \code{1}): of the
+#'        \code{iter} post-burn-in iterations, every \code{thin}-th draw is
+#'        stored, so \code{ceiling(iter / thin)} draws are kept. Thinning does
+#'        NOT change how long the sampler runs, and it does not improve mixing;
+#'        it only reduces memory use when the draws are stored. The running
+#'        posterior summaries (see \code{store_post_draws}) always use all
+#'        \code{iter} post-burn-in iterations, so they are unaffected by
+#'        \code{thin}.
+#'
+#' @param store_post_draws Logical. Should the posterior draws of the partial
+#'        correlations be stored (default \code{TRUE})? With \code{FALSE}, only
+#'        running posterior summaries are stored (posterior mean and standard
+#'        deviation of the partial correlations and of their Fisher-z
+#'        transformations), which reduces memory use from
+#'        \code{p x p x iter} to \code{p x p} arrays. This is sufficient for
+#'        \code{\link{select.explore}}, but functions that need the draws
+#'        (e.g., \code{\link{posterior_samples}}) are then not available.
+#'
+#' @param store_prior_draws Logical. Should draws from the (joint) prior distribution
+#'        of the partial correlations be returned (default \code{FALSE})? These
+#'        draws are not needed for hypothesis testing, which uses the analytic
+#'        prior standard deviation of the Fisher-z transformed partial
+#'        correlations, but they retain the dependence between the partial
+#'        correlations. Prior draws cost about as much memory as posterior
+#'        draws.
 #'
 #' @param ... Currently ignored (leave empty).
 #'
@@ -47,7 +80,17 @@
 #'
 #' \item \code{pcor_mat} partial correltion matrix (posterior mean).
 #'
-#' \item \code{post_samp} an object containing the posterior samples.
+#' \item \code{post_samp} an object containing the posterior samples
+#' (\code{pcors}, \code{fisher_z}: \code{p x p x iter} arrays of the
+#' post-burn-in, thinned draws; only when \code{store_post_draws = TRUE})
+#' and posterior summaries (\code{pcor_mat}, \code{pcor_sd}, \code{z_mean},
+#' \code{z_sd}).
+#'
+#' \item \code{prior_samp} an object containing the prior samples
+#' (only when \code{store_prior_draws = TRUE}; otherwise \code{NULL}).
+#'
+#' \item \code{prior_sd_z} prior standard deviation of the Fisher-z
+#' transformed partial correlations (used for the Bayes factors).
 #'
 #' }
 #'
@@ -171,7 +214,24 @@ explore <- function(Y,
                     iter = 5000,
                     progress = TRUE,
                     impute = FALSE,
-                    seed = NULL, ...){
+                    seed = NULL,
+                    burnin = 50,
+                    thin = 1,
+                    store_post_draws = TRUE,
+                    store_prior_draws = FALSE, ...){
+
+  if (!is.numeric(burnin) || length(burnin) != 1 || burnin < 1 ||
+      burnin != round(burnin)) {
+    stop("'burnin' must be a positive integer.", call. = FALSE)
+  }
+  if (!is.numeric(thin) || length(thin) != 1 || thin < 1 || thin != round(thin)) {
+    stop("'thin' must be a positive integer.", call. = FALSE)
+  }
+  burnin <- as.integer(burnin)
+  thin   <- as.integer(thin)
+  # draws kept: every thin-th of the iter post-burn-in iterations. Must match
+  # n_draw_slots() in src/bggm_fast.cpp.
+  n_draws <- as.integer(ceiling(iter / thin))
 
   # Temporarily, if the type is not in an allowed set.
   if (!type %in% c("continuous", "mixed")) {
@@ -185,16 +245,18 @@ explore <- function(Y,
     }
   }
 
-  set.seed(seed)
   ## Random seed unless user provided
   if(!is.null(seed) ) {
     set.seed(seed)
   }
 
-  
+
   dot_dot_dot <- list(...)
 
-  eps <- 0.01
+  # matrix-F prior: B = eps * I and nu = 1 / eps. The approximation
+  # Theta ~ IW(delta + p - 1, I) requires nu >> p (and nu > p - 1 for a
+  # proper prior; Williams & Mulder, 2020), so eps shrinks with p.
+  eps <- eps_default(ncol(Y))
 
   # delta parameter
   delta <- delta_solve(prior_sd)
@@ -248,14 +310,14 @@ explore <- function(Y,
         n <- nrow(Y)
 
         # starting values
-        start <- solve(cov(Y))
+        start <- solve(cov(Y) + diag(0.1, ncol(Y)))
 
         # posterior sample
         post_samp <- .Call(
           '_BGGM_Theta_continuous',
           PACKAGE = 'BGGM',
           Y = Y,
-          iter = iter + 50,
+          iter = burnin + iter,
           delta = delta,
           epsilon = eps,
           prior_only = 0,
@@ -263,7 +325,11 @@ explore <- function(Y,
           start = start,
           progress = progress,
           impute = impute,
-          Y_miss = Y_miss
+          Y_miss = Y_miss,
+          store = store_post_draws,
+          burnin = burnin,
+          thin = thin,
+          store_burnin = FALSE
         )
 
         # control for variables
@@ -286,7 +352,7 @@ explore <- function(Y,
         # model matrix
         X <- as.matrix(control_info$model_matrices[[1]])
 
-        start <- solve(cov(Y))
+        start <- solve(cov(Y) + diag(0.1, ncol(Y)))
 
         # posterior sample
         post_samp <- .Call(
@@ -295,9 +361,13 @@ explore <- function(Y,
           X = X,
           delta = delta,
           epsilon = eps,
-          iter = iter + 50,
+          iter = burnin + iter,
           start = start,
-          progress = progress
+          progress = progress,
+          store = store_post_draws,
+          burnin = burnin,
+          thin = thin,
+          store_burnin = FALSE
         )
 
       } # end control
@@ -321,7 +391,7 @@ explore <- function(Y,
 
         formula <- ~ 1
 
-        start <- solve(cov(Y))
+        start <- solve(cov(Y) + diag(0.1, ncol(Y)))
 
       } else {
 
@@ -342,7 +412,7 @@ explore <- function(Y,
         # model matrix
         X <- as.matrix(control_info$model_matrices[[1]])
 
-        start <- solve(cov(Y))
+        start <- solve(cov(Y) + diag(0.1, ncol(Y)))
 
       }
 
@@ -352,12 +422,16 @@ explore <- function(Y,
         Y = Y,
         X = X,
         delta = delta,
-        epsilon = 0.01,
-        iter = iter + 50,
+        epsilon = eps,
+        iter = burnin + iter,
         beta_prior = 0.1,
         cutpoints = c(-Inf, 0, Inf),
         start = start,
-        progress = progress
+        progress = progress,
+        store = store_post_draws,
+        burnin = burnin,
+        thin = thin,
+        store_burnin = FALSE
       )
 
       # ordinal
@@ -383,7 +457,7 @@ explore <- function(Y,
         formula <- ~ 1
 
         # start
-        start <- solve(cov(Y))
+        start <- solve(cov(Y) + diag(0.1, ncol(Y)))
 
       } else {
 
@@ -403,7 +477,7 @@ explore <- function(Y,
         X <- as.matrix(control_info$model_matrices[[1]])
 
         # start
-        start <- solve(cov(Y))
+        start <- solve(cov(Y) + diag(0.1, ncol(Y)))
 
       }
 
@@ -415,12 +489,16 @@ explore <- function(Y,
       "_BGGM_mv_ordinal_albert",
       Y = Y,
       X = X,
-      iter = iter + 50,
+      iter = burnin + iter,
       delta = delta,
-      epsilon = 0.01,
+      epsilon = eps,
       K = K,
       start = start,
-      progress = progress
+      progress = progress,
+      store = store_post_draws,
+      burnin = burnin,
+      thin = thin,
+      store_burnin = FALSE
     )
 
   } else if(type == "mixed"){
@@ -475,12 +553,16 @@ explore <- function(Y,
         z0_start = rank_vars$z0_start,
         Sigma_start = cov(rank_vars$z0_start),
         levels = rank_vars$levels,
-        iter_missing = iter + 50,
+        iter_missing = burnin + iter,
         progress_impute = TRUE,
         K = rank_vars$K,
         idx = idx,
-        epsilon = 0.01,
-        delta = delta
+        epsilon = eps,
+        delta = delta,
+        store = store_post_draws,
+        burnin = burnin,
+        thin = thin,
+        store_burnin = FALSE
       )
 
     } else {
@@ -491,11 +573,15 @@ explore <- function(Y,
       levels = rank_vars$levels,
       K = rank_vars$K,
       Sigma_start = rank_vars$Sigma_start,
-      iter = iter + 50,
+      iter = burnin + iter,
       delta = delta,
-      epsilon = 0.01,
+      epsilon = eps,
       idx = idx,
-      progress = progress
+      progress = progress,
+      store = store_post_draws,
+      burnin = burnin,
+      thin = thin,
+      store_burnin = FALSE
     )
 
     }
@@ -505,34 +591,34 @@ explore <- function(Y,
 
     }
 
-    ## matrix dimensions for prior
-    ## Old:
-    ## Y_dummy <- matrix(rnorm( 10 * 3 ),
-    ##                  nrow = 10, ncol = 3)
+    # Prior sd of the Fisher-z partial correlations. The marginal prior does
+    # not depend on p, so it is computed analytically instead of sampling the
+    # prior at full dimension (which cost as much memory as the posterior).
+    sd_z <- prior_sd_z(delta)
 
-    ## Replaced with:
-    ## 10 times as many rows as columns
-    n_row = ncol(Y) * 10
-    Y_dummy <- matrix(rnorm( n_row * ncol(Y) ),
-                      nrow = n_row, ncol = ncol(Y))
-    ## Probably not necessary to scale up Y dim as k=3 was good enough approx.
+    # optional draws from the joint prior (not used for the Bayes factors)
+    prior_samp <- NULL
+    if (isTRUE(store_prior_draws)) {
 
-    if(isTRUE(progress)){
+      if(isTRUE(progress)){
+        message(paste0("BGGM: Prior Sampling ", ...))
+      }
 
-      message(paste0("BGGM: Prior Sampling ", ...))
+      # 10 times as many rows as columns
+      n_row <- ncol(Y) * 10
+      Y_dummy <- matrix(rnorm(n_row * ncol(Y)),
+                        nrow = n_row, ncol = ncol(Y))
 
+      prior_samp <- .Call('_BGGM_sample_prior',
+                          PACKAGE = 'BGGM',
+                          Y = Y_dummy,
+                          iter = iter + 50,
+                          delta = delta,
+                          epsilon = eps,
+                          prior_only = 1,
+                          explore = 0,  # k = number of columns of Y
+                          progress = progress)
     }
-
-    # sample prior
-    prior_samp <- .Call('_BGGM_sample_prior',
-                      PACKAGE = 'BGGM',
-                      Y = Y_dummy,
-                      iter = iter + 50,
-                      delta = delta,
-                      epsilon = eps,
-                      prior_only = 1,
-                      explore = 0,  ## with explore = 0,  k takes number of Y columns instead of k = 3 
-                      progress = progress)
 
     if(isTRUE(progress)){
 
@@ -548,9 +634,17 @@ explore <- function(Y,
       analytic = analytic,
       formula = formula,
       post_samp = post_samp,
+      prior_sd_z = sd_z,
+      store_post_draws = store_post_draws,
+      burnin = burnin,
+      thin = thin,
+      # explore() stores only the post-burn-in draws (see post_draw_idx())
+      burnin_stored = FALSE,
       prior_samp = prior_samp,
+      delta = delta,
       type = type,
-      iter = iter,
+      iter = iter,                      # post-burn-in sampler iterations
+      n_draws = n_draws,                # draws actually stored (iter / thin)
       Y = Y,
       call = match.call(),
       p = p,
@@ -638,7 +732,12 @@ summary.explore <- function(object,
   if(isFALSE(object$analytic)){
 
     post_mean <- round(object$pcor_mat, 3)[upper.tri(I_p)]
-    post_sd  <- round(apply(object$post_samp$pcors[,, 51:(object$iter + 50) ], 1:2, sd), 3)[upper.tri(I_p)]
+    if (!is.null(object$post_samp$pcors)) {
+      post_sd <- apply(object$post_samp$pcors[,, post_draw_idx(object)], 1:2, sd)
+    } else {
+      post_sd <- object$post_samp$pcor_sd
+    }
+    post_sd  <- round(post_sd, 3)[upper.tri(I_p)]
 
     dat_results <-
       data.frame(
@@ -686,7 +785,9 @@ print_explore <- function(x,...){
   cat("Analytic:", x$analytic, "\n")
   cat("Formula:", paste(as.character(x$formula), collapse = " "), "\n")
   # number of iterations
-  cat("Posterior Samples:", x$iter, "\n")
+  cat("Posterior Samples:", x$iter,
+      if (!is.null(x$thin) && x$thin > 1)
+        paste0(" iterations (", x$n_draws, " stored, thin = ", x$thin, ")"), "\n")
   # number of observations
   cat("Observations (n):", x$n,  "\n")
   # number of variables

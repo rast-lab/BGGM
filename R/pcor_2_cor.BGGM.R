@@ -81,6 +81,8 @@
 #' @export
 pcor_to_cor <- function(object, iter = NULL){
 
+  check_post_draws(object, "pcor_to_cor")
+
   if(!is(object, "default")){
 
     stop("class not supported. Must but an 'estimate' or 'explore' object.")
@@ -91,24 +93,27 @@ pcor_to_cor <- function(object, iter = NULL){
 
   dims <- dim(post_samps)
 
+  # post-burn-in draws
+  idx <- post_draw_idx(object)
+
   if(!is.null(iter)){
 
-    if((dims[3] - 50) < iter){
+    if(length(idx) < iter){
 
     warning("Iterations do not exist (too large). Using all iterations in the object.")
 
-    iter <- dims[3] - 50
+    iter <- length(idx)
   }
 
   } else {
 
-    iter <- dims[3] - 50
+    iter <- length(idx)
 
 }
 
   p <- dims[1]
 
-  object <- post_samps[, , -c(1:50)]
+  object <- post_samps[, , idx, drop = FALSE]
 
   # call c ++ for speed
   returned_object <- .Call(

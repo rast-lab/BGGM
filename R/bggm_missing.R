@@ -96,64 +96,30 @@ bggm_missing <- function(x, iter = 2000,
   # number of data sets
   n_data_sets <- length(unique(data_sets$.imp))
 
-  # remove row id
-  Y <- data_sets[,-c(2)]
+  # Remove .id by name because its position changed in mice >= 3.17.0
+  # (.imp is removed later).
+  Y <- data_sets[, !(names(data_sets) %in% ".id"), drop = FALSE]
 
   if(method == "explore"){
 
     # fit the models
-    fits <- lapply(1:n_data_sets, function(x) explore(as.matrix(subset(Y, .imp == x)[,!(names(Y) %in% ".imp")]),
-                                                      iter = iter,
-                                                      impute = FALSE, ...))
-
-    # iterations
-    iter <- fits[[1]]$iter
-
-    # partial correlations
-    post_start_pcors <-  fits[[1]]$post_samp$pcors
-
-    # fisher z
-    post_start_fisher <- fits[[1]]$post_samp$fisher_z
-
-    # prior fisher z
-    prior_start_fisher <- fits[[1]]$prior_samp$fisher_z
-
-    # regression (for multivariate)
-    if(!is.null( fits[[1]]$formula)){
-      post_start_beta <- fits[[1]]$post_samp$beta
+    # the posterior draws of the imputed data sets are combined below, so
+    # they must be stored
+    dots <- list(...)
+    if (isFALSE(dots$store_post_draws)) {
+      warning("'store_post_draws = FALSE' is ignored by bggm_missing(): ",
+              "the posterior draws of the imputed data sets are combined.",
+              call. = FALSE)
     }
+    dots$store_post_draws <- NULL
 
-    # combinate the imputations
-    samps <- for(i in 2:n_data_sets) {
+    fits <- lapply(1:n_data_sets, function(x)
+      do.call(explore, c(list(Y = as.matrix(subset(Y, .imp == x)[,!(names(Y) %in% ".imp")]),
+                              iter = iter,
+                              impute = FALSE,
+                              store_post_draws = TRUE),
+                         dots)))
 
-      post_start_pcors <-  abind::abind(post_start_pcors ,
-                                        fits[[i]]$post_samp$pcors[,,])
-
-      post_start_fisher <-  abind::abind(post_start_fisher,
-                                         fits[[i]]$post_samp$fisher_z[,,])
-
-      prior_start_fisher <-  abind::abind(prior_start_fisher,
-                                         fits[[i]]$prior_samp$fisher_z[,,])
-
-      # multivarate
-     if(!is.null(fits[[1]]$formula)){
-
-       post_start_beta <-  abind::abind(post_start_beta,
-                                        fits[[i]]$post_samp$beta[,,])
-       }
-    }
-
-    # dimensions
-   dims <- dim(post_start_pcors)
-
-   # replace samples
-   fits[[1]]$post_samp$pcors <- post_start_pcors[,,]
-   fits[[1]]$post_samp$fisher_z <- post_start_fisher[,,]
-   fits[[1]]$prior_samp$fisher_z <- prior_start_fisher[,,]
-
-   if(!is.null( fits[[1]]$formula)){
-     fits[[1]]$post_samp$beta <- post_start_beta
-   }
   }
 
   # estimate models
@@ -164,46 +130,68 @@ bggm_missing <- function(x, iter = 2000,
                                                        iter = iter,
                                                        impute = FALSE, ...))
 
-    iter <- fits[[1]]$iter
-
-    post_start_pcors <-  fits[[1]]$post_samp$pcors[,,]
-    post_start_fisher <- fits[[1]]$post_samp$fisher_z[,,]
-
-    if(!is.null( fits[[1]]$formula)){
-
-      post_start_beta <- fits[[1]]$post_samp$beta
-
-    }
-
-    samps <- for(i in 2:n_data_sets) {
-
-      post_start_pcors <-  abind::abind(post_start_pcors,
-                                        fits[[i]]$post_samp$pcors[,,])
-
-      post_start_fisher <-  abind::abind(post_start_fisher,
-                                         fits[[i]]$post_samp$fisher_z[,,])
-
-      if(!is.null( fits[[1]]$formula)){
-        post_start_beta <-  abind::abind(post_start_beta,
-                                         fits[[i]]$post_samp$beta[,,])
-      }
-    }
-
-    dims <- dim(post_start_pcors)
-
-    fits[[1]]$post_samp$pcors <- post_start_pcors
-    fits[[1]]$post_samp$fisher_z <- post_start_fisher
-
-    if(!is.null( fits[[1]]$formula)){
-      fits[[1]]$post_samp$beta <- post_start_beta
-    }
   }
 
-  fit <- fits[[1]]
+  # pool the posterior draws of the imputed data sets
+  fit <- combine_imputed_fits(fits)
 
-  # total iterations + warmup
-  fit$iter <- (iter * n_data_sets) + 50
-
-  # model
   fit
   }
+
+# Pool the posterior draws of models fitted to imputed data sets. The
+# pooled object keeps the stored burn-in draws of the first fit (if the fits
+# store burn-in draws, see post_draw_idx()), followed by the post-burn-in
+# draws of all fits, and has iter = number of pooled post-burn-in draws.
+# Posterior summaries (pcor_mat and, for explore, the running summaries) are
+# recomputed from the pooled draws.
+combine_imputed_fits <- function(fits) {
+
+  fit  <- fits[[1]]
+  iter <- fit$iter
+  keep <- post_draw_idx(fit)
+  burn <- seq_len(min(keep) - 1)          # stored burn-in slices (may be empty)
+
+  pool <- function(name) {
+    arrs <- lapply(fits, function(f) f$post_samp[[name]][, , post_draw_idx(f), drop = FALSE])
+    if (length(burn) > 0)
+      arrs <- c(list(fit$post_samp[[name]][, , burn, drop = FALSE]), arrs)
+    out <- abind::abind(arrs, along = 3)
+    dimnames(out) <- NULL          # abind adds dimnames; unpooled draws have none
+    out
+  }
+
+  fit$post_samp$pcors    <- pool("pcors")
+  fit$post_samp$fisher_z <- pool("fisher_z")
+  if (!is.null(fit$post_samp$beta)) {
+    fit$post_samp$beta <- pool("beta")
+  }
+  if (!is.null(fit$post_samp$thresh)) {
+    # thresholds: draws in the first dimension
+    arrs <- lapply(fits, function(f) f$post_samp$thresh[post_draw_idx(f), , , drop = FALSE])
+    if (length(burn) > 0)
+      arrs <- c(list(fit$post_samp$thresh[burn, , , drop = FALSE]), arrs)
+    fit$post_samp$thresh <- abind::abind(arrs, along = 1)
+    dimnames(fit$post_samp$thresh) <- NULL
+  }
+
+  fit$iter <- iter * length(fits)
+  # explore() objects (>= 2.1.6.9002) carry n_draws, which post_draw_idx() uses
+  # in preference to iter; it must count the pooled draws, not those of the
+  # first fit.
+  if (!is.null(fit$n_draws))
+    fit$n_draws <- sum(vapply(fits, function(f) length(post_draw_idx(f)),
+                              integer(1)))
+  idx      <- post_draw_idx(fit)
+
+  pcor_mat <- apply(fit$post_samp$pcors[, , idx, drop = FALSE], 1:2, mean)
+  fit$pcor_mat <- pcor_mat
+  fit$post_samp$pcor_mat <- pcor_mat
+
+  if (!is.null(fit$post_samp$z_mean)) {
+    fit$post_samp$pcor_sd <- apply(fit$post_samp$pcors[, , idx, drop = FALSE], 1:2, sd)
+    fit$post_samp$z_mean  <- apply(fit$post_samp$fisher_z[, , idx, drop = FALSE], 1:2, mean)
+    fit$post_samp$z_sd    <- apply(fit$post_samp$fisher_z[, , idx, drop = FALSE], 1:2, sd)
+  }
+
+  fit
+}

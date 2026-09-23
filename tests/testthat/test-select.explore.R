@@ -1,13 +1,25 @@
 library(testthat)
 library(BGGM)
 
+# helper: recompute the correct prior/posterior densities the way select() should
+# (defined at the top so every test below can use it).
+.se_dens <- function(fit) {
+  samp_idx  <- BGGM:::post_draw_idx(fit)
+  post_sd   <- apply(fit$post_samp$fisher_z[,, samp_idx], 1:2, sd)
+  post_mean <- apply(fit$post_samp$fisher_z[,, samp_idx], 1:2, mean)
+  post_dens <- dnorm(0, post_mean, post_sd)
+  prior_dens <- dnorm(0, 0, fit$prior_sd_z)
+  list(post_mean = post_mean, post_sd = post_sd,
+       BF_10 = prior_dens / post_dens)
+}
+
 test_that("select.explore returns expected structure for two-sided alternative", {
   Y <- matrix(rnorm(100), ncol = 4)
   fit <- explore(Y, progress = FALSE)
   result <- select.explore(fit, alternative = "two.sided")
   
   expect_s3_class(result, "select.explore")
-  expect_named(result, c("pcor_mat_zero", "pcor_mat", "pcor_sd_fisher", "Adj_10", "Adj_01", "BF_10", "BF_01", "BF_cut", "method", "alternative", "call", "type", "formula", "analytic", "object"))
+  expect_named(result, c("pcor_mat_zero", "pcor_mat", "pcor_sd_fisher", "Adj_10", "Adj_01", "BF_10", "BF_01", "BF_cut", "incl_prob", "prior.prob.H0", "method", "alternative", "call", "type", "formula", "analytic", "object"))
   expect_true(is.matrix(result$pcor_mat_zero))
   expect_true(is.matrix(result$pcor_mat))
   expect_true(is.matrix(result$Adj_10))
@@ -20,7 +32,7 @@ test_that("select.explore returns expected structure for greater alternative", {
   result <- select.explore(fit, alternative = "greater")
   
   expect_s3_class(result, "select.explore")
-  expect_named(result, c("pcor_mat_zero", "pcor_mat", "pcor_sd_fisher", "Adj_20", "Adj_02", "BF_20", "BF_02", "BF_cut", "method", "alternative", "call", "type", "formula", "analytic", "object"))
+  expect_named(result, c("pcor_mat_zero", "pcor_mat", "pcor_sd_fisher", "Adj_20", "Adj_02", "BF_20", "BF_02", "BF_cut", "incl_prob", "prior.prob.H0", "method", "alternative", "call", "type", "formula", "analytic", "object"))
   expect_true(is.matrix(result$pcor_mat_zero))
   expect_true(is.matrix(result$pcor_mat))
   expect_true(is.matrix(result$Adj_20))
@@ -33,7 +45,7 @@ test_that("select.explore returns expected structure for exhaustive alternative"
   result <- select.explore(fit, alternative = "exhaustive")
 
   expect_s3_class(result, "select.explore")
-  expect_named(result, c("post_prob", "neg_mat", "pos_mat", "null_mat", "alternative", "pcor_mat", "pcor_sd_fisher", "call", "prob", "method", "type", "formula", "analytic", "object"))
+  expect_named(result, c("post_prob", "pcor_mat_zero", "neg_mat", "pos_mat", "null_mat", "alternative", "pcor_mat", "pcor_sd_fisher", "call", "prob", "incl_prob", "method", "type", "formula", "analytic", "object"))
   expect_true(is.data.frame(result$post_prob))
   expect_true(is.matrix(result$neg_mat))
   expect_true(is.matrix(result$pos_mat))
@@ -347,7 +359,164 @@ test_that("Adj_20 is 1 exactly where BF_20 > BF_cut for greater", {
   expect_equal(sel$Adj_20[off_diag], as.numeric(sel$BF_20[off_diag] > BF_cut))
 })
 
-# ---- BMA tests: will fail until method = "BMA" is implemented ----
+# ---- Exhaustive BF_cut semantics: BF_cut is translated into a cutoff on the
+#      posterior hypothesis probabilities, P(H_k|Y) > BF_cut / (BF_cut + 1).
+
+test_that("exhaustive BF_cut selection thresholds posterior probabilities", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  BF_cut <- 3
+  sel <- select(fit, BF_cut = BF_cut, alternative = "exhaustive")
+
+  pn <- sel$post_prob$prob_zero
+  pg <- sel$post_prob$prob_greater
+  pl <- sel$post_prob$prob_less
+  cut <- BF_cut / (BF_cut + 1)
+
+  incl <- 1 - pn
+
+  expect_equal(sel$null_mat[upper.tri(sel$null_mat)], as.numeric(pn > cut))
+  expect_equal(sel$pos_mat[upper.tri(sel$pos_mat)],   as.numeric(incl > cut & pg >= pl))
+  expect_equal(sel$neg_mat[upper.tri(sel$neg_mat)],   as.numeric(incl > cut & pl > pg))
+})
+
+test_that("exhaustive and two.sided select the same edges (BF_cut)", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  ex <- select(fit, BF_cut = 3, alternative = "exhaustive")
+  ts <- select(fit, BF_cut = 3, alternative = "two.sided")
+
+  expect_equal(ex$incl_prob, ts$incl_prob)
+  expect_equal(ex$pos_mat + ex$neg_mat, ts$Adj_10)
+  expect_equal(ex$null_mat, ts$Adj_01)
+})
+
+test_that("exhaustive BF_cut uses prior.prob.H0", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+
+  a <- select(fit, BF_cut = 3, alternative = "exhaustive", prior.prob.H0 = 0.5)
+  b <- select(fit, BF_cut = 3, alternative = "exhaustive", prior.prob.H0 = 0.9)
+
+  # no warning or message: prior.prob.H0 is used, not ignored
+  expect_silent(select(fit, BF_cut = 3, alternative = "exhaustive",
+                       prior.prob.H0 = 0.9))
+  # a larger prior probability of H0 lowers the inclusion probabilities
+  expect_false(isTRUE(all.equal(a$post_prob, b$post_prob)))
+  expect_true(all(b$incl_prob <= a$incl_prob + 1e-12))
+  # the three hypothesis probabilities still sum to one
+  expect_equal(b$post_prob$prob_zero + b$post_prob$prob_greater +
+                 b$post_prob$prob_less, rep(1, nrow(b$post_prob)))
+})
+
+# ---- Edge inclusion probabilities ----
+
+test_that("incl_prob matches q*BF10 / (q*BF10 + 1 - q) for two.sided", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  for (q0 in c(0.5, 0.33, 0.8)) {
+    sel <- suppressMessages(select(fit, alternative = "two.sided", prior.prob.H0 = q0))
+    bf  <- sel$BF_10[upper.tri(sel$BF_10)]
+    q   <- 1 - q0
+    expect_equal(sel$incl_prob[upper.tri(sel$incl_prob)], q * bf / (q * bf + 1 - q))
+    expect_true(all(diag(sel$incl_prob) == 0))
+    expect_true(isSymmetric(sel$incl_prob))
+  }
+})
+
+test_that("BF_cut selection follows incl_prob and prior.prob.H0", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  BF_cut <- 3
+  cut <- BF_cut / (BF_cut + 1)
+
+  expect_silent(select(fit, alternative = "two.sided", prior.prob.H0 = 0.8))
+
+  a <- select(fit, BF_cut = BF_cut, alternative = "two.sided")
+  b <- select(fit, BF_cut = BF_cut, alternative = "two.sided", prior.prob.H0 = 0.8)
+
+  off <- upper.tri(a$Adj_10)
+  expect_equal(a$Adj_10[off], as.numeric(a$incl_prob[off] > cut))
+  expect_equal(b$Adj_10[off], as.numeric(b$incl_prob[off] > cut))
+  # a larger prior probability of H0 cannot select more edges
+  expect_true(all(b$Adj_10[off] <= a$Adj_10[off]))
+  expect_true(all(b$incl_prob[off] <= a$incl_prob[off] + 1e-12))
+})
+
+test_that("default BF_cut selection equals the Bayes factor rule", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+
+  for (alt in c("two.sided", "greater", "less")) {
+    sel <- select(fit, BF_cut = 3, alternative = alt)
+    BF  <- if (alt == "two.sided") sel$BF_10 else sel$BF_20
+    Adj <- if (alt == "two.sided") sel$Adj_10 else sel$Adj_20
+    off <- upper.tri(BF)
+    expect_equal(Adj[off], as.numeric(BF[off] > 3))
+  }
+})
+
+test_that("incl_prob handles BF10 = Inf", {
+  BF <- matrix(c(0, Inf, Inf, 0), 2, 2)
+  expect_equal(BGGM:::.incl_prob(BF, 0.5), matrix(c(0, 1, 1, 0), 2, 2))
+})
+
+test_that("incl_prob for greater/less and exhaustive", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, alternative = "greater")
+  bf  <- sel$BF_20[upper.tri(sel$BF_20)]
+  expect_equal(sel$incl_prob[upper.tri(sel$incl_prob)], bf / (bf + 1))
+
+  sel <- select(fit, alternative = "exhaustive")
+  expect_equal(sel$incl_prob[upper.tri(sel$incl_prob)],
+               1 - sel$post_prob$prob_zero)
+  expect_false(any(is.na(sel$incl_prob)))
+
+  sel <- select(fit, method = "BMA", alternative = "exhaustive")
+  expect_equal(sel$incl_prob[upper.tri(sel$incl_prob)],
+               1 - sel$post_prob$prob_zero)
+})
+
+test_that("summary uses incl_prob", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- suppressMessages(select(fit, alternative = "two.sided", prior.prob.H0 = 0.8))
+  expect_equal(summary(sel)$summary$Pr.H1,
+               round(sel$incl_prob[upper.tri(sel$incl_prob)], 3))
+})
+
+# ---- BMA tests ----
+
+test_that("BMA is deterministic and equals the exact mixture median", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  a <- select(fit, method = "BMA", alternative = "two.sided")
+  b <- select(fit, method = "BMA", alternative = "two.sided")
+  expect_equal(a$pcor_mat_zero, b$pcor_mat_zero)
+
+  # compare one edge with a simulated mixture median
+  d  <- .se_dens(fit)
+  bf <- d$BF_10[1, 2]
+  p0 <- 1 / (1 + bf)                       # prior.prob.H0 = 0.5
+  set.seed(1)
+  N  <- 4e5
+  z  <- ifelse(runif(N) < p0, 0, rnorm(N, d$post_mean[1, 2], d$post_sd[1, 2]))
+  expect_lt(abs(a$pcor_mat_zero[1, 2] - tanh(median(z))), 0.01)
+
+  e <- select(fit, method = "BMA", alternative = "exhaustive")
+  expect_false(any(is.na(e$pcor_mat_zero)))
+  expect_true(all(diag(e$pcor_mat_zero) == 0))
+})
 
 test_that("BMA two.sided returns correct structure", {
   set.seed(123)
@@ -471,15 +640,121 @@ test_that("BMA less pcor_mat_zero has no positive values", {
   expect_true(all(sel$pcor_mat_zero <= 0))
 })
 
-test_that("BMA exhaustive stops with informative error", {
+test_that("BMA exhaustive returns correct structure", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, method = "BMA", alternative = "exhaustive")
+
+  expect_s3_class(sel, "select.explore")
+  expect_true(all(c("post_prob", "neg_mat", "pos_mat", "null_mat",
+                    "prior.prob.H0", "method") %in% names(sel)))
+  expect_true(is.data.frame(sel$post_prob))
+  expect_true(is.matrix(sel$null_mat))
+  expect_equal(sel$method, "BMA")
+  expect_equal(sel$prior.prob.H0, 0.5)
+})
+
+test_that("BMA exhaustive probabilities sum to 1", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, method = "BMA", alternative = "exhaustive")
+
+  s <- sel$post_prob$prob_zero + sel$post_prob$prob_greater + sel$post_prob$prob_less
+  expect_true(all(abs(s - 1) < 1e-10))
+})
+
+test_that("BMA exhaustive assigns every edge to exactly one state", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, method = "BMA", alternative = "exhaustive")
+
+  od <- upper.tri(sel$null_mat)
+  total <- sel$null_mat[od] + sel$pos_mat[od] + sel$neg_mat[od]
+  expect_true(all(total == 1))
+  expect_true(all(diag(sel$null_mat) == 0))
+})
+
+test_that("BMA exhaustive returns a symmetric model-averaged pcor_mat_zero", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, method = "BMA", alternative = "exhaustive")
+
+  expect_true("pcor_mat_zero" %in% names(sel))
+  expect_true(is.matrix(sel$pcor_mat_zero))
+  expect_true(isSymmetric(sel$pcor_mat_zero))
+})
+
+test_that("BMA exhaustive state matrices are the sign classification of pcor_mat_zero", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, method = "BMA", alternative = "exhaustive")
+
+  od <- upper.tri(sel$pcor_mat_zero)
+  expect_equal(sel$pos_mat[od],  as.numeric(sel$pcor_mat_zero[od] > 0))
+  expect_equal(sel$neg_mat[od],  as.numeric(sel$pcor_mat_zero[od] < 0))
+  expect_equal(sel$null_mat[od], as.numeric(sel$pcor_mat_zero[od] == 0))
+})
+
+test_that("BMA exhaustive with prior.prob.H0 = 1 shrinks every edge to the spike", {
+  # All posterior mixture mass is on H0, so every off-diagonal draw is exactly
+  # zero -- a clean regression test for the spike component of the mixture.
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, method = "BMA", alternative = "exhaustive", prior.prob.H0 = 1)
+
+  od <- upper.tri(sel$pcor_mat_zero)
+  expect_true(all(sel$pcor_mat_zero[od] == 0))
+  expect_true(all(sel$null_mat[od] == 1))
+  expect_true(all(sel$pos_mat[od] == 0))
+  expect_true(all(sel$neg_mat[od] == 0))
+})
+
+test_that("BMA exhaustive follows Eq. 9 with prior.prob.H0 weighting", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  pH0 <- 0.5
+  sel <- select(fit, method = "BMA", alternative = "exhaustive", prior.prob.H0 = pH0)
+
+  d <- .se_dens(fit)
+  BF_0u <- 1 / d$BF_10
+  BF_1u <- (1 - pnorm(0, d$post_mean, d$post_sd)) * 2
+  BF_2u <- pnorm(0, d$post_mean, d$post_sd) * 2
+  pH1 <- pH2 <- (1 - pH0) / 2
+  denom <- pH0 * BF_0u + pH1 * BF_1u + pH2 * BF_2u
+
+  expect_equal(sel$post_prob$prob_zero,    (pH0 * BF_0u / denom)[upper.tri(BF_0u)])
+  expect_equal(sel$post_prob$prob_greater, (pH1 * BF_1u / denom)[upper.tri(BF_1u)])
+})
+
+test_that("BMA exhaustive: higher prior.prob.H0 assigns at least as many edges to null", {
   set.seed(123)
   Y <- BGGM::bfi[1:100, 1:5]
   fit <- explore(Y, iter = 100, progress = FALSE)
 
-  expect_error(
-    select(fit, method = "BMA", alternative = "exhaustive"),
-    "exhaustive"
-  )
+  sel_lo <- select(fit, method = "BMA", alternative = "exhaustive", prior.prob.H0 = 0.05)
+  sel_hi <- select(fit, method = "BMA", alternative = "exhaustive", prior.prob.H0 = 0.95)
+
+  expect_true(sum(sel_hi$null_mat) >= sum(sel_lo$null_mat))
+})
+
+test_that("BMA exhaustive print and summary work", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, method = "BMA", alternative = "exhaustive")
+
+  output <- capture.output(print(sel))
+  expect_true(any(grepl("exhaustive", output)))
+
+  summ <- summary(sel)
+  expect_true(all(c("Pr.H0", "Pr.H1", "Pr.H2") %in% colnames(summ$summary)))
 })
 
 test_that("BMA print method works without error for two.sided", {
@@ -492,4 +767,97 @@ test_that("BMA print method works without error for two.sided", {
   expect_true(length(output) > 0)
   expect_true(any(grepl("BGGM", output)))
   expect_false(any(grepl("Bayes Factor: NA", output)))
+})
+
+# ---- Regression tests: prior density must not depend on a hardcoded
+#      dimension, and must exclude the (~0) matrix diagonal. These pin the
+#      one true way to compute prior_dens across all alternatives. Run at
+#      p = 5 (not 3) so the old `upper.tri(diag(3))` shortcut would be caught.
+
+test_that("greater BF_20 uses full-dimension prior mask, not diag(3), at p != 3", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]           # p = 5
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, alternative = "greater")
+
+  d <- .se_dens(fit)
+  BF_20_expected <- d$BF_10 * ((1 - pnorm(0, d$post_mean, d$post_sd)) * 2)
+  diag(BF_20_expected) <- 0
+
+  od <- upper.tri(sel$BF_20)
+  expect_equal(sel$BF_20[od], BF_20_expected[od])
+})
+
+test_that("less BF_20 excludes the ~0 prior_sd diagonal from prior_dens", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, alternative = "less")
+
+  d <- .se_dens(fit)
+  BF_20_expected <- d$BF_10 * (pnorm(0, d$post_mean, d$post_sd) * 2)
+  diag(BF_20_expected) <- 0
+
+  od <- upper.tri(sel$BF_20)
+  expect_equal(sel$BF_20[od], BF_20_expected[od])
+})
+
+test_that("exhaustive posterior probs follow Eq. 9 (Bayes factors vs H_u)", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, alternative = "exhaustive")
+
+  # Eq. 9, Williams & Mulder (2019): the null, positive, and negative Bayes
+  # factors are ALL referenced to the unrestricted model H_u. The directional
+  # terms are 2*Pr(rho>0|Y) and 2*Pr(rho<0|Y) -- NOT multiplied by the
+  # two-sided BF_10 (which would double-count the two-sided evidence and give
+  # P(H0) = 1/(1 + 2 BF_10^2) instead of the correct 1/(1 + 2 BF_10)).
+  # The null keeps prior.prob.H0 and the two directional hypotheses split the
+  # remainder, so with the default 0.5 the prior weights are (0.5, 0.25, 0.25).
+  d <- .se_dens(fit)
+  BF_0u <- 1 / d$BF_10                                    # = post_dens / prior_dens
+  BF_1u <- (1 - pnorm(0, d$post_mean, d$post_sd)) * 2
+  BF_2u <- pnorm(0, d$post_mean, d$post_sd) * 2
+  q0    <- 0.5
+  q1    <- (1 - q0) / 2
+  denom <- q0 * BF_0u + q1 * BF_1u + q1 * BF_2u
+
+  expect_equal(sel$post_prob$prob_zero,    (q0 * BF_0u / denom)[upper.tri(BF_0u)])
+  expect_equal(sel$post_prob$prob_greater, (q1 * BF_1u / denom)[upper.tri(BF_1u)])
+  expect_equal(sel$post_prob$prob_less,    (q1 * BF_2u / denom)[upper.tri(BF_2u)])
+
+  # Because BF_1u + BF_2u = 2, this is the two-sided P(H0 | Y) = 1 / (1 + BF_10)
+  expect_equal(sel$post_prob$prob_zero, (1 / (1 + d$BF_10))[upper.tri(BF_0u)])
+})
+
+test_that("exhaustive prob_zero is NOT the double-counted (vs-H0) form", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, alternative = "exhaustive")
+
+  # the pre-fix (buggy) formula multiplied the directional BFs by BF_10
+  d <- .se_dens(fit)
+  BF_null    <- 1 / d$BF_10
+  BF_greater <- d$BF_10 * ((1 - pnorm(0, d$post_mean, d$post_sd)) * 2)
+  BF_less    <- d$BF_10 * (pnorm(0, d$post_mean, d$post_sd) * 2)
+  buggy_null <- (BF_null / (BF_null + BF_greater + BF_less))[upper.tri(BF_null)]
+
+  # they must actually differ on this data (guards the regression is meaningful)
+  expect_false(isTRUE(all.equal(sel$post_prob$prob_zero, buggy_null)))
+})
+
+test_that("summary.select.explore works for less alternative (no row-count crash)", {
+  set.seed(123)
+  Y <- BGGM::bfi[1:100, 1:5]
+  fit <- explore(Y, iter = 100, progress = FALSE)
+  sel <- select(fit, alternative = "less")
+
+  summ <- summary(sel)
+  expect_equal(nrow(summ$summary), choose(ncol(sel$pcor_mat), 2))
+  expect_equal(colnames(summ$summary),
+               c("Relation", "Post.mean", "Post.sd.fisher", "Pr.H0", "Pr.H1"))
+  # Relation labels must be populated, not empty
+  expect_true(all(nzchar(as.character(summ$summary$Relation))))
 })

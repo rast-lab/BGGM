@@ -76,6 +76,8 @@ predictability <- function(object,
                            progress = TRUE,
                            ...){
 
+  check_post_draws(object, "predictability")
+
 
 
   if(is(object, "var_estimate")){

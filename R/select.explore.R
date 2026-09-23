@@ -16,24 +16,32 @@
 #'        \insertCite{Williams2019_bf}{BGGM}.
 #'
 #'        \item \code{"BMA"}: Bayesian model averaging based on posterior model
-#'        probabilities. For each edge, posterior draws are generated from a
-#'        mixture distribution placing mass at zero under the null model and
-#'        using posterior draws from the alternative model otherwise.
-#'        Reported edges are based on the posterior median of these draws.
+#'        probabilities. For each edge, the posterior is a mixture
+#'        distribution placing mass at zero under the null model and using the
+#'        posterior under the alternative model otherwise. Reported edges are
+#'        based on the median of this mixture.
 #'        }
 #'
-#' @param BF_cut Numeric. Bayes factor threshold for including an edge when
-#'        \code{method = "BF_cut"} (defaults to 3).
+#' @param BF_cut Numeric. Evidence threshold for including an edge when
+#'        \code{method = "BF_cut"} (defaults to 3). An edge is selected when
+#'        the posterior probability of the hypothesis exceeds
+#'        \code{BF_cut / (BF_cut + 1)}. With the default
+#'        \code{prior.prob.H0 = 0.5} this is equivalent to a Bayes factor of
+#'        \code{BF_cut} against the competing hypothesis; for other values of
+#'        \code{prior.prob.H0} it is a cutoff on the posterior probability.
 #'
 #' @param prior.prob.H0 Numeric between 0 and 1. Prior probability assigned
-#'        to the null hypothesis for each edge when
-#'        \code{method = "BMA"} (defaults to \code{0.5}).
+#'        to the null hypothesis for each edge (defaults to \code{0.5}). It is
+#'        used for the posterior hypothesis probabilities and the edge
+#'        inclusion probabilities under both \code{method = "BF_cut"} and
+#'        \code{method = "BMA"}. For \code{alternative = "exhaustive"} the
+#'        remaining \code{1 - prior.prob.H0} is split equally over the positive
+#'        and the negative hypothesis, so that splitting the alternative by
+#'        sign leaves \eqn{P(H_0 \mid Y)} unchanged.
 #'
 #' @param alternative A character string specifying the alternative hypothesis. It
 #'                    must be one of "two.sided" (default), "greater", "less",
 #'                    or "exhaustive". See note for further details.
-#'                    Note that \code{alternative = "exhaustive"} is not supported
-#'                    for \code{method = "BMA"}.
 #'
 #' @param ... Currently ignored.
 #'
@@ -43,16 +51,41 @@
 #' @details Exhaustive provides the posterior hypothesis probabilities for
 #' a positive, negative, or null relation \insertCite{@see Table 3 in @Williams2019_bf}{BGGM}.
 #'
-#' \code{method = "BF_cut"} performs edge selection using Bayes factor
-#' thresholding.
+#' \code{method = "BF_cut"} selects an edge when its posterior inclusion
+#' probability exceeds \code{BF_cut / (BF_cut + 1)} (0.75 for
+#' \code{BF_cut = 3}), and calls an edge null when the posterior probability of
+#' the null hypothesis exceeds that same cutoff. With the default
+#' \code{prior.prob.H0 = 0.5} this is the Bayes factor threshold of
+#' \insertCite{Williams2019_bf}{BGGM}: \code{BF_cut = 3} selects the edges with
+#' a Bayes factor larger than 3. For \code{alternative = "exhaustive"} the
+#' inclusion probability is \eqn{1 - P(H_0 \mid Y) = P(H_+ \mid Y) + P(H_- \mid Y)},
+#' which equals the inclusion probability of \code{alternative = "two.sided"},
+#' so both give the same selected edges; a selected edge is labelled positive
+#' or negative according to the larger of the two directional probabilities,
+#' which are reported in addition. An edge can be assigned to none of the three
+#' hypotheses.
 #'
-#' \code{method = "BMA"} performs Bayesian model averaging by generating
-#' posterior draws from a spike-and-slab style mixture distribution for each
-#' edge. The spike corresponds to the null hypothesis (exactly zero partial
-#' correlation), whereas the slab corresponds to posterior draws under the
-#' alternative hypothesis. Posterior model probabilities are computed from the
-#' Bayes factors and \code{prior.prob.H0}. The selected network is based on
-#' the posterior median of the resulting draws.
+#' \code{method = "BMA"} does not use \code{BF_cut}: an edge is selected when
+#' the median of the model-averaged mixture is nonzero, which corresponds to an
+#' inclusion probability above 0.5, so it selects more edges than
+#' \code{method = "BF_cut"} with the default \code{BF_cut = 3}.
+#'
+#' \code{method = "BMA"} performs Bayesian model averaging using a
+#' spike-and-slab style mixture distribution for each edge. The spike
+#' corresponds to the null hypothesis (exactly zero partial correlation),
+#' whereas the slab corresponds to the posterior under the alternative
+#' hypothesis, approximated by a normal distribution for the Fisher-z
+#' transformed partial correlation (truncated to the positive or negative
+#' half-line for one-sided hypotheses). Posterior model probabilities are
+#' computed from the Bayes factors and \code{prior.prob.H0}. The selected
+#' network is based on the median of this mixture, which is computed exactly
+#' (no simulation), so the result is deterministic. For
+#' \code{alternative = "exhaustive"} the mixture has three states -- a spike at
+#' zero (\eqn{H_0}), a positive slab (\eqn{H_+}), and a negative slab
+#' (\eqn{H_-}) -- mixed by the posterior hypothesis probabilities. The
+#' model-averaged partial correlations are returned in \code{pcor_mat_zero}, and
+#' \code{pos_mat}/\code{neg_mat}/\code{null_mat} classify each edge by the sign
+#' of that model-averaged median.
 #'
 #' @importFrom stats median
 #' @importFrom truncnorm rtruncnorm
@@ -81,6 +114,10 @@
 #'
 #'  \item \code{Adj_01} Adjacency matrix for which there was
 #'                      evidence for the null hypothesis.
+#'
+#'  \item \code{incl_prob} Matrix of posterior edge inclusion probabilities,
+#'  \eqn{P(H_1 \mid Y)}, based on \code{BF_10} and prior inclusion probability
+#'  \code{1 - prior.prob.H0}.
 #'  }
 #'
 #' \code{alternative = "greater"} and \code{"less"}
@@ -95,23 +132,42 @@
 #'
 #'  \item \code{Adj_02} Adjacency matrix for which there was
 #'                      evidence for the null hypothesis (see note).
+#'
+#'  \item \code{incl_prob} Matrix of posterior probabilities of the
+#'  one-sided hypothesis against the null, based on \code{BF_20} and prior
+#'  probability \code{1 - prior.prob.H0}.
 #'  }
 #'
 #' \code{alternative = "exhaustive"}
 #'
 #' \itemize{
 #'
-#' \item \code{post_prob} A data frame that included the posterior hypothesis probabilities.
+#' \item \code{post_prob} A data frame of the posterior hypothesis probabilities
+#'                        \eqn{P(H_0 \mid Y)}, \eqn{P(H_+ \mid Y)}, and
+#'                        \eqn{P(H_- \mid Y)} for each relation (a null, positive,
+#'                        or negative partial correlation).
 #'
-#' \item \code{neg_mat} Adjacency matrix for which there was evidence for negative edges.
+#'  For \code{method = "BF_cut"} the following are hard hypothesis assignments;
+#'  for \code{method = "BMA"} they classify the sign of the model-averaged
+#'  posterior median (\code{pcor_mat_zero}), not the most probable hypothesis:
 #'
-#' \item \code{pos_mat} Adjacency matrix for which there was evidence for positive edges.
+#' \item \code{pos_mat} Adjacency matrix for positive edges.
 #'
-#' \item \code{neg_mat} Adjacency matrix for which there was
-#'                      evidence for the null hypothesis (see note).
+#' \item \code{neg_mat} Adjacency matrix for negative edges.
+#'
+#' \item \code{null_mat} Adjacency matrix for null edges (see note).
+#'
+#' \item \code{incl_prob} Matrix of posterior edge inclusion probabilities,
+#'   \eqn{1 - P(H_0 \mid Y)}.
 #'
 #'  \item \code{pcor_mat} Partial correlation matrix (posterior mean). The weighted adjacency
 #'  matrices can be computed by multiplying \code{pcor_mat} with an adjacency matrix.
+#'
+#'  \item \code{pcor_mat_zero} Selected partial correlation matrix (weighted
+#'  adjacency). For \code{method = "BF_cut"} this is the posterior mean of the
+#'  selected edges and zero elsewhere; for \code{method = "BMA"} it is the
+#'  model-averaged matrix, i.e. for each edge the posterior median of the
+#'  three-state mixture over the null, positive, and negative hypotheses.
 #'
 #' }
 #'
@@ -130,8 +186,13 @@
 #' # fit model
 #' fit <- explore(Y, progress = FALSE)
 #'
-#' # edge set
+#' # edge set (Bayes factor threshold)
 #' E <- select(fit,
+#'             alternative = "exhaustive")
+#'
+#' # edge set (Bayesian model averaging), with prior P(H0) = 0.5
+#' E <- select(fit,
+#'             method = "BMA",
 #'             alternative = "exhaustive")
 #'
 #' }
@@ -145,28 +206,42 @@ select.explore <- function(object,
 
   method     <- match.arg(method)
   x          <- object
-  hyp_prob   <- BF_cut / (BF_cut + 1)
   post_samp  <- x$post_samp
-  prior_samp <- x$prior_samp
-  samp_idx   <- 51:x$iter
+  # post-burn-in draws in the post_samp arrays
+  samp_idx   <- post_draw_idx(x)
+
+  # Posterior mean/sd of the Fisher-z partial correlations and the prior
+  # density at zero (Savage-Dickey). Shared by all branches below.
+  # from the draws when stored; otherwise from the running summaries
+  # (explore(..., store_post_draws = FALSE))
+  if (!is.null(post_samp$fisher_z)) {
+    post_sd    <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
+    post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
+  } else {
+    post_sd    <- post_samp$z_sd
+    post_mean  <- post_samp$z_mean
+  }
+  post_dens  <- dnorm(0, post_mean, post_sd)
+  prior_dens <- dnorm(0, 0, .prior_sd_z(x))
 
   if (method == "BF_cut") {
 
-    if (alternative == "two.sided") {
+    # Selection threshold on the posterior probability of a hypothesis.
+    # With the default prior.prob.H0 = 0.5 this is equivalent to a Bayes
+    # factor of BF_cut against the competing hypothesis.
+    hyp_prob <- BF_cut / (BF_cut + 1)
 
-      post_sd    <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
-      post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
-      post_dens  <- dnorm(0, post_mean, post_sd)
-      prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(diag(nrow(prior_sd)))]))
+    if (alternative == "two.sided") {
 
       BF_10_mat <- prior_dens / post_dens
       BF_01_mat <- 1 / BF_10_mat
       diag(BF_01_mat) <- 0
       diag(BF_10_mat) <- 0
 
-      Adj_10 <- ifelse(BF_10_mat > BF_cut, 1, 0)
-      Adj_01 <- ifelse(BF_10_mat < 1 / BF_cut, 1, 0)
+      incl_prob_mat <- .incl_prob(BF_10_mat, prior.prob.H0)
+
+      Adj_10 <- ifelse(incl_prob_mat     > hyp_prob, 1, 0)
+      Adj_01 <- ifelse(1 - incl_prob_mat > hyp_prob, 1, 0)
       diag(Adj_01) <- 0
       diag(Adj_10) <- 0
 
@@ -179,6 +254,8 @@ select.explore <- function(object,
         BF_10          = BF_10_mat,
         BF_01          = BF_01_mat,
         BF_cut         = BF_cut,
+        incl_prob      = incl_prob_mat,
+        prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
         call           = match.call(),
@@ -190,20 +267,16 @@ select.explore <- function(object,
 
     } else if (alternative == "greater") {
 
-      post_sd    <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
-      post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
-      post_dens  <- dnorm(0, post_mean, post_sd)
-      prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(diag(3))]))
-
       BF_10_mat <- prior_dens / post_dens
       BF_20_mat <- BF_10_mat * ((1 - pnorm(0, post_mean, post_sd)) * 2)
       BF_02_mat <- 1 / BF_20_mat
       diag(BF_02_mat) <- 0
       diag(BF_20_mat) <- 0
 
-      Adj_20 <- ifelse(BF_20_mat > BF_cut, 1, 0)
-      Adj_02 <- ifelse(BF_02_mat > BF_cut, 1, 0)
+      incl_prob_mat <- .incl_prob(BF_20_mat, prior.prob.H0)
+
+      Adj_20 <- ifelse(incl_prob_mat     > hyp_prob, 1, 0)
+      Adj_02 <- ifelse(1 - incl_prob_mat > hyp_prob, 1, 0)
       diag(Adj_02) <- 0
       diag(Adj_20) <- 0
 
@@ -216,6 +289,8 @@ select.explore <- function(object,
         BF_20          = BF_20_mat,
         BF_02          = BF_02_mat,
         BF_cut         = BF_cut,
+        incl_prob      = incl_prob_mat,
+        prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
         call           = match.call(),
@@ -227,20 +302,16 @@ select.explore <- function(object,
 
     } else if (alternative == "less") {
 
-      post_sd    <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
-      post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
-      post_dens  <- dnorm(0, post_mean, post_sd)
-      prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-      prior_dens <- dnorm(0, 0, mean(prior_sd))
-
       BF_10_mat <- prior_dens / post_dens
       BF_20_mat <- BF_10_mat * (pnorm(0, post_mean, post_sd) * 2)
       BF_02_mat <- 1 / BF_20_mat
       diag(BF_02_mat) <- 0
       diag(BF_20_mat) <- 0
 
-      Adj_20 <- ifelse(BF_20_mat > BF_cut, 1, 0)
-      Adj_02 <- ifelse(BF_02_mat > BF_cut, 1, 0)
+      incl_prob_mat <- .incl_prob(BF_20_mat, prior.prob.H0)
+
+      Adj_20 <- ifelse(incl_prob_mat     > hyp_prob, 1, 0)
+      Adj_02 <- ifelse(1 - incl_prob_mat > hyp_prob, 1, 0)
       diag(Adj_02) <- 0
       diag(Adj_20) <- 0
 
@@ -253,6 +324,8 @@ select.explore <- function(object,
         BF_20          = BF_20_mat,
         BF_02          = BF_02_mat,
         BF_cut         = BF_cut,
+        incl_prob      = incl_prob_mat,
+        prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
         call           = match.call(),
@@ -274,20 +347,31 @@ select.explore <- function(object,
         mat_names <- sapply(cn, function(z) paste(cn, z, sep = "--"))[upper.tri(I_p)]
       }
 
-      post_sd    <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
-      post_mean  <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
-      post_dens  <- dnorm(0, post_mean, post_sd)
-      prior_sd   <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-      prior_dens <- dnorm(0, 0, mean(prior_sd))
+      # Posterior hypothesis probabilities via Eq. 9 of Williams & Mulder
+      # (2019). All three Bayes factors are referenced to the unrestricted
+      # model H_u: BF_0u is the Savage-Dickey null-vs-unrestricted ratio
+      # (Eq. 6), while BF_1u / BF_2u are the one-sided-vs-unrestricted ratios
+      # (Eq. 8) -- these must NOT be multiplied by the two-sided BF_10, which
+      # would put them on the vs-H0 baseline and double-count the two-sided
+      # evidence. The null hypothesis has prior probability prior.prob.H0 and
+      # the two directional hypotheses split the remainder equally. Because
+      # BF_1u + BF_2u = 2 for every edge, P(H0 | Y) is then the same as for
+      # alternative = "two.sided": splitting the alternative by sign does not
+      # change the evidence for the null.
+      BF_0u <- post_dens / prior_dens
+      BF_1u <- (1 - pnorm(0, post_mean, post_sd)) * 2
+      BF_2u <- pnorm(0, post_mean, post_sd) * 2
 
-      BF_10_mat  <- prior_dens / post_dens
-      BF_less    <- BF_10_mat * (pnorm(0, post_mean, post_sd) * 2)
-      BF_greater <- BF_10_mat * ((1 - pnorm(0, post_mean, post_sd)) * 2)
-      BF_null    <- 1 / BF_10_mat
+      prior_H0 <- prior.prob.H0
+      prior_H1 <- prior_H2 <- (1 - prior.prob.H0) / 2
 
-      prob_null    <- BF_null    / (BF_null + BF_greater + BF_less)
-      prob_greater <- BF_greater / (BF_null + BF_greater + BF_less)
-      prob_less    <- BF_less    / (BF_null + BF_greater + BF_less)
+      denom        <- prior_H0 * BF_0u + prior_H1 * BF_1u + prior_H2 * BF_2u
+      prob_null    <- prior_H0 * BF_0u / denom
+      prob_greater <- prior_H1 * BF_1u / denom
+      prob_less    <- prior_H2 * BF_2u / denom
+
+      # diagonal: post_sd = 0 gives Inf/NaN; not an edge
+      diag(prob_null) <- diag(prob_greater) <- diag(prob_less) <- 0
 
       prob_dat <- data.frame(
         edge         = mat_names,
@@ -297,12 +381,23 @@ select.explore <- function(object,
       )
       row.names(prob_dat) <- c()
 
-      null_mat <- ifelse(prob_null    > hyp_prob, 1, 0)
-      pos_mat  <- ifelse(prob_greater > hyp_prob, 1, 0)
-      neg_mat  <- ifelse(prob_less    > hyp_prob, 1, 0)
+      # Selection is based on the posterior edge inclusion probability
+      # 1 - P(H0 | Y) = P(H+ | Y) + P(H- | Y), exactly as for
+      # alternative = "two.sided": an edge is selected when it exceeds
+      # hyp_prob, and is labelled positive or negative according to the
+      # direction holding the larger share of the posterior probability. An
+      # edge is called null when P(H0 | Y) exceeds hyp_prob. Edges that pass
+      # neither cutoff are assigned to none of the three matrices.
+      incl_prob_mat <- .incl_prob_exhaustive(prob_null)
+      selected      <- incl_prob_mat > hyp_prob
+
+      pos_mat  <- 1 * (selected & prob_greater >= prob_less)
+      neg_mat  <- 1 * (selected & prob_less > prob_greater)
+      null_mat <- 1 * (prob_null > hyp_prob)
 
       returned_object <- list(
         post_prob      = prob_dat,
+        pcor_mat_zero  = tanh(post_mean) * (pos_mat + neg_mat),
         neg_mat        = neg_mat,
         pos_mat        = pos_mat,
         null_mat       = null_mat,
@@ -310,7 +405,9 @@ select.explore <- function(object,
         pcor_mat       = round(tanh(post_mean), 3),
         pcor_sd_fisher = round(post_sd, 3),
         call           = match.call(),
+        # posterior-probability threshold used for selection
         prob           = hyp_prob,
+        incl_prob      = incl_prob_mat,
         method         = method,
         type           = x$type,
         formula        = x$formula,
@@ -324,39 +421,40 @@ select.explore <- function(object,
 
   } else {
     # BMA
-    if (alternative == "exhaustive") {
-      stop("method = 'BMA' is not supported for alternative = 'exhaustive'")
-    }
 
-    P        <- object$p
-    indices  <- which(lower.tri(diag(P), diag = FALSE), arr.ind = TRUE)
-    num_pcor <- P * (P - 1) / 2
+    P <- object$p
 
-    post_sd   <- apply(post_samp$fisher_z[,, samp_idx], 1:2, sd)
-    post_mean <- apply(post_samp$fisher_z[,, samp_idx], 1:2, mean)
-    post_dens <- dnorm(0, post_mean, post_sd)
-    prior_sd  <- apply(prior_samp$fisher_z[,, samp_idx], 1:2, sd)
-
-    .bma_matrix <- function(excl_vec, incl_vec, draw_fn) {
-      bma_draws <- do.call(cbind, lapply(seq_len(num_pcor), function(e) {
-        d        <- sample(c(0, 1), size = x$iter,
-                           prob = c(excl_vec[e], incl_vec[e]), replace = TRUE)
-        incl_pos <- which(d == 1)
-        if (length(incl_pos) > 0) d[incl_pos] <- draw_fn(e, incl_pos)
-        d
-      }))
-      medians <- apply(bma_draws, 2, median)
-      m <- matrix(0, P, P)
-      for (i in seq_len(nrow(indices))) {
-        m[indices[i, 1], indices[i, 2]] <- medians[i]
-        m[indices[i, 2], indices[i, 1]] <- medians[i]
-      }
-      m
+    # Model-averaged partial correlations: the median of the spike-and-slab
+    # mixture with a spike at 0 (mass p0), a positive slab (mass pplus) and a
+    # negative slab (mass pminus). The slabs are the posterior of the Fisher-z
+    # partial correlation, approximated by N(post_mean, post_sd^2), truncated
+    # to z > 0 and z < 0. The median is computed exactly under this
+    # approximation (no simulation) and transformed back with tanh:
+    #   pminus > 0.5         -> median in the negative slab
+    #   pminus + p0 >= 0.5   -> median is 0
+    #   otherwise            -> median in the positive slab
+    # For the two-sided test the (untruncated) slab with mass 1 - p0 equals a
+    # positive and a negative truncated slab with masses (1 - p0) * P(z > 0)
+    # and (1 - p0) * P(z < 0). Quantiles are computed on the log scale for
+    # numerical stability.
+    .bma_median <- function(p0, pplus, pminus) {
+      log_lo <- pnorm(0, post_mean, post_sd, log.p = TRUE)
+      log_up <- pnorm(0, post_mean, post_sd, lower.tail = FALSE, log.p = TRUE)
+      off <- row(post_mean) != col(post_mean)
+      neg <- off & ((pminus > 0.5) %in% TRUE)
+      pos <- off & !neg & ((pminus + p0 < 0.5) %in% TRUE)
+      z   <- matrix(0, P, P)
+      z[neg] <- qnorm(log_lo[neg] + log(0.5 / pminus[neg]),
+                      post_mean[neg], post_sd[neg], log.p = TRUE)
+      q <- (0.5 - pminus[pos] - p0[pos]) / pplus[pos]
+      z[pos] <- qnorm(log_up[pos] + log1p(-q),
+                      post_mean[pos], post_sd[pos],
+                      lower.tail = FALSE, log.p = TRUE)
+      tanh(z)
     }
 
     if (alternative == "two.sided") {
 
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(diag(nrow(prior_sd)))]))
       BF_10_mat  <- prior_dens / post_dens
       BF_01_mat  <- 1 / BF_10_mat
       diag(BF_01_mat) <- 0
@@ -364,15 +462,10 @@ select.explore <- function(object,
 
       edge_excl  <- (BF_01_mat * prior.prob.H0) /
                     (BF_01_mat * prior.prob.H0 + (1 - prior.prob.H0))
-      excl_vec   <- edge_excl[lower.tri(diag(P))]
-      incl_vec   <- 1 - excl_vec
-
-      bma_matrix <- .bma_matrix(excl_vec, incl_vec, function(e, incl_pos) {
-        object$post_samp$pcors[
-          indices[e, 1], indices[e, 2],
-          sample(samp_idx, size = length(incl_pos), replace = TRUE)
-        ]
-      })
+      p_lo       <- pnorm(0, post_mean, post_sd)
+      bma_matrix <- .bma_median(p0     = edge_excl,
+                                pplus  = (1 - edge_excl) * (1 - p_lo),
+                                pminus = (1 - edge_excl) * p_lo)
 
       Adj_10 <- ifelse(bma_matrix != 0, 1, 0)
       Adj_01 <- ifelse(bma_matrix == 0, 1, 0)
@@ -388,6 +481,7 @@ select.explore <- function(object,
         BF_10          = BF_10_mat,
         BF_01          = BF_01_mat,
         BF_cut         = NA,
+        incl_prob      = .incl_prob(BF_10_mat, prior.prob.H0),
         prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
@@ -400,7 +494,6 @@ select.explore <- function(object,
 
     } else if (alternative == "greater") {
 
-      prior_dens <- dnorm(0, 0, mean(prior_sd[upper.tri(diag(3))]))
       BF_10_mat  <- prior_dens / post_dens
       BF_20_mat  <- BF_10_mat * ((1 - pnorm(0, post_mean, post_sd)) * 2)
       BF_02_mat  <- 1 / BF_20_mat
@@ -409,23 +502,8 @@ select.explore <- function(object,
 
       edge_excl <- (BF_02_mat * prior.prob.H0) /
                    (BF_02_mat * prior.prob.H0 + (1 - prior.prob.H0))
-      excl_vec  <- edge_excl[lower.tri(diag(P))]
-      incl_vec  <- 1 - excl_vec
-
-      bma_matrix <- .bma_matrix(excl_vec, incl_vec, function(e, incl_pos) {
-        pos_idx <- which(object$post_samp$pcors[indices[e, 1], indices[e, 2], samp_idx] > 0)
-        if (length(pos_idx) > 0) {
-          object$post_samp$pcors[
-            indices[e, 1], indices[e, 2],
-            sample(samp_idx[pos_idx], size = length(incl_pos), replace = TRUE)
-          ]
-        } else {
-          tanh(truncnorm::rtruncnorm(length(incl_pos),
-                          mean = post_mean[indices[e, 1], indices[e, 2]],
-                          sd   = post_sd[indices[e, 1], indices[e, 2]],
-                          a    = 0))
-        }
-      })
+      bma_matrix <- .bma_median(p0 = edge_excl, pplus = 1 - edge_excl,
+                                pminus = 0 * edge_excl)
 
       Adj_20 <- ifelse(bma_matrix != 0, 1, 0)
       Adj_02 <- ifelse(bma_matrix == 0, 1, 0)
@@ -441,6 +519,7 @@ select.explore <- function(object,
         BF_20          = BF_20_mat,
         BF_02          = BF_02_mat,
         BF_cut         = NA,
+        incl_prob      = .incl_prob(BF_20_mat, prior.prob.H0),
         prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
@@ -453,7 +532,6 @@ select.explore <- function(object,
 
     } else if (alternative == "less") {
 
-      prior_dens <- dnorm(0, 0, mean(prior_sd))
       BF_10_mat  <- prior_dens / post_dens
       BF_20_mat  <- BF_10_mat * (pnorm(0, post_mean, post_sd) * 2)
       BF_02_mat  <- 1 / BF_20_mat
@@ -462,23 +540,8 @@ select.explore <- function(object,
 
       edge_excl <- (BF_02_mat * prior.prob.H0) /
                    (BF_02_mat * prior.prob.H0 + (1 - prior.prob.H0))
-      excl_vec  <- edge_excl[lower.tri(diag(P))]
-      incl_vec  <- 1 - excl_vec
-
-      bma_matrix <- .bma_matrix(excl_vec, incl_vec, function(e, incl_pos) {
-        neg_idx <- which(object$post_samp$pcors[indices[e, 1], indices[e, 2], samp_idx] < 0)
-        if (length(neg_idx) > 0) {
-          object$post_samp$pcors[
-            indices[e, 1], indices[e, 2],
-            sample(samp_idx[neg_idx], size = length(incl_pos), replace = TRUE)
-          ]
-        } else {
-          tanh(truncnorm::rtruncnorm(length(incl_pos),
-                          mean = post_mean[indices[e, 1], indices[e, 2]],
-                          sd   = post_sd[indices[e, 1], indices[e, 2]],
-                          b    = 0))
-        }
-      })
+      bma_matrix <- .bma_median(p0 = edge_excl, pplus = 0 * edge_excl,
+                                pminus = 1 - edge_excl)
 
       Adj_20 <- ifelse(bma_matrix != 0, 1, 0)
       Adj_02 <- ifelse(bma_matrix == 0, 1, 0)
@@ -494,10 +557,91 @@ select.explore <- function(object,
         BF_20          = BF_20_mat,
         BF_02          = BF_02_mat,
         BF_cut         = NA,
+        incl_prob      = .incl_prob(BF_20_mat, prior.prob.H0),
         prior.prob.H0  = prior.prob.H0,
         method         = method,
         alternative    = alternative,
         call           = match.call(),
+        type           = x$type,
+        formula        = x$formula,
+        analytic       = x$analytic,
+        object         = object
+      )
+
+    } else if (alternative == "exhaustive") {
+
+      cn  <- colnames(x$Y)
+      p   <- ncol(x$pcor_mat)
+      I_p <- diag(p)
+
+      if (is.null(cn)) {
+        mat_names <- sapply(1:p, function(z) paste(1:p, z, sep = "--"))[upper.tri(I_p)]
+      } else {
+        mat_names <- sapply(cn, function(z) paste(cn, z, sep = "--"))[upper.tri(I_p)]
+      }
+
+      # Posterior hypothesis probabilities via Eq. 9 of Williams & Mulder
+      # (2019), with the three Bayes factors referenced to the unrestricted
+      # model H_u (see the method = "BF_cut" branch above for the baseline
+      # rationale). Unlike "BF_cut" (equal 1/3 priors), the null hypothesis
+      # is given prior probability prior.prob.H0 and the two directional
+      # hypotheses split the remainder equally.
+      BF_0u <- post_dens / prior_dens
+      BF_1u <- (1 - pnorm(0, post_mean, post_sd)) * 2
+      BF_2u <- pnorm(0, post_mean, post_sd) * 2
+
+      prior_H0 <- prior.prob.H0
+      prior_H1 <- prior_H2 <- (1 - prior.prob.H0) / 2
+
+      denom        <- prior_H0 * BF_0u + prior_H1 * BF_1u + prior_H2 * BF_2u
+      prob_null    <- prior_H0 * BF_0u / denom
+      prob_greater <- prior_H1 * BF_1u / denom
+      prob_less    <- prior_H2 * BF_2u / denom
+
+      prob_dat <- data.frame(
+        edge         = mat_names,
+        prob_zero    = prob_null[upper.tri(prob_null)],
+        prob_greater = prob_greater[upper.tri(prob_greater)],
+        prob_less    = prob_less[upper.tri(prob_less)]
+      )
+      row.names(prob_dat) <- c()
+
+      # Three-state Bayesian model averaging: pcor_mat_zero is the median of
+      # the mixture of the null spike at 0, the positive slab and the negative
+      # slab, mixed by the posterior hypothesis probabilities.
+      bma_matrix <- .bma_median(p0 = prob_null, pplus = prob_greater,
+                                pminus = prob_less)
+
+      # Classify each edge by the SIGN of the model-averaged median, not by the
+      # single most probable hypothesis. null_mat == 1 means that the
+      # model-averaged posterior median is 0. This can occur even when H0 is not
+      # the most probable hypothesis, because neither the positive nor the
+      # negative side contains more than half of the posterior mixture
+      # probability mass (the median is set by probability mass, not by the
+      # magnitudes of the slab values). The three matrices are mutually exclusive
+      # by construction (a real number is > 0, < 0, or == 0), so this also
+      # removes the tie ambiguity of an argmax over equal probabilities.
+      pos_mat        <- 1 * (bma_matrix > 0)
+      neg_mat        <- 1 * (bma_matrix < 0)
+      null_mat       <- 1 * (bma_matrix == 0)
+      diag(null_mat) <- 0
+      diag(pos_mat)  <- 0
+      diag(neg_mat)  <- 0
+
+      returned_object <- list(
+        post_prob      = prob_dat,
+        pcor_mat_zero  = bma_matrix,
+        neg_mat        = neg_mat,
+        pos_mat        = pos_mat,
+        null_mat       = null_mat,
+        alternative    = alternative,
+        pcor_mat       = round(tanh(post_mean), 3),
+        pcor_sd_fisher = round(post_sd, 3),
+        call           = match.call(),
+        prob           = NA,
+        incl_prob      = .incl_prob_exhaustive(prob_null),
+        prior.prob.H0  = prior.prob.H0,
+        method         = method,
         type           = x$type,
         formula        = x$formula,
         analytic       = x$analytic,
@@ -511,6 +655,30 @@ select.explore <- function(object,
 
   class(returned_object) <- c("BGGM", "select.explore", "explore", "select")
   returned_object
+}
+
+# Prior sd of the Fisher-z partial correlations: analytic (prior_sd_z, set by
+# explore()); for objects created by older versions, from the prior draws.
+.prior_sd_z <- function(x) {
+  if (!is.null(x$prior_sd_z)) return(x$prior_sd_z)
+  prior_sd <- apply(x$prior_samp$fisher_z[,, 51:(x$iter + 50)], 1:2, sd)
+  mean(prior_sd[upper.tri(prior_sd)])
+}
+
+# Posterior edge inclusion probabilities from a Bayes factor against H0,
+# P(H1 | Y) = q * BF / (q * BF + 1 - q), with q = 1 - prior.prob.H0.
+# Written so that BF = Inf gives 1. Diagonal set to 0.
+.incl_prob <- function(BF, prior.prob.H0) {
+  pip <- 1 / (1 + prior.prob.H0 / ((1 - prior.prob.H0) * BF))
+  diag(pip) <- 0
+  pip
+}
+
+# Exhaustive test: inclusion probability is P(H+ | Y) + P(H- | Y).
+.incl_prob_exhaustive <- function(prob_null) {
+  pip <- 1 - prob_null
+  diag(pip) <- 0
+  pip
 }
 
 
@@ -660,7 +828,8 @@ summary.select.explore <- function(object,
 
     post_mean <- x$pcor_mat[upper.tri(x$pcor_mat)]
     post_sd <-  x$pcor_sd_fisher[upper.tri(x$pcor_sd_fisher)]
-    prob_H1 <- x$BF_10[upper.tri(x$BF_10)] / (x$BF_10[upper.tri(x$BF_10)] + 1)
+    prob_H1 <- if (!is.null(x$incl_prob)) x$incl_prob[upper.tri(x$incl_prob)] else
+      x$BF_10[upper.tri(x$BF_10)] / (x$BF_10[upper.tri(x$BF_10)] + 1)
     prob_H0 <- 1 - prob_H1
     summ <-  data.frame(
       Relation = mat_names,
@@ -670,11 +839,12 @@ summary.select.explore <- function(object,
       Pr.H1 = round(prob_H1, 3)
     )
 
-  } else if (x$alternative == "greater"){
+  } else if (x$alternative == "greater" | x$alternative == "less"){
 
     post_mean <- x$pcor_mat[upper.tri(x$pcor_mat)]
     post_sd <-  x$pcor_sd_fisher[upper.tri(x$pcor_sd_fisher)]
-    prob_H1 <- x$BF_20[upper.tri(x$BF_20)] / (x$BF_20[upper.tri(x$BF_20)] + 1)
+    prob_H1 <- if (!is.null(x$incl_prob)) x$incl_prob[upper.tri(x$incl_prob)] else
+      x$BF_20[upper.tri(x$BF_20)] / (x$BF_20[upper.tri(x$BF_20)] + 1)
     prob_H0 <- 1 - prob_H1
     summ <-  data.frame(
       Relation = mat_names,
@@ -683,24 +853,6 @@ summary.select.explore <- function(object,
       Pr.H0 = round(prob_H0, 3),
       Pr.H1 = round(prob_H1, 3)
     )
-
-
-
-  } else if (x$alternative == "less" | x$alternative == "greater"){
-
-    post_mean <- x$pcor_mat[upper.tri(x$pcor_mat)]
-    post_sd <-  x$pcor_sd_fisher[upper.tri(x$pcor_sd_fisher)]
-    prob_H1 <- x$BF_20[upper.tri(x$BF_20)] / (x$BF_20[upper.tri(x$BF_20)] + 1)
-    prob_H0 <- 1 - prob_H1
-    summ <-  data.frame(
-      Relation = mat_names[upper.tri(mat_names)],
-      Post.mean = post_mean,
-      Post.sd.fisher = post_sd,
-      Pr.H0 = round(prob_H0, 3),
-      Pr.H1 = round(prob_H1, 3)
-    )
-
-
 
   } else {
 

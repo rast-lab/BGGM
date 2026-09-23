@@ -143,6 +143,59 @@ arma::mat cov_to_cor(const arma::mat& M) {
   return arma::diagmat(inv_sd) * M * arma::diagmat(inv_sd);
 }
 
+// Running posterior summaries of the partial correlations, so that the
+// p x p x iter arrays of draws need not be stored. add() is called with the
+// partial correlation matrix r (zero diagonal) of every post-burn-in draw;
+// write() adds pcor_mat (posterior mean of r), pcor_sd (posterior sd of r),
+// z_mean and z_sd (posterior mean and sd of z = atanh(r)) to the output list.
+class PcorSummary {
+public:
+  explicit PcorSummary(int k)
+    : r_sum(k, k, arma::fill::zeros), r_sq(k, k, arma::fill::zeros),
+      z_sum(k, k, arma::fill::zeros), z_sq(k, k, arma::fill::zeros), m(0.0) {}
+
+  void add(const arma::mat& r) {
+    arma::mat z = arma::atanh(r);
+    r_sum += r;  r_sq += r % r;
+    z_sum += z;  z_sq += z % z;
+    m += 1.0;
+  }
+
+  void write(Rcpp::List& ret) const {
+    ret["pcor_mat"] = arma::mat(r_sum / m);
+    ret["pcor_sd"]  = sd(r_sum, r_sq);
+    ret["z_mean"]   = arma::mat(z_sum / m);
+    ret["z_sd"]     = sd(z_sum, z_sq);
+  }
+
+private:
+  arma::mat r_sum, r_sq, z_sum, z_sq;
+  double m;
+
+  arma::mat sd(const arma::mat& sum, const arma::mat& sq) const {
+    arma::mat v = (sq - sum % sum / m) / (m - 1.0);
+    v.elem(arma::find(v < 0)).zeros();   // rounding error on the diagonal
+    return arma::sqrt(v);
+  }
+};
+
+// Storage layout of posterior draws. Iterations s < burnin are burn-in;
+// afterwards every thin-th draw is kept. draw_slot() returns the index at
+// which draw s is stored (-1: not stored). With store_burnin the burn-in
+// draws are stored first (layout used by estimate(), confirm(), ...);
+// explore() does not store them.
+inline int draw_slot(int s, int burnin, int thin, bool store_burnin) {
+  if (s < burnin) return store_burnin ? s : -1;
+  if ((s - burnin) % thin != 0) return -1;
+  return (store_burnin ? burnin : 0) + (s - burnin) / thin;
+}
+
+inline int n_draw_slots(int iter, int burnin, int thin, bool store_burnin) {
+  int n_keep = (iter - burnin + thin - 1) / thin;
+  if (n_keep < 0) n_keep = 0;
+  return (store_burnin ? burnin : 0) + n_keep;
+}
+
 }  // namespace
 
 // mean of 3d array
@@ -410,7 +463,11 @@ Rcpp::List Theta_continuous(arma::mat Y,
                             arma::mat start,
                             bool progress,
                             bool impute,
-                            arma::mat Y_missing) {
+                            arma::mat Y_missing,
+                            bool store,
+                            int burnin,
+                            int thin,
+                            bool store_burnin) {
 
 
 
@@ -445,13 +502,13 @@ Rcpp::List Theta_continuous(arma::mat Y,
   // k by k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
 
-  int nu = 1/ epsilon;
+  double nu = 1.0 / epsilon;
 
   // // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1 ;
+  double nuMP = delta + k - 1 ;
 
   // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1 ;
+  double deltaMP = nu - k + 1 ;
 
   // Psi update
   arma::cube Psi(k, k, 1, arma::fill::zeros);
@@ -462,11 +519,12 @@ Rcpp::List Theta_continuous(arma::mat Y,
 
   // precison matrix
   arma::cube Theta(k, k, 1, arma::fill::zeros);
-  arma::cube Theta_mcmc(k, k, iter, arma::fill::zeros);
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
+  int n_slot = n_draw_slots(iter, burnin, thin, store_burnin);
+  arma::cube pcors_mcmc(k, k, store ? n_slot : 0, arma::fill::zeros);
+  PcorSummary pcor_summary(k);
 
   arma::cube Sigma(k, k, 1, arma::fill::zeros);
 
@@ -486,6 +544,8 @@ Rcpp::List Theta_continuous(arma::mat Y,
   float iter_missing = 1;
 
   for(int  s = 0; s < iter; ++s){
+
+    int slot = draw_slot(s, burnin, thin, store_burnin);
 
     p.increment();
 
@@ -517,7 +577,9 @@ Rcpp::List Theta_continuous(arma::mat Y,
     pcors = cov_to_cor(Theta.slice(0));
 
     // store posterior samples
-    pcors_mcmc.slice(s) =  -(pcors - I_k);
+    arma::mat r_s = -(pcors - I_k);
+    if (store && slot >= 0) pcors_mcmc.slice(slot) = r_s;
+    if (s >= burnin) pcor_summary.add(r_s);
 
 
     if(impute){
@@ -537,16 +599,14 @@ Rcpp::List Theta_continuous(arma::mat Y,
 
   }
 
-  arma::cube fisher_z = atanh(pcors_mcmc);
-
-  arma::mat  pcor_mat = mean(pcors_mcmc.tail_slices(iter - 50), 2);
-
   arma::mat  ppd_mean = mean(ppd_missing, 0).t();
 
   Rcpp::List ret;
-  ret["pcors"] = pcors_mcmc;
-  ret["pcor_mat"] =  pcor_mat;
-  ret["fisher_z"] = fisher_z;
+  pcor_summary.write(ret);
+  if (store) {
+    ret["pcors"]    = pcors_mcmc;
+    ret["fisher_z"] = arma::cube(arma::atanh(pcors_mcmc));
+  }
   ret["ppd_mean"] = ppd_mean;
   return ret;
 }
@@ -594,12 +654,12 @@ Rcpp::List sample_prior(arma::mat Y,
   // k by k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
 
-  int nu = 1 / epsilon;
+  double nu = 1.0 / epsilon;
   // // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1 ;
+  double nuMP = delta + k - 1 ;
   //
   // // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1 ;
+  double deltaMP = nu - k + 1 ;
 
   // Psi update
   arma::cube Psi(k, k, 1, arma::fill::zeros);
@@ -610,7 +670,6 @@ Rcpp::List sample_prior(arma::mat Y,
 
   // precison matrix
   arma::cube Theta(k, k, 1, arma::fill::zeros);
-  arma::cube Theta_mcmc(k, k, iter, arma::fill::zeros);
 
   // partial correlations
   arma::mat pcors(k,k);
@@ -618,10 +677,8 @@ Rcpp::List sample_prior(arma::mat Y,
 
   // correlations
   arma::mat  cors(k,k);
-  arma::cube cors_mcmc(k, k, iter, arma::fill::zeros);
 
   // covariance matrix
-  arma::cube Sigma_mcmc(k, k, iter, arma::fill::zeros);
   arma::cube Sigma(k, k, 1, arma::fill::zeros);
 
   // starting value
@@ -689,7 +746,11 @@ Rcpp::List mv_continuous(arma::mat Y,
                           float epsilon,
                           int iter,
                           arma::mat start,
-                          bool progress){
+                          bool progress,
+                          bool store,
+                          int burnin,
+                          int thin,
+                          bool store_burnin){
 
 
   // progress
@@ -704,13 +765,13 @@ Rcpp::List mv_continuous(arma::mat Y,
   // number of predictors
   int p = X.n_cols;
 
-  int nu = 1/ epsilon;
+  double nu = 1.0 / epsilon;
 
   // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1;
+  double nuMP = delta + k - 1;
 
   // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1 ;
+  double deltaMP = nu - k + 1 ;
 
   // k * k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
@@ -735,23 +796,22 @@ Rcpp::List mv_continuous(arma::mat Y,
 
   // precison matrix
   arma::cube Theta(k, k, 1, arma::fill::zeros);
-  arma::cube Theta_mcmc(k, k, iter, arma::fill::zeros);
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
+  int n_slot = n_draw_slots(iter, burnin, thin, store_burnin);
+  arma::cube pcors_mcmc(k, k, store ? n_slot : 0, arma::fill::zeros);
+  PcorSummary pcor_summary(k);
 
   // correlations
   arma::mat  cors(k,k);
-  arma::cube cors_mcmc(k, k, iter, arma::fill::zeros);
 
   // covariance matrix
   arma::cube Sigma(k, k, 1, arma::fill::zeros);
-  arma::cube Sigma_mcmc(k, k, iter, arma::fill::zeros);
 
   // coefficients
   arma::mat beta(p, k, arma::fill::zeros);
-  arma::cube beta_mcmc(p, k, iter,  arma::fill::zeros);
+  arma::cube beta_mcmc(p, k, n_slot, arma::fill::zeros);
 
   // starting value
   Sigma.slice(0) = inv(start);
@@ -759,6 +819,8 @@ Rcpp::List mv_continuous(arma::mat Y,
   Theta.slice(0) = start;
 
   for(int s = 0; s < iter; ++s){
+
+    int slot = draw_slot(s, burnin, thin, store_burnin);
 
     pr.increment();
 
@@ -790,19 +852,19 @@ Rcpp::List mv_continuous(arma::mat Y,
     pcors = cov_to_cor(Theta.slice(0));
 
 
-    beta_mcmc.slice(s) = beta;
-    pcors_mcmc.slice(s) =  -(pcors - I_k);
+    if (slot >= 0) beta_mcmc.slice(slot) = beta;
+    arma::mat r_s = -(pcors - I_k);
+    if (store && slot >= 0) pcors_mcmc.slice(slot) = r_s;
+    if (s >= burnin) pcor_summary.add(r_s);
   }
 
-  arma::cube fisher_z = atanh(pcors_mcmc);
-
-  arma::mat  pcor_mat = mean(pcors_mcmc.tail_slices(iter - 50), 2);
-
   Rcpp::List ret;
-  ret["pcors"] = pcors_mcmc;
-  ret["pcor_mat"] =  pcor_mat;
+  pcor_summary.write(ret);
+  if (store) {
+    ret["pcors"]    = pcors_mcmc;
+    ret["fisher_z"] = arma::cube(arma::atanh(pcors_mcmc));
+  }
   ret["beta"] = beta_mcmc;
-  ret["fisher_z"] = fisher_z;
   return ret;
 }
 
@@ -816,7 +878,11 @@ Rcpp::List mv_binary(arma::mat Y,
 		     float beta_prior,
 		     arma::rowvec cutpoints,
 		     arma::mat start,
-		     bool progress){
+		     bool progress,
+		     bool store,
+		     int burnin,
+		     int thin,
+		     bool store_burnin){
 
   // Y: data matrix (n * k)
   // X: predictors (n * p) (blank for "network")
@@ -840,12 +906,12 @@ Rcpp::List mv_binary(arma::mat Y,
 
   // int epsilon1 = epsilon;
 
-  int nu = 1 / epsilon;
+  double nu = 1.0 / epsilon;
   // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1 ;
+  double nuMP = delta + k - 1 ;
 
   // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1 ;
+  double deltaMP = nu - k + 1 ;
 
   // k * k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
@@ -870,11 +936,12 @@ Rcpp::List mv_binary(arma::mat Y,
 
   // precison matrix
   arma::cube Theta(k, k, 1, arma::fill::zeros);
-  arma::cube Theta_mcmc(k, k, iter, arma::fill::zeros);
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
+  int n_slot = n_draw_slots(iter, burnin, thin, store_burnin);
+  arma::cube pcors_mcmc(k, k, store ? n_slot : 0, arma::fill::zeros);
+  PcorSummary pcor_summary(k);
 
   // correlations
   arma::mat  cors(k,k);
@@ -903,7 +970,7 @@ Rcpp::List mv_binary(arma::mat Y,
 
   // expanded coefs
   arma::mat beta(p, k, arma::fill::zeros);
-  arma::cube beta_mcmc(p, k, iter,  arma::fill::zeros);
+  arma::cube beta_mcmc(p, k, n_slot, arma::fill::zeros);
 
   // draw coefs conditional on w
   arma::mat gamma(p, k, arma::fill::zeros);
@@ -924,6 +991,8 @@ Rcpp::List mv_binary(arma::mat Y,
 
   // start sampling
   for(int s = 0; s < iter; ++s){
+
+    int slot = draw_slot(s, burnin, thin, store_burnin);
 
     pr.increment();
 
@@ -976,7 +1045,7 @@ Rcpp::List mv_binary(arma::mat Y,
     }
 
     w = z0.slice(0) * D;
-    
+
     M  = Sinv_X * X.t() * w;
 
     gamma = reshape(mvnrnd(reshape(M, k * p , 1),
@@ -1011,19 +1080,20 @@ Rcpp::List mv_binary(arma::mat Y,
 
     R.slice(0) = cors;
 
-    beta_mcmc.slice(s) =reshape(beta, p,k);
-    pcors_mcmc.slice(s) =  -(pcors - I_k);
+    if (slot >= 0) beta_mcmc.slice(slot) =reshape(beta, p,k);
+    arma::mat r_s = -(pcors - I_k);
+    if (store && slot >= 0) pcors_mcmc.slice(slot) = r_s;
+    if (s >= burnin) pcor_summary.add(r_s);
 
   }
 
-  arma::cube fisher_z = atanh(pcors_mcmc);
-  arma::mat  pcor_mat = mean(pcors_mcmc.tail_slices(iter - 50), 2);
-
   Rcpp::List ret;
-  ret["pcors"] = pcors_mcmc;
-  ret["pcor_mat"] = pcor_mat;
+  pcor_summary.write(ret);
+  if (store) {
+    ret["pcors"]    = pcors_mcmc;
+    ret["fisher_z"] = arma::cube(arma::atanh(pcors_mcmc));
+  }
   ret["beta"] = beta_mcmc;
-  ret["fisher_z"] = fisher_z;
   return  ret;
 }
 
@@ -1037,7 +1107,11 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
                           float epsilon,
                           int K,
                           arma::mat start,
-                          bool progress
+                          bool progress,
+                          bool store,
+                          int burnin,
+                          int thin,
+                          bool store_burnin
                           ){
 
 
@@ -1056,12 +1130,12 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
   // ordinal levels
   // int K = unique(Y.col(0));
 
-  int nu = 1/ epsilon;
+  double nu = 1.0 / epsilon;
   // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1 ;
+  double nuMP = delta + k - 1 ;
 
   // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1 ;
+  double deltaMP = nu - k + 1 ;
 
   // k by k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
@@ -1086,11 +1160,12 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
 
   // precison matrix
   arma::cube Theta(k, k, 1, arma::fill::zeros);
-  arma::cube Theta_mcmc(k, k, iter, arma::fill::zeros);
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
+  int n_slot = n_draw_slots(iter, burnin, thin, store_burnin);
+  arma::cube pcors_mcmc(k, k, store ? n_slot : 0, arma::fill::zeros);
+  PcorSummary pcor_summary(k);
 
   // correlations
   arma::mat  cors(k,k);
@@ -1103,7 +1178,7 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
 
   // coefficients
   arma::mat beta(p, k, arma::fill::zeros);
-  arma::cube beta_mcmc(p, k, iter,  arma::fill::zeros);
+  arma::cube beta_mcmc(p, k, n_slot, arma::fill::zeros);
 
   // latent update
   arma::cube z0(n, k, 1,  arma::fill::zeros);
@@ -1142,7 +1217,7 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
   // draw coefs conditional on w
   arma::mat gamma(p, k, arma::fill::zeros);
 
-  arma::cube thresh(iter, K+1, k, arma::fill::zeros);
+  arma::cube thresh(n_slot, K+1, k, arma::fill::zeros);
   arma::mat current_thresh(k, K+1, arma::fill::zeros);
 
   for (int j = 0; j < k; ++j) {
@@ -1164,6 +1239,8 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
   arma::mat ss(1,1);
 
   for(int s = 1; s < iter; ++s ){
+
+    int slot = draw_slot(s, burnin, thin, store_burnin);
 
     pr.increment();
 
@@ -1225,7 +1302,7 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
     }
 
     for (int j = 0; j < k; ++j) {
-      thresh.slice(j).row(s) = current_thresh.row(j);
+      if (slot >= 0) thresh.slice(j).row(slot) = current_thresh.row(j);
     }
 
     for(int i = 0; i < k; ++i){
@@ -1279,8 +1356,10 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
     // update correlation matrix
     R.slice(0) = cors;
 
-    beta_mcmc.slice(s) =reshape(beta, p,k);
-    pcors_mcmc.slice(s) =  -(pcors - I_k);
+    if (slot >= 0) beta_mcmc.slice(slot) =reshape(beta, p,k);
+    arma::mat r_s = -(pcors - I_k);
+    if (store && slot >= 0) pcors_mcmc.slice(slot) = r_s;
+    if (s >= burnin) pcor_summary.add(r_s);
     // cors_mcmc.slice(s) =  cors;
     // Sigma_mcmc.slice(s) = Sigma.slice(0);
     // Theta_mcmc.slice(s) = Theta.slice(0);
@@ -1288,16 +1367,14 @@ Rcpp::List mv_ordinal_albert(arma::mat Y,
 
   }
 
-  arma::cube fisher_z = atanh(pcors_mcmc);
-
-  arma::mat  pcor_mat = mean(pcors_mcmc.tail_slices(iter - 50), 2);
-
   Rcpp::List ret;
-  ret["pcors"] = pcors_mcmc;
-  ret["pcor_mat"] = pcor_mat;
+  pcor_summary.write(ret);
+  if (store) {
+    ret["pcors"]    = pcors_mcmc;
+    ret["fisher_z"] = arma::cube(arma::atanh(pcors_mcmc));
+  }
   ret["beta"] = beta_mcmc;
   ret["thresh"]  = thresh;
-  ret["fisher_z"] = fisher_z;
   return  ret;
 
 
@@ -1314,7 +1391,11 @@ Rcpp::List  copula(arma::mat z0_start,
                    float delta,
                    float epsilon,
                    arma::vec idx,
-                   bool progress
+                   bool progress,
+                   bool store,
+                   int burnin,
+                   int thin,
+                   bool store_burnin
                    ) {
 
   // adapted from hoff 2008 for Bayesian hypothesis testing
@@ -1335,12 +1416,12 @@ Rcpp::List  copula(arma::mat z0_start,
   // k by k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
 
-  int nu = 1/ epsilon;
+  double nu = 1.0 / epsilon;
   // // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1;
+  double nuMP = delta + k - 1;
   //
   // // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1;
+  double deltaMP = nu - k + 1;
 
   arma::uvec where ;
 
@@ -1349,7 +1430,6 @@ Rcpp::List  copula(arma::mat z0_start,
 
   z0.slice(0) = z0_start;
   //
-  arma::cube zmcmc(n, k, iter, arma::fill::zeros);
   // Psi update
   arma::cube Psi(k, k, 1, arma::fill::zeros);
 
@@ -1369,11 +1449,12 @@ Rcpp::List  copula(arma::mat z0_start,
 
   // partial correlations
   arma::mat pcors(k,k);
-  arma::cube pcors_mcmc(k, k, iter, arma::fill::zeros);
+  int n_slot = n_draw_slots(iter, burnin, thin, store_burnin);
+  arma::cube pcors_mcmc(k, k, store ? n_slot : 0, arma::fill::zeros);
+  PcorSummary pcor_summary(k);
 
   // correlations
   arma::mat  cors(k,k);
-  arma::cube cors_mcmc(k, k, iter, arma::fill::zeros);
 //
   // covariance matrix
   // Sigma.slice(0) = Sigma_start;
@@ -1386,6 +1467,8 @@ Rcpp::List  copula(arma::mat z0_start,
   arma::mat ss(1,1);
 
   for(int  s = 1; s < iter; ++s){
+
+    int slot = draw_slot(s, burnin, thin, store_burnin);
 
     pr.increment();
 
@@ -1456,16 +1539,17 @@ Rcpp::List  copula(arma::mat z0_start,
     // partial correlations
     pcors = cov_to_cor(Theta.slice(0));
 
-    pcors_mcmc.slice(s) =  -(pcors - I_k);
+    arma::mat r_s = -(pcors - I_k);
+    if (store && slot >= 0) pcors_mcmc.slice(slot) = r_s;
+    if (s >= burnin) pcor_summary.add(r_s);
   }
 
-  arma::cube fisher_z = atanh(pcors_mcmc);
-  arma::mat  pcor_mat = mean(pcors_mcmc.tail_slices(iter - 50), 2);
-
   Rcpp::List ret;
-  ret["pcors"] = pcors_mcmc;
-  ret["pcor_mat"] = pcor_mat;
-  ret["fisher_z"] = fisher_z;
+  pcor_summary.write(ret);
+  if (store) {
+    ret["pcors"]    = pcors_mcmc;
+    ret["fisher_z"] = arma::cube(arma::atanh(pcors_mcmc));
+  }
   return ret;
 }
 
@@ -1928,13 +2012,13 @@ Rcpp::List var(arma::mat Y,
   // number of predictors
   int p = X.n_cols;
 
-  int nu = 1/ epsilon;
+  double nu = 1.0 / epsilon;
 
   // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + k - 1;
+  double nuMP = delta + k - 1;
 
   // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - k + 1 ;
+  double deltaMP = nu - k + 1 ;
 
   // k * k identity mat
   arma::mat  I_k(k, k, arma::fill::eye);
@@ -1959,7 +2043,6 @@ Rcpp::List var(arma::mat Y,
 
   // precison matrix
   arma::cube Theta(k, k, 1, arma::fill::zeros);
-  arma::cube Theta_mcmc(k, k, iter, arma::fill::zeros);
 
   // partial correlations
   arma::mat pcors(k,k);
@@ -1967,11 +2050,9 @@ Rcpp::List var(arma::mat Y,
 
   // correlations
   arma::mat  cors(k,k);
-  arma::cube cors_mcmc(k, k, iter, arma::fill::zeros);
 
   // covariance matrix
   arma::cube Sigma(k, k, 1, arma::fill::zeros);
-  arma::cube Sigma_mcmc(k, k, iter, arma::fill::zeros);
 
   // coefficients
   arma::mat beta(p, k, arma::fill::zeros);
@@ -2458,7 +2539,11 @@ Rcpp::List missing_copula(arma::mat Y,
                              arma::vec K,
                              arma::vec idx,
                              float epsilon,
-                             float delta) {
+                             float delta,
+                             bool store,
+                             int burnin,
+                             int thin,
+                             bool store_burnin) {
   // progress
   Progress  pr(iter_missing, progress_impute);
 
@@ -2467,7 +2552,6 @@ Rcpp::List missing_copula(arma::mat Y,
 
   arma::mat Y_impute = Y;
 
-  arma::cube Y_collect(n, p, iter_missing, arma::fill::zeros);
 
   // p by p identity mat
   arma::mat  I_p(p, p, arma::fill::eye);
@@ -2482,13 +2566,13 @@ Rcpp::List missing_copula(arma::mat Y,
 
   //No more use:  int n_na = index.n_elem;
 
-  int nu = 1/ epsilon;
+  double nu = 1.0 / epsilon;
 
   // // #nu in Mulder & Pericchi (2018) formula (30) line 1.
-  int nuMP = delta + p - 1;
+  double nuMP = delta + p - 1;
 
   // // #delta in Mulder & Pericchi (2018) formula (30) line 1.
-  int deltaMP = nu - p + 1;
+  double deltaMP = nu - p + 1;
 
   arma::mat B(epsilon * I_p);
   arma::mat BMP(inv(B));
@@ -2508,9 +2592,13 @@ Rcpp::List missing_copula(arma::mat Y,
 
   // partial correlations
   arma::mat pcors(p,p);
-  arma::cube pcors_mcmc(p, p, iter_missing, arma::fill::zeros);
+  int n_slot = n_draw_slots(iter_missing, burnin, thin, store_burnin);
+  arma::cube pcors_mcmc(p, p, store ? n_slot : 0, arma::fill::zeros);
+  PcorSummary pcor_summary(p);
 
   for(int  s = 0; s < iter_missing; ++s){
+
+    int slot = draw_slot(s, burnin, thin, store_burnin);
 
     pr.increment();
 
@@ -2603,18 +2691,18 @@ Rcpp::List missing_copula(arma::mat Y,
     pcors = cov_to_cor(Theta.slice(0));
 
     // store posterior samples
-    pcors_mcmc.slice(s) =  -(pcors - I_p);
+    arma::mat r_s = -(pcors - I_p);
+    if (store && slot >= 0) pcors_mcmc.slice(slot) = r_s;
+    if (s >= burnin) pcor_summary.add(r_s);
 
   }
 
-  arma::cube fisher_z = atanh(pcors_mcmc);
-  arma::mat  pcor_mat = mean(pcors_mcmc.tail_slices(iter_missing - 50), 2);
-
   Rcpp::List ret;
-  ret["pcors"] = pcors_mcmc;
-  ret["pcor_mat"] = pcor_mat;
-  ret["fisher_z"] = fisher_z;
-  ret["Y_collect"] = Y_collect;
+  pcor_summary.write(ret);
+  if (store) {
+    ret["pcors"]    = pcors_mcmc;
+    ret["fisher_z"] = arma::cube(arma::atanh(pcors_mcmc));
+  }
   return  ret;
 }
 

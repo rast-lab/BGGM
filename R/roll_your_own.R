@@ -150,7 +150,7 @@ roll_your_own <- function(object,
 
   }
 
-  pcors <- object$post_samp$pcors[, , 51:(iter + 50)]
+  pcors <- object$post_samp$pcors[, , post_draw_idx(object)]
 
   if(isTRUE(progress)){
     pb <- utils::txtProgressBar(min = 0, max = iter, style = 3)

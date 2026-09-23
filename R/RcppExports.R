@@ -37,28 +37,28 @@ missing_gaussian <- function(Y, Y_missing, Sigma, iter_missing, progress_impute,
     .Call(`_BGGM_missing_gaussian`, Y, Y_missing, Sigma, iter_missing, progress_impute, store_all, lambda)
 }
 
-Theta_continuous <- function(Y, iter, delta, epsilon, prior_only, explore, start, progress, impute, Y_missing) {
-    .Call(`_BGGM_Theta_continuous`, Y, iter, delta, epsilon, prior_only, explore, start, progress, impute, Y_missing)
+Theta_continuous <- function(Y, iter, delta, epsilon, prior_only, explore, start, progress, impute, Y_missing, store, burnin, thin, store_burnin) {
+    .Call(`_BGGM_Theta_continuous`, Y, iter, delta, epsilon, prior_only, explore, start, progress, impute, Y_missing, store, burnin, thin, store_burnin)
 }
 
 sample_prior <- function(Y, iter, delta, epsilon, prior_only, explore, progress) {
     .Call(`_BGGM_sample_prior`, Y, iter, delta, epsilon, prior_only, explore, progress)
 }
 
-mv_continuous <- function(Y, X, delta, epsilon, iter, start, progress) {
-    .Call(`_BGGM_mv_continuous`, Y, X, delta, epsilon, iter, start, progress)
+mv_continuous <- function(Y, X, delta, epsilon, iter, start, progress, store, burnin, thin, store_burnin) {
+    .Call(`_BGGM_mv_continuous`, Y, X, delta, epsilon, iter, start, progress, store, burnin, thin, store_burnin)
 }
 
-mv_binary <- function(Y, X, delta, epsilon, iter, beta_prior, cutpoints, start, progress) {
-    .Call(`_BGGM_mv_binary`, Y, X, delta, epsilon, iter, beta_prior, cutpoints, start, progress)
+mv_binary <- function(Y, X, delta, epsilon, iter, beta_prior, cutpoints, start, progress, store, burnin, thin, store_burnin) {
+    .Call(`_BGGM_mv_binary`, Y, X, delta, epsilon, iter, beta_prior, cutpoints, start, progress, store, burnin, thin, store_burnin)
 }
 
-mv_ordinal_albert <- function(Y, X, iter, delta, epsilon, K, start, progress) {
-    .Call(`_BGGM_mv_ordinal_albert`, Y, X, iter, delta, epsilon, K, start, progress)
+mv_ordinal_albert <- function(Y, X, iter, delta, epsilon, K, start, progress, store, burnin, thin, store_burnin) {
+    .Call(`_BGGM_mv_ordinal_albert`, Y, X, iter, delta, epsilon, K, start, progress, store, burnin, thin, store_burnin)
 }
 
-copula <- function(z0_start, levels, K, Sigma_start, iter, delta, epsilon, idx, progress) {
-    .Call(`_BGGM_copula`, z0_start, levels, K, Sigma_start, iter, delta, epsilon, idx, progress)
+copula <- function(z0_start, levels, K, Sigma_start, iter, delta, epsilon, idx, progress, store, burnin, thin, store_burnin) {
+    .Call(`_BGGM_copula`, z0_start, levels, K, Sigma_start, iter, delta, epsilon, idx, progress, store, burnin, thin, store_burnin)
 }
 
 pcor_to_cor_internal <- function(x, p) {
@@ -141,8 +141,8 @@ contrained_helper <- function(cors, adj, iter, progress) {
     .Call(`_BGGM_contrained_helper`, cors, adj, iter, progress)
 }
 
-missing_copula <- function(Y, Y_missing, z0_start, Sigma_start, levels, iter_missing, progress_impute, K, idx, epsilon, delta) {
-    .Call(`_BGGM_missing_copula`, Y, Y_missing, z0_start, Sigma_start, levels, iter_missing, progress_impute, K, idx, epsilon, delta)
+missing_copula <- function(Y, Y_missing, z0_start, Sigma_start, levels, iter_missing, progress_impute, K, idx, epsilon, delta, store, burnin, thin, store_burnin) {
+    .Call(`_BGGM_missing_copula`, Y, Y_missing, z0_start, Sigma_start, levels, iter_missing, progress_impute, K, idx, epsilon, delta, store, burnin, thin, store_burnin)
 }
 
 missing_copula_data <- function(Y, Y_missing, z0_start, Sigma_start, levels, iter_missing, progress_impute, K, idx, lambda) {

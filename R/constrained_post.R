@@ -69,6 +69,8 @@ constrained_posterior <- function(object,
                                   progress = TRUE,
                                   ...){
 
+  check_post_draws(object, "constrained_posterior")
+
   if (!any(class(object) %in% c("estimate", "explore"))) {
     stop("object must be of class 'estimate' or 'explore'")
   }

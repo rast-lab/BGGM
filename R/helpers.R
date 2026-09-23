@@ -342,6 +342,55 @@ compare_predict_helper <- function(x, ci_width){
 ##          With SD = sqrt(1/4) = .5, d = 3, seems more reasonable for hypothesis testing
 ## Solution: limit user input to [0,sqrt(1/2)]
 
+# epsilon for the matrix-F prior (B = eps * I, nu = 1 / eps), chosen so
+# that nu is at least 10 times the number of variables p.
+eps_default <- function(p) {
+  min(0.01, 1 / (10 * p))
+}
+
+# Indices of the post-burn-in draws in the stored posterior arrays
+# (post_samp$pcors, $fisher_z, $beta: third dimension; $thresh: first
+# dimension). explore() objects from BGGM >= 2.1.6.9001 store only the
+# post-burn-in draws (burnin_stored = FALSE); all other objects, including
+# explore() objects from earlier versions, store 50 burn-in draws first.
+post_draw_idx <- function(object) {
+  n_burn <- if (isFALSE(object$burnin_stored)) 0 else 50
+  # number of STORED draws. Since BGGM >= 2.1.6.9002 explore() reports `iter` as
+  # the number of post-burn-in sampler ITERATIONS and `n_draws` as the number of
+  # draws kept (iter / thin); older objects have no n_draws and thin = 1, where
+  # the two coincide.
+  n_keep <- if (!is.null(object$n_draws)) object$n_draws else object$iter
+  n_burn + seq_len(n_keep)
+}
+
+# Stop with a clear message when a function needs the posterior draws of an
+# explore object that was fitted with store_post_draws = FALSE.
+check_post_draws <- function(object, fun) {
+  if (inherits(object, "explore") && !is.null(object$post_samp) &&
+      is.null(object$post_samp$pcors)) {
+    stop(paste0("'", fun, "()' requires posterior draws, but the model was ",
+                "fitted with store_post_draws = FALSE.\n",
+                "Refit with explore(..., store_post_draws = TRUE)."),
+         call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+# Prior standard deviation of z = atanh(rho) under the matrix-F prior.
+# The marginal prior of a partial correlation is rho ~ 2 * Beta(delta/2, delta/2) - 1,
+# independent of p (Williams & Mulder, 2020), so the density of z is
+# f(z) = 2 u^a (1 - u)^a / B(a, a), with u = (tanh(z) + 1) / 2 = plogis(2 z)
+# and a = delta / 2. The mean is 0 by symmetry. Computed on the log scale for
+# numerical stability; e.g. delta = 3 gives 0.684, delta = 1 gives pi / 2.
+prior_sd_z <- function(delta) {
+  a <- delta / 2
+  f <- function(z) {
+    z^2 * exp(log(2) + a * stats::plogis(2 * z, log.p = TRUE) +
+                a * stats::plogis(-2 * z, log.p = TRUE) - lbeta(a, a))
+  }
+  sqrt(2 * stats::integrate(f, 0, Inf, rel.tol = 1e-10)$value)
+}
+
 delta_solve = function(x){
   if(x <= 0 || x > sqrt(1/2) ) stop("Error: \nPrior_sd must be between 0 and sqrt(1/2) approx. 0.7, to ensure that delta is not less than 1.\nFor delta = 1, set prior_sd to sqrt(1/2)\nFor delta = 2, set prior_sd to sqrt(1/3).")
   1/x^2 - 1
